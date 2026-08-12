@@ -19,7 +19,35 @@ export type ViewType =
   | 'storage'
   | 'settings'
   | 'stats'
-  | 'template-gallery';
+  | 'template-gallery'
+  | 'help'
+  | 'support'
+  | 'terms'
+  | 'privacy'
+  | 'refunds';
+
+// Ticket de soporte
+export type SupportTicketCategory = 'cuenta' | 'facturacion' | 'tecnico' | 'tarjeta' | 'otro';
+export type SupportTicketPriority = 'baja' | 'media' | 'alta';
+export type SupportTicketStatus = 'abierto' | 'en_progreso' | 'resuelto' | 'cerrado';
+
+export interface SupportTicketResponse {
+  author: string;
+  message: string;
+  date: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  userId: string;
+  subject: string;
+  category: SupportTicketCategory;
+  priority: SupportTicketPriority;
+  message: string;
+  status: SupportTicketStatus;
+  createdAt: string;
+  responses: SupportTicketResponse[];
+}
 
 export interface User {
   id: string;

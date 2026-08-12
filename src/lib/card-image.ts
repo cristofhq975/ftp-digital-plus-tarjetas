@@ -1,4 +1,4 @@
-import { BusinessCard } from './types';
+import { BusinessCard, PlanType } from './types';
 import { PLANS } from './plans';
 import { buildWhatsappUrl, isQrExpired } from './card-utils';
 

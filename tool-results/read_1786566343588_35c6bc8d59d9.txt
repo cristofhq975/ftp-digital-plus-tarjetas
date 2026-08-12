@@ -1,0 +1,602 @@
+     1→   800→          </DialogDescription>
+     2→   801→        </DialogHeader>
+     3→   802→
+     4→   803→        {!canCreate ? (
+     5→   804→          <div className="rounded-lg bg-amber-50 p-4 text-center ring-1 ring-amber-200">
+     6→   805→            <Crown className="mx-auto h-8 w-8 text-amber-500" />
+     7→   806→            <p className="mt-2 text-sm font-semibold text-amber-800">Límite de plan alcanzado</p>
+     8→   807→            <p className="mt-1 text-xs text-amber-700">
+     9→   808→              Tu plan {plan.name} permite {plan.maxCards} tarjeta{plan.maxCards !== 1 ? 's' : ''}. Mejora para crear más.
+    10→   809→            </p>
+    11→   810→          </div>
+    12→   811→        ) : (
+    13→   812→          <div className="space-y-4">
+    14→   813→            <div className="space-y-2">
+    15→   814→              <Label htmlFor="card-name" className="text-sm font-medium">Nombre de la tarjeta</Label>
+    16→   815→              <Input
+    17→   816→                id="card-name"
+    18→   817→                placeholder="Ej: Juan Pérez, Mi Negocio, Dra. González"
+    19→   818→                value={cardName}
+    20→   819→                onChange={(e) => { setCardName(e.target.value); setError(''); }}
+    21→   820→                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+    22→   821→              />
+    23→   822→              <p className="text-xs text-muted-foreground">Así aparecerá en la tarjeta y en la lista.</p>
+    24→   823→            </div>
+    25→   824→            <div className="space-y-2">
+    26→   825→              <Label htmlFor="link-name" className="text-sm font-medium">Enlace único</Label>
+    27→   826→              <div className="flex items-center rounded-md border bg-slate-50 px-3">
+    28→   827→                <span className="text-sm text-muted-foreground">ftpdigitalplus.com/t/</span>
+    29→   828→                <Input
+    30→   829→                  id="link-name"
+    31→   830→                  placeholder="mi-enlace"
+    32→   831→                  value={linkName}
+    33→   832→                  onChange={(e) => { setLinkName(e.target.value); setError(''); }}
+    34→   833→                  onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+    35→   834→                  className="border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
+    36→   835→                />
+    37→   836→              </div>
+    38→   837→              <p className="text-xs text-muted-foreground">Solo letras minúsculas, números y guiones.</p>
+    39→   838→            </div>
+    40→   839→            {error && (
+    41→   840→              <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-rose-200">
+    42→   841→                <AlertCircle className="h-4 w-4 shrink-0" /> {error}
+    43→   842→              </div>
+    44→   843→            )}
+    45→   844→          </div>
+    46→   845→        )}
+    47→   846→
+    48→   847→        <DialogFooter>
+    49→   848→          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+    50→   849→          {canCreate && (
+    51→   850→            <Button onClick={handleSubmit} className="bg-emerald-600 hover:bg-emerald-700">
+    52→   851→              <Plus className="h-4 w-4" /> Crear Tarjeta
+    53→   852→            </Button>
+    54→   853→          )}
+    55→   854→        </DialogFooter>
+    56→   855→      </DialogContent>
+    57→   856→    </Dialog>
+    58→   857→  );
+    59→   858→}
+    60→   859→
+    61→   860→// ============================ MESSAGES ============================
+    62→   861→function MessagesSection() {
+    63→   862→  const messages = useAppStore(s => s.messages);
+    64→   863→  const markMessageRead = useAppStore(s => s.markMessageRead);
+    65→   864→  const currentUser = useAppStore(s => s.currentUser)!;
+    66→   865→  const cards = useCurrentUserCards();
+    67→   866→
+    68→   867→  // Filter messages relevant to this user's cards (for demo: show all)
+    69→   868→  const userMessages = messages; // demo: show all
+    70→   869→  const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
+    71→   870→
+    72→   871→  const filtered = useMemo(() => {
+    73→   872→    const sorted = [...userMessages].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    74→   873→    if (filter === 'unread') return sorted.filter(m => !m.read);
+    75→   874→    if (filter === 'read') return sorted.filter(m => m.read);
+    76→   875→    return sorted;
+    77→   876→  }, [userMessages, filter]);
+    78→   877→
+    79→   878→  const unreadCount = userMessages.filter(m => !m.read).length;
+    80→   879→
+    81→   880→  const handleMarkRead = (id: string) => {
+    82→   881→    markMessageRead(id);
+    83→   882→    toast.success('Mensaje marcado como leído');
+    84→   883→  };
+    85→   884→
+    86→   885→  const handleReply = (msg: ContactMessage) => {
+    87→   886→    const wa = msg.phone ? `https://wa.me/${msg.phone.replace(/[^0-9]/g, '')}` : '#';
+    88→   887→    if (msg.phone) {
+    89→   888→      window.open(wa, '_blank');
+    90→   889→    } else {
+    91→   890→      window.open(`mailto:${msg.email}`, '_blank');
+    92→   891→    }
+    93→   892→  };
+    94→   893→
+    95→   894→  return (
+    96→   895→    <div className="space-y-6">
+    97→   896→      <SectionHeader
+    98→   897→        title="Consultas"
+    99→   898→        description="Mensajes recibidos desde el formulario de contacto de tus tarjetas."
+   100→   899→        icon={Mail}
+   101→   900→        accent="emerald"
+   102→   901→      />
+   103→   902→
+   104→   903→      <div className="flex flex-wrap items-center justify-between gap-3">
+   105→   904→        <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+   106→   905→          <TabsList>
+   107→   906→            <TabsTrigger value="all">Todos ({userMessages.length})</TabsTrigger>
+   108→   907→            <TabsTrigger value="unread">Sin leer ({unreadCount})</TabsTrigger>
+   109→   908→            <TabsTrigger value="read">Leídos</TabsTrigger>
+   110→   909→          </TabsList>
+   111→   910→        </Tabs>
+   112→   911→      </div>
+   113→   912→
+   114→   913→      {filtered.length === 0 ? (
+   115→   914→        <EmptyState
+   116→   915→          icon={Mailbox}
+   117→   916→          title="No hay mensajes"
+   118→   917→          description="Cuando alguien te contacte desde tus tarjetas, los mensajes aparecerán aquí."
+   119→   918→        />
+   120→   919→      ) : (
+   121→   920→        <div className="space-y-3">
+   122→   921→          <AnimatePresence>
+   123→   922→            {filtered.map((msg, i) => (
+   124→   923→              <motion.div
+   125→   924→                key={msg.id}
+   126→   925→                layout
+   127→   926→                initial={{ opacity: 0, y: 10 }}
+   128→   927→                animate={{ opacity: 1, y: 0 }}
+   129→   928→                exit={{ opacity: 0, x: -20 }}
+   130→   929→                transition={{ delay: i * 0.04 }}
+   131→   930→              >
+   132→   931→                <Card className={cn(
+   133→   932→                  'transition-all hover:shadow-md',
+   134→   933→                  msg.read ? 'border-slate-200/60 bg-white' : 'border-emerald-200 bg-emerald-50/40'
+   135→   934→                )}>
+   136→   935→                  <CardContent className="p-4 md:p-5">
+   137→   936→                    <div className="flex flex-col gap-4 md:flex-row md:items-start">
+   138→   937→                      <Avatar className="h-11 w-11 shrink-0 ring-2 ring-slate-100">
+   139→   938→                        <AvatarFallback className={cn(
+   140→   939→                          'text-sm font-bold text-white',
+   141→   940→                          msg.read ? 'bg-slate-400' : 'bg-gradient-to-br from-emerald-500 to-emerald-700'
+   142→   941→                        )}>
+   143→   942→                          {msg.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+   144→   943→                        </AvatarFallback>
+   145→   944→                      </Avatar>
+   146→   945→                      <div className="min-w-0 flex-1">
+   147→   946→                        <div className="flex flex-wrap items-center gap-2">
+   148→   947→                          <h3 className="font-semibold text-slate-800">{msg.name}</h3>
+   149→   948→                          {!msg.read && (
+   150→   949→                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Nuevo</Badge>
+   151→   950→                          )}
+   152→   951→                          <span className="text-xs text-muted-foreground">•</span>
+   153→   952→                          <span className="text-xs text-muted-foreground">{formatDate(msg.date)}</span>
+   154→   953→                        </div>
+   155→   954→                        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+   156→   955→                          <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {msg.email}</span>
+   157→   956→                          {msg.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {msg.phone}</span>}
+   158→   957→                        </div>
+   159→   958→                        <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+   160→   959→                          “{msg.message}”
+   161→   960→                        </p>
+   162→   961→                        <div className="mt-3 flex flex-wrap items-center gap-2">
+   163→   962→                          {!msg.read && (
+   164→   963→                            <Button size="sm" variant="outline" onClick={() => handleMarkRead(msg.id)} className="border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+   165→   964→                              <Check className="h-3.5 w-3.5" /> Marcar como leído
+   166→   965→                            </Button>
+   167→   966→                          )}
+   168→   967→                          <Button size="sm" variant="outline" onClick={() => handleReply(msg)}>
+   169→   968→                            <MessageCircle className="h-3.5 w-3.5" /> Responder
+   170→   969→                          </Button>
+   171→   970→                          <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard?.writeText(msg.email); toast.success('Correo copiado'); }}>
+   172→   971→                            <Copy className="h-3.5 w-3.5" /> Copiar correo
+   173→   972→                          </Button>
+   174→   973→                        </div>
+   175→   974→                      </div>
+   176→   975→                    </div>
+   177→   976→                  </CardContent>
+   178→   977→                </Card>
+   179→   978→              </motion.div>
+   180→   979→            ))}
+   181→   980→          </AnimatePresence>
+   182→   981→        </div>
+   183→   982→      )}
+   184→   983→    </div>
+   185→   984→  );
+   186→   985→}
+   187→   986→
+   188→   987→// ============================ APPOINTMENTS ============================
+   189→   988→function AppointmentsSection() {
+   190→   989→  const appointments = useAppStore(s => s.appointments);
+   191→   990→
+   192→   991→  const sorted = [...appointments].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+   193→   992→  const pending = sorted.filter(a => a.status === 'pending');
+   194→   993→  const confirmed = sorted.filter(a => a.status === 'confirmed');
+   195→   994→  const cancelled = sorted.filter(a => a.status === 'cancelled');
+   196→   995→
+   197→   996→  const statusConfig = {
+   198→   997→    pending:   { label: 'Pendiente',  bg: 'bg-amber-100',   text: 'text-amber-700',   dot: 'bg-amber-500' },
+   199→   998→    confirmed: { label: 'Confirmada', bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+   200→   999→    cancelled: { label: 'Cancelada',  bg: 'bg-rose-100',    text: 'text-rose-700',    dot: 'bg-rose-500' },
+   201→  1000→  };
+   202→  1001→
+   203→  1002→  return (
+   204→  1003→    <div className="space-y-6">
+   205→  1004→      <SectionHeader
+   206→  1005→        title="Equipo / Citas"
+   207→  1006→        description="Citas agendadas a través de tus tarjetas digitales."
+   208→  1007→        icon={CalendarIcon}
+   209→  1008→        accent="emerald"
+   210→  1009→      />
+   211→  1010→
+   212→  1011→      {/* Summary */}
+   213→  1012→      <div className="grid grid-cols-3 gap-3">
+   214→  1013→        <SummaryTile label="Pendientes" value={pending.length} icon={Clock} color="amber" />
+   215→  1014→        <SummaryTile label="Confirmadas" value={confirmed.length} icon={CheckCircle2} color="emerald" />
+   216→  1015→        <SummaryTile label="Canceladas" value={cancelled.length} icon={X} color="rose" />
+   217→  1016→      </div>
+   218→  1017→
+   219→  1018→      {sorted.length === 0 ? (
+   220→  1019→        <EmptyState
+   221→  1020→          icon={CalendarIcon}
+   222→  1021→          title="No hay citas agendadas"
+   223→  1022→          description="Cuando alguien agende una cita desde tus tarjetas, aparecerá aquí."
+   224→  1023→        />
+   225→  1024→      ) : (
+   226→  1025→        <div className="space-y-3">
+   227→  1026→          <AnimatePresence>
+   228→  1027→            {sorted.map((appt, i) => {
+   229→  1028→              const cfg = statusConfig[appt.status];
+   230→  1029→              return (
+   231→  1030→                <motion.div
+   232→  1031→                  key={appt.id}
+   233→  1032→                  layout
+   234→  1033→                  initial={{ opacity: 0, y: 10 }}
+   235→  1034→                  animate={{ opacity: 1, y: 0 }}
+   236→  1035→                  transition={{ delay: i * 0.05 }}
+   237→  1036→                >
+   238→  1037→                  <Card className="overflow-hidden border-slate-200/60 shadow-sm transition-all hover:shadow-md">
+   239→  1038→                    <div className="flex">
+   240→  1039→                      {/* Date block */}
+   241→  1040→                      <div className="flex w-20 shrink-0 flex-col items-center justify-center bg-gradient-to-br from-emerald-500 to-emerald-700 p-3 text-white">
+   242→  1041→                        <span className="text-[10px] font-medium uppercase tracking-wide text-emerald-100">
+   243→  1042→                          {new Date(appt.date).toLocaleDateString('es-MX', { month: 'short' })}
+   244→  1043→                        </span>
+   245→  1044→                        <span className="text-2xl font-bold leading-none">{new Date(appt.date).getDate()}</span>
+   246→  1045→                        <span className="mt-1 text-xs text-emerald-100">{appt.time}</span>
+   247→  1046→                      </div>
+   248→  1047→                      <CardContent className="flex-1 p-4 md:p-5">
+   249→  1048→                        <div className="flex flex-wrap items-start justify-between gap-3">
+   250→  1049→                          <div>
+   251→  1050→                            <div className="flex items-center gap-2">
+   252→  1051→                              <h3 className="font-semibold text-slate-800">{appt.clientName}</h3>
+   253→  1052→                              <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold', cfg.bg, cfg.text)}>
+   254→  1053→                                <span className={cn('h-1.5 w-1.5 rounded-full', cfg.dot)} />
+   255→  1054→                                {cfg.label}
+   256→  1055→                              </span>
+   257→  1056→                            </div>
+   258→  1057→                            <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+   259→  1058→                              <Mail className="h-3 w-3" /> {appt.clientEmail}
+   260→  1059→                            </p>
+   261→  1060→                            <p className="mt-1 text-xs text-muted-foreground">
+   262→  1061→                              {formatDate(appt.date)} a las {appt.time}
+   263→  1062→                            </p>
+   264→  1063→                          </div>
+   265→  1064→                          <div className="flex gap-2">
+   266→  1065→                            <Button size="sm" variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+   267→  1066→                              <CalendarIcon className="h-3.5 w-3.5" /> Ver detalles
+   268→  1067→                            </Button>
+   269→  1068→                          </div>
+   270→  1069→                        </div>
+   271→  1070→                      </CardContent>
+   272→  1071→                    </div>
+   273→  1072→                  </Card>
+   274→  1073→                </motion.div>
+   275→  1074→              );
+   276→  1075→            })}
+   277→  1076→          </AnimatePresence>
+   278→  1077→        </div>
+   279→  1078→      )}
+   280→  1079→    </div>
+   281→  1080→  );
+   282→  1081→}
+   283→  1082→
+   284→  1083→function SummaryTile({ label, value, icon: Icon, color }: { label: string; value: number; icon: LucideIcon; color: 'emerald' | 'amber' | 'rose' }) {
+   285→  1084→  const colors = {
+   286→  1085→    emerald: 'from-emerald-500 to-emerald-700',
+   287→  1086→    amber: 'from-amber-500 to-orange-600',
+   288→  1087→    rose: 'from-rose-500 to-pink-600',
+   289→  1088→  };
+   290→  1089→  return (
+   291→  1090→    <Card className="border-slate-200/60 shadow-sm">
+   292→  1091→      <CardContent className="flex items-center gap-3 p-4">
+   293→  1092→        <div className={cn('flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow', colors[color])}>
+   294→  1093→          <Icon className="h-4 w-4" />
+   295→  1094→        </div>
+   296→  1095→        <div>
+   297→  1096→          <p className="text-2xl font-bold text-slate-800">{value}</p>
+   298→  1097→          <p className="text-xs text-muted-foreground">{label}</p>
+   299→  1098→        </div>
+   300→  1099→      </CardContent>
+   301→  1100→    </Card>
+   302→  1101→  );
+   303→  1102→}
+   304→  1103→
+   305→  1104→// ============================ ORDERS ============================
+   306→  1105→function OrdersSection() {
+   307→  1106→  return (
+   308→  1107→    <div className="space-y-6">
+   309→  1108→      <SectionHeader
+   310→  1109→        title="Pedidos"
+   311→  1110→        description="Gestiona las solicitudes de productos que recibas en tus tarjetas."
+   312→  1111→        icon={Package}
+   313→  1112→        accent="emerald"
+   314→  1113→      />
+   315→  1114→      <Card className="border-slate-200/60 shadow-sm">
+   316→  1115→        <CardContent className="p-12">
+   317→  1116→          <EmptyState
+   318→  1117→            icon={ShoppingCart}
+   319→  1118→            title="Próximamente: Gestión de pedidos de productos"
+   320→  1119→            description="Estamos trabajando en esta función. Pronto podrás gestionar todos los pedidos de productos de tus tarjetas digitales desde aquí: estados, pagos, envíos y más."
+   321→  1120→            large
+   322→  1121→            action={
+   323→  1122→              <Button variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+   324→  1123→                <Bell className="h-4 w-4" /> Notificarme al lanzar
+   325→  1124→              </Button>
+   326→  1125→            }
+   327→  1126→          />
+   328→  1127→        </CardContent>
+   329→  1128→      </Card>
+   330→  1129→    </div>
+   331→  1130→  );
+   332→  1131→}
+   333→  1132→
+   334→  1133→// ============================ VIRTUAL FUNDS (NFC) ============================
+   335→  1134→function VirtualFundsSection() {
+   336→  1135→  const cards = useCurrentUserCards();
+   337→  1136→  const primaryCard = cards[0];
+   338→  1137→  const primary = primaryCard?.primaryColor || '#059669';
+   339→  1138→  const secondary = primaryCard?.secondaryColor || '#10b981';
+   340→  1139→
+   341→  1140→  const designs = useMemo(() => [
+   342→  1141→    {
+   343→  1142→      id: 'd1', name: 'Esmeralda Clásico', orientation: 'horizontal',
+   344→  1143→      bg: `linear-gradient(135deg, ${primary}, ${secondary})`,
+   345→  1144→      text: 'white',
+   346→  1145→    },
+   347→  1146→    {
+   348→  1147→      id: 'd2', name: 'Oro Lujo', orientation: 'horizontal',
+   349→  1148→      bg: `linear-gradient(135deg, #f59e0b, #fbbf24, #f59e0b)`,
+   350→  1149→      text: 'white',
+   351→  1150→    },
+   352→  1151→    {
+   353→  1152→      id: 'd3', name: 'Esmeralda Vertical', orientation: 'vertical',
+   354→  1153→      bg: `linear-gradient(180deg, ${secondary}, ${primary})`,
+   355→  1154→      text: 'white',
+   356→  1155→    },
+   357→  1156→    {
+   358→  1157→      id: 'd4', name: 'Geométrico Oscuro', orientation: 'horizontal',
+   359→  1158→      bg: `linear-gradient(120deg, #0f172a 0%, ${primary} 60%, #0f172a 100%)`,
+   360→  1159→      text: 'white',
+   361→  1160→    },
+   362→  1161→    {
+   363→  1162→      id: 'd5', name: 'Dorado Vertical', orientation: 'vertical',
+   364→  1163→      bg: `linear-gradient(180deg, #fbbf24, #d97706)`,
+   365→  1164→      text: 'white',
+   366→  1165→    },
+   367→  1166→    {
+   368→  1167→      id: 'd6', name: 'Mármol Esmeralda', orientation: 'horizontal',
+   369→  1168→      bg: `radial-gradient(circle at 30% 30%, ${secondary}40, transparent), radial-gradient(circle at 70% 70%, ${primary}40, transparent), linear-gradient(135deg, #f8fafc, #ecfdf5)`,
+   370→  1169→      text: 'slate-800',
+   371→  1170→    },
+   372→  1171→  ], [primary, secondary]);
+   373→  1172→
+   374→  1173→  const handleDownload = (name: string) => {
+   375→  1174→    toast.success('Descargando diseño...', { description: `${name}.png se está generando` });
+   376→  1175→  };
+   377→  1176→
+   378→  1177→  return (
+   379→  1178→    <div className="space-y-6">
+   380→  1179→      <SectionHeader
+   381→  1180→        title="Fondos Virtuales NFC"
+   382→  1181→        description="Diseños listos para descargar y configurar en tus tarjetas NFC físicas."
+   383→  1182→        icon={CreditCard}
+   384→  1183→        accent="emerald"
+   385→  1184→      />
+   386→  1185→
+   387→  1186→      <Card className="border-emerald-200/60 bg-gradient-to-br from-emerald-50/50 to-amber-50/30 shadow-sm">
+   388→  1187→        <CardContent className="flex flex-wrap items-center gap-3 p-4">
+   389→  1188→          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+   390→  1189→            <Sparkles className="h-5 w-5" />
+   391→  1190→          </div>
+   392→  1191→          <div className="flex-1">
+   393→  1192→            <p className="text-sm font-semibold text-slate-800">Personaliza tus tarjetas NFC</p>
+   394→  1193→            <p className="text-xs text-muted-foreground">
+   395→  1194→              Descarga estos fondos, grábalos en tu tarjeta NFC y compártelos con tus clientes.
+   396→  1195→              {primaryCard && ` Usando colores de "${primaryCard.cardName}".`}
+   397→  1196→            </p>
+   398→  1197→          </div>
+   399→  1198→        </CardContent>
+   400→  1199→      </Card>
+   401→  1200→
+   402→  1201→      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+   403→  1202→        {designs.map((d, i) => (
+   404→  1203→          <motion.div
+   405→  1204→            key={d.id}
+   406→  1205→            initial={{ opacity: 0, scale: 0.95 }}
+   407→  1206→            animate={{ opacity: 1, scale: 1 }}
+   408→  1207→            transition={{ delay: i * 0.06 }}
+   409→  1208→          >
+   410→  1209→            <Card className="group overflow-hidden border-slate-200/60 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg">
+   411→  1210→              {/* Card preview */}
+   412→  1211→              <div
+   413→  1212→                className={cn(
+   414→  1213→                  'relative flex items-center justify-center p-6',
+   415→  1214→                  d.orientation === 'horizontal' ? 'aspect-[1.586/1]' : 'aspect-[1/1.586]'
+   416→  1215→                )}
+   417→  1216→                style={{ background: d.bg }}
+   418→  1217→              >
+   419→  1218→                {/* Chip decoration */}
+   420→  1219→                <div className="absolute left-4 top-4 h-6 w-8 rounded-md bg-amber-300/80 shadow-inner" />
+   421→  1220→                {/* NFC icon */}
+   422→  1221→                <div className={cn(
+   423→  1222→                  'flex flex-col items-center gap-1 opacity-90',
+   424→  1223→                  d.text === 'white' ? 'text-white' : 'text-slate-800'
+   425→  1224→                )}>
+   426→  1225→                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur">
+   427→  1226→                    <span className="text-lg font-bold">NFC</span>
+   428→  1227→                  </div>
+   429→  1228→                </div>
+   430→  1229→                {/* Brand text */}
+   431→  1230→                <div className={cn(
+   432→  1231→                  'absolute bottom-4 right-4 text-right',
+   433→  1232→                  d.text === 'white' ? 'text-white' : 'text-slate-800'
+   434→  1233→                )}>
+   435→  1234→                  <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">FTP Digital</p>
+   436→  1235→                  <p className="text-xs font-bold">Plus</p>
+   437→  1236→                </div>
+   438→  1237→                {/* Hover overlay */}
+   439→  1238→                <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
+   440→  1239→                  <Button size="sm" onClick={() => handleDownload(d.name)} className="bg-white text-slate-800 hover:bg-white/90">
+   441→  1240→                    <Download className="h-3.5 w-3.5" /> Descargar
+   442→  1241→                  </Button>
+   443→  1242→                </div>
+   444→  1243→              </div>
+   445→  1244→              <CardContent className="flex items-center justify-between p-3">
+   446→  1245→                <div>
+   447→  1246→                  <p className="text-sm font-semibold text-slate-800">{d.name}</p>
+   448→  1247→                  <p className="text-xs text-muted-foreground capitalize">{d.orientation}</p>
+   449→  1248→                </div>
+   450→  1249→                <Badge variant="secondary" className="bg-slate-100 text-slate-600">PNG</Badge>
+   451→  1250→              </CardContent>
+   452→  1251→            </Card>
+   453→  1252→          </motion.div>
+   454→  1253→        ))}
+   455→  1254→      </div>
+   456→  1255→    </div>
+   457→  1256→  );
+   458→  1257→}
+   459→  1258→
+   460→  1259→// ============================ AFFILIATIONS ============================
+   461→  1260→function AffiliationsSection() {
+   462→  1261→  const cards = useCurrentUserCards();
+   463→  1262→  const navigate = useAppStore(s => s.navigate);
+   464→  1263→  const currentUser = useAppStore(s => s.currentUser)!;
+   465→  1264→  const plan = PLANS[currentUser.plan];
+   466→  1265→  const hasAffiliation = plan.features.some(f => f.name.toLowerCase().includes('afiliación') && f.included);
+   467→  1266→
+   468→  1267→  const affiliateCode = cards[0]?.affiliateCode || `FTP-${currentUser.name.split(' ')[0].toUpperCase()}-${currentUser.id.slice(-4).toUpperCase()}`;
+   469→  1268→  const clicks = cards.reduce((sum, c) => sum + c.affiliateClicks, 0);
+   470→  1269→  const referralLink = `ftpdigitalplus.com/r/${affiliateCode}`;
+   471→  1270→
+   472→  1271→  const [copied, setCopied] = useState(false);
+   473→  1272→  const handleCopy = () => {
+   474→  1273→    navigator.clipboard?.writeText(`https://${referralLink}`);
+   475→  1274→    setCopied(true);
+   476→  1275→    toast.success('Enlace de referido copiado');
+   477→  1276→    setTimeout(() => setCopied(false), 2000);
+   478→  1277→  };
+   479→  1278→
+   480→  1279→  if (!hasAffiliation) {
+   481→  1280→    return (
+   482→  1281→      <div className="space-y-6">
+   483→  1282→        <SectionHeader title="Afiliaciones" description="Programa de afiliados de FTP Digital Plus." icon={Users} accent="emerald" />
+   484→  1283→        <Card className="border-amber-200/60 bg-gradient-to-br from-amber-50/50 to-orange-50/30 shadow-sm">
+   485→  1284→          <CardContent className="p-8">
+   486→  1285→            <EmptyState
+   487→  1286→              icon={Gift}
+   488→  1287→              title="Función exclusiva de planes Básico y Pro"
+   489→  1288→              description="Únete al programa de afiliados y gana comisiones por cada referido que contrate un plan de pago."
+   490→  1289→              action={
+   491→  1290→                <Button onClick={() => navigate('pricing')} className="bg-emerald-600 hover:bg-emerald-700">
+   492→  1291→                  <Crown className="h-4 w-4" /> Mejorar Plan
+   493→  1292→                </Button>
+   494→  1293→              }
+   495→  1294→            />
+   496→  1295→          </CardContent>
+   497→  1296→        </Card>
+   498→  1297→      </div>
+   499→  1298→    );
+   500→  1299→  }
+   501→  1300→
+   502→  1301→  const benefits = [
+   503→  1302→    { label: 'Comisión por referido', value: '15%', icon: Wallet },
+   504→  1303→    { label: 'Clics totales', value: clicks.toString(), icon: TrendingUp },
+   505→  1304→    { label: 'Tarjetas con afiliación', value: cards.filter(c => c.affiliateCode).length.toString(), icon: CreditCard },
+   506→  1305→  ];
+   507→  1306→
+   508→  1307→  return (
+   509→  1308→    <div className="space-y-6">
+   510→  1309→      <SectionHeader
+   511→  1310→        title="Afiliaciones"
+   512→  1311→        description="Invita a otros a usar FTP Digital Plus y gana comisiones."
+   513→  1312→        icon={Users}
+   514→  1313→        accent="emerald"
+   515→  1314→      />
+   516→  1315→
+   517→  1316→      <div className="grid gap-4 md:grid-cols-3">
+   518→  1317→        {benefits.map((b) => (
+   519→  1318→          <Card key={b.label} className="border-slate-200/60 shadow-sm">
+   520→  1319→            <CardContent className="flex items-center gap-3 p-5">
+   521→  1320→              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-md">
+   522→  1321→                <b.icon className="h-5 w-5" />
+   523→  1322→              </div>
+   524→  1323→              <div>
+   525→  1324→                <p className="text-2xl font-bold text-slate-800">{b.value}</p>
+   526→  1325→                <p className="text-xs text-muted-foreground">{b.label}</p>
+   527→  1326→              </div>
+   528→  1327→            </CardContent>
+   529→  1328→          </Card>
+   530→  1329→        ))}
+   531→  1330→      </div>
+   532→  1331→
+   533→  1332→      <Card className="overflow-hidden border-slate-200/60 shadow-sm">
+   534→  1333→        <CardHeader className="bg-gradient-to-r from-emerald-50 to-amber-50/50 pb-4">
+   535→  1334→          <CardTitle className="flex items-center gap-2 text-lg">
+   536→  1335→            <Gift className="h-5 w-5 text-emerald-600" /> Tu enlace de referido
+   537→  1336→          </CardTitle>
+   538→  1337→          <CardDescription>Comparte este enlace. Cada vez que alguien contrate un plan, ganas comisión.</CardDescription>
+   539→  1338→        </CardHeader>
+   540→  1339→        <CardContent className="space-y-4 p-6">
+   541→  1340→          <div className="flex items-center gap-3">
+   542→  1341→            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-amber-400">
+   543→  1342→              <CreditCard className="h-5 w-5" />
+   544→  1343→            </div>
+   545→  1344→            <div className="min-w-0 flex-1">
+   546→  1345→              <p className="text-xs text-muted-foreground">Tu código de afiliado</p>
+   547→  1346→              <p className="font-mono text-lg font-bold text-slate-800">{affiliateCode}</p>
+   548→  1347→            </div>
+   549→  1348→            <Button variant="outline" size="sm" onClick={() => { navigator.clipboard?.writeText(affiliateCode); toast.success('Código copiado'); }}>
+   550→  1349→              <Copy className="h-3.5 w-3.5" /> Copiar
+   551→  1350→            </Button>
+   552→  1351→          </div>
+   553→  1352→
+   554→  1353→          <Separator />
+   555→  1354→
+   556→  1355→          <div>
+   557→  1356→            <Label className="text-sm font-medium">Enlace de referido</Label>
+   558→  1357→            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+   559→  1358→              <div className="flex flex-1 items-center rounded-md border bg-slate-50 px-3 py-2.5">
+   560→  1359→                <span className="truncate text-sm text-slate-700">{referralLink}</span>
+   561→  1360→              </div>
+   562→  1361→              <Button onClick={handleCopy} className={cn('shrink-0', copied ? 'bg-emerald-700' : 'bg-emerald-600 hover:bg-emerald-700')}>
+   563→  1362→                {copied ? <><Check className="h-4 w-4" /> Copiado</> : <><Copy className="h-4 w-4" /> Copiar enlace</>}
+   564→  1363→              </Button>
+   565→  1364→            </div>
+   566→  1365→          </div>
+   567→  1366→
+   568→  1367→          <div className="grid gap-3 sm:grid-cols-3">
+   569→  1368→            <ShareButton network="WhatsApp" icon={MessageCircle} color="bg-[#25D366]" />
+   570→  1369→            <ShareButton network="Facebook" icon={Share2} color="bg-[#1877F2]" />
+   571→  1370→            <ShareButton network="Email" icon={Mail} color="bg-slate-600" />
+   572→  1371→          </div>
+   573→  1372→        </CardContent>
+   574→  1373→      </Card>
+   575→  1374→
+   576→  1375→      <Card className="border-slate-200/60 bg-gradient-to-br from-amber-50/30 to-white shadow-sm">
+   577→  1376→        <CardContent className="p-5">
+   578→  1377→          <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+   579→  1378→            <TrendingUp className="h-4 w-4 text-emerald-600" /> ¿Cómo funciona?
+   580→  1379→          </h3>
+   581→  1380→          <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+   582→  1381→            <li className="flex gap-2"><span className="font-bold text-emerald-600">1.</span> Comparte tu enlace de referido.</li>
+   583→  1382→            <li className="flex gap-2"><span className="font-bold text-emerald-600">2.</span> Alguien se registra y contrata un plan de pago.</li>
+   584→  1383→            <li className="flex gap-2"><span className="font-bold text-emerald-600">3.</span> Recibes el 15% de comisión automáticamente.</li>
+   585→  1384→          </ol>
+   586→  1385→        </CardContent>
+   587→  1386→      </Card>
+   588→  1387→    </div>
+   589→  1388→  );
+   590→  1389→}
+   591→  1390→
+   592→  1391→function ShareButton({ network, icon: Icon, color }: { network: string; icon: LucideIcon; color: string }) {
+   593→  1392→  return (
+   594→  1393→    <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50">
+   595→  1394→      <span className={cn('flex h-5 w-5 items-center justify-center rounded text-white', color)}>
+   596→  1395→        <Icon className="h-3 w-3" />
+   597→  1396→      </span>
+   598→  1397→      {network}
+   599→  1398→    </Button>
+   600→  1399→  );
+   601→
+   602→[showing lines 800-1399 of 1775; use offset=1400 with limit to continue reading]

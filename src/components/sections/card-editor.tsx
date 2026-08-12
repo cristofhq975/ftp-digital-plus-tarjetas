@@ -1,14 +1,18 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Eye, Plus, Trash2, Edit, Save, Upload, X, Star,
   Check, Lock, AlertTriangle, Sparkles, QrCode as QrIcon, RefreshCw,
   CreditCard, Download, Code,
   ExternalLink, Image as ImageIcon, Crown, Menu, Video,
   Phone, MessageCircle, Send, BadgeCheck, Info, FileText,
+  Search, ChevronDown, ChevronRight, Clock, Maximize2, Minimize2, Grip,
+  Link2, AlertCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { QRCodeCanvas } from 'qrcode.react';
 import { useAppStore, useSelectedCard } from '@/lib/store';
 import { EDITOR_SECTIONS, TEMPLATES, FONTS, COLOR_PRESETS } from '@/lib/plans';
 import {
@@ -18,6 +22,7 @@ import {
 import {
   fileToBase64, generateId, generateVerificationCode,
   getQrDaysRemaining, isQrExpired, formatCurrency, formatDate, formatPhone,
+  buildWhatsappUrl,
 } from '@/lib/card-utils';
 import { DynamicIcon } from '@/components/dynamic-icon';
 import { CardPreview } from '@/components/card-preview';
@@ -28,6 +33,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
+import { Progress } from '@/components/ui/progress';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -37,6 +43,9 @@ import {
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet';
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -234,14 +243,65 @@ function useUpgrade() {
 // ---------------------------------------------------------------------------
 
 function DetallesSection({ card, updateCard }: SectionProps) {
+  // Completitud: calcula qué porcentaje de los campos clave están completos
+  const completitud = useMemo(() => {
+    const fields = [
+      { ok: !!card.cardName?.trim(), weight: 15 },
+      { ok: !!card.linkName?.trim() && card.linkName.length >= 3, weight: 10 },
+      { ok: !!card.description?.trim() && card.description.length >= 20, weight: 20 },
+      { ok: !!card.profilePhoto, weight: 15 },
+      { ok: !!card.coverPhoto, weight: 10 },
+      { ok: !!card.logo, weight: 10 },
+      { ok: !!card.whatsappNumber?.trim(), weight: 15 },
+      { ok: card.services.length > 0, weight: 5 },
+    ];
+    const total = fields.reduce((sum, f) => sum + f.weight, 0);
+    const got = fields.reduce((sum, f) => sum + (f.ok ? f.weight : 0), 0);
+    return Math.round((got / total) * 100);
+  }, [card]);
+
+  const completitudLabel =
+    completitud >= 80 ? '¡Excelente!' :
+    completitud >= 50 ? 'Buen progreso' :
+    completitud >= 25 ? 'Recién empezando' : 'Completa los campos';
+
   return (
     <div className="space-y-6">
       <SectionHeader icon="User" title="Detalles Básicos" description="Información principal de tu tarjeta" />
 
+      {/* Completitud progress bar */}
+      <Card className="border-emerald-200/60 bg-gradient-to-br from-emerald-50/40 to-amber-50/30">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                'flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-sm',
+                completitud >= 80 ? 'bg-gradient-to-br from-emerald-500 to-emerald-700' :
+                completitud >= 50 ? 'bg-gradient-to-br from-amber-500 to-orange-600' :
+                'bg-gradient-to-br from-slate-400 to-slate-600'
+              )}>
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Completitud de la tarjeta</p>
+                <p className="text-xs text-muted-foreground">{completitudLabel}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-slate-800">{completitud}%</p>
+            </div>
+          </div>
+          <Progress value={completitud} className="mt-3 h-2" />
+        </CardContent>
+      </Card>
+
       <Card>
         <CardContent className="space-y-4 p-5">
           <div>
-            <Label htmlFor="linkName">Nombre del enlace (URL)</Label>
+            <Label htmlFor="linkName" className="flex items-center gap-1.5">
+              <Link2 className="h-3.5 w-3.5 text-emerald-600" />
+              Nombre del enlace (URL)
+            </Label>
             <div className="mt-2 flex items-center gap-1">
               <span className="rounded-l-md border border-r-0 bg-muted px-3 py-2 text-sm text-muted-foreground">
                 ftpdigitalplus.com/
@@ -254,7 +314,27 @@ function DetallesSection({ card, updateCard }: SectionProps) {
                 placeholder="mi-nombre"
               />
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">Solo letras minúsculas, números y guiones.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Solo letras minúsculas, números y guiones. Mínimo 3 caracteres.</p>
+
+            {/* Live URL preview */}
+            <div className="mt-3 flex items-center gap-2 rounded-lg bg-emerald-50/60 px-3 py-2.5 ring-1 ring-emerald-200/40">
+              <ExternalLink className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-emerald-700">Vista previa del enlace público</p>
+                <p className="truncate font-mono text-sm font-semibold text-emerald-800">
+                  ftpdigitalplus.com/t/<span className="text-amber-700">{card.linkName || 'mi-enlace'}</span>
+                </p>
+              </div>
+              {card.linkName.length >= 3 ? (
+                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                  <Check className="mr-1 h-3 w-3" /> Disponible
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="bg-amber-100 text-amber-700">
+                  <AlertTriangle className="mr-1 h-3 w-3" /> Muy corto
+                </Badge>
+              )}
+            </div>
           </div>
 
           <div>
@@ -265,7 +345,11 @@ function DetallesSection({ card, updateCard }: SectionProps) {
               value={card.cardName}
               onChange={(e) => updateCard(card.id, { cardName: e.target.value })}
               placeholder="Ej. Juan Pérez / Mi Empresa"
+              maxLength={60}
             />
+            <p className="mt-1 text-right text-xs text-muted-foreground">
+              {card.cardName.length}/60 caracteres
+            </p>
           </div>
 
           <div>
@@ -279,7 +363,15 @@ function DetallesSection({ card, updateCard }: SectionProps) {
               rows={3}
               maxLength={300}
             />
-            <p className="mt-1 text-right text-xs text-muted-foreground">{card.description.length}/300</p>
+            <div className="mt-1 flex items-center justify-between text-xs">
+              <span className={cn(
+                'font-medium',
+                card.description.length < 20 ? 'text-amber-600' : 'text-emerald-600'
+              )}>
+                {card.description.length < 20 ? `Te faltan ${20 - card.description.length} caracteres para un mínimo recomendado` : 'Longitud adecuada'}
+              </span>
+              <span className="text-muted-foreground">{card.description.length}/300</span>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -609,11 +701,56 @@ function QrSection({ card, updateCard, plan }: SectionProps) {
   const isFree = plan === 'gratis';
   const qrExpired = isFree && card.qrExpiresAt ? isQrExpired(card) : false;
   const daysLeft = isFree && card.qrExpiresAt ? getQrDaysRemaining(card) : 0;
+  const qrCanvasRef = useRef<HTMLDivElement | null>(null);
+
+  // Live QR value (whatsapp URL or fallback)
+  const whatsappUrl = card.whatsappNumber
+    ? buildWhatsappUrl(card.whatsappNumber, card.whatsappMessage || 'Hola, vi tu tarjeta digital')
+    : '';
+  const qrValue = qrExpired
+    ? 'https://ftpdigitalplus.com/qr-expirado'
+    : whatsappUrl || `https://ftpdigitalplus.com/t/${card.linkName || 'enlace'}`;
 
   const handleGenerate = () => {
     generateQr(card.id);
     toast.success(isFree ? 'QR generado. Vence en 7 días.' : 'QR permanente generado.');
   };
+
+  const handleDownloadQr = () => {
+    const canvas = qrCanvasRef.current?.querySelector('canvas');
+    if (!canvas) {
+      toast.error('No se pudo generar la imagen del QR');
+      return;
+    }
+    try {
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `qr-${card.linkName || 'tarjeta'}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success('QR descargado como PNG');
+    } catch {
+      toast.error('No se pudo descargar el QR');
+    }
+  };
+
+  const handleTestQr = () => {
+    if (!card.whatsappNumber) {
+      toast.error('Configura primero tu número de WhatsApp');
+      return;
+    }
+    if (qrExpired) {
+      toast.error('Tu QR ha expirado. Regénéralo primero.');
+      return;
+    }
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    toast.success('Abriendo WhatsApp en nueva pestaña…');
+  };
+
+  // QR error-correction level (qrcode.react expects L | M | Q | H)
+  const qrLevel: 'L' | 'M' | 'Q' | 'H' = 'M';
 
   return (
     <div className="space-y-6">
@@ -690,25 +827,73 @@ function QrSection({ card, updateCard, plan }: SectionProps) {
 
         <Card>
           <CardContent className="flex flex-col items-center justify-center gap-4 p-5">
-            <h3 className="self-start text-sm font-semibold uppercase tracking-wide text-muted-foreground">Vista previa</h3>
+            <h3 className="self-start text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Vista previa en vivo
+            </h3>
+            {/* Live QR preview using QRCodeCanvas */}
             <div
-              className="rounded-xl border-2 p-4"
+              ref={qrCanvasRef}
+              className="relative rounded-xl border-2 p-4 transition-colors"
               style={{ borderColor: card.qrColor, background: card.qrBgColor }}
             >
-              <QrIcon className="h-32 w-32" style={{ color: card.qrColor }} />
+              <QRCodeCanvas
+                value={qrValue}
+                size={180}
+                fgColor={card.qrColor}
+                bgColor={card.qrBgColor}
+                level={qrLevel}
+                marginSize={1}
+                imageSettings={card.qrLogo ? {
+                  src: card.qrLogo,
+                  height: 36,
+                  width: 36,
+                  excavate: true,
+                } : undefined}
+              />
+              {/* Live badge */}
+              <span className="absolute -right-2 -top-2 flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-md">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" />
+                EN VIVO
+              </span>
             </div>
             <p className="text-center text-xs text-muted-foreground">
               {isFree
                 ? 'El QR redirige a WhatsApp y expira cada 7 días.'
                 : 'El QR es permanente y redirige a WhatsApp.'}
             </p>
-            <Button onClick={handleGenerate} className="w-full bg-emerald-600 text-white hover:bg-emerald-700">
-              <RefreshCw className="h-4 w-4" />
-              {card.qrGeneratedAt ? 'Regenerar QR' : 'Generar QR'}
-            </Button>
+
+            {/* Action buttons */}
+            <div className="grid w-full grid-cols-1 gap-2">
+              <Button onClick={handleGenerate} className="w-full bg-emerald-600 text-white hover:bg-emerald-700">
+                <RefreshCw className="h-4 w-4" />
+                {card.qrGeneratedAt ? 'Regenerar QR' : 'Generar QR'}
+              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleDownloadQr}
+                  className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                >
+                  <Download className="h-4 w-4" /> Descargar PNG
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleTestQr}
+                  className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                >
+                  <ExternalLink className="h-4 w-4" /> Probar QR
+                </Button>
+              </div>
+            </div>
             {card.qrGeneratedAt && (
               <p className="text-xs text-muted-foreground">
                 Generado: {formatDate(card.qrGeneratedAt)}
+              </p>
+            )}
+            {!card.whatsappNumber && (
+              <p className="flex items-center gap-1.5 text-[11px] text-amber-600">
+                <AlertTriangle className="h-3 w-3" />
+                Configura tu número de WhatsApp para activar el QR.
               </p>
             )}
           </CardContent>
@@ -2456,6 +2641,171 @@ function SectionEditor({ card, updateCard, plan, section }: SectionProps & { sec
 }
 
 // ---------------------------------------------------------------------------
+// Categorías del sidebar del editor
+// ---------------------------------------------------------------------------
+
+const EDITOR_CATEGORIES: { id: string; name: string; sections: string[] }[] = [
+  {
+    id: 'basico',
+    name: 'Básico',
+    sections: ['detalles', 'plantillas', 'dinamica', 'horario', 'whatsapp'],
+  },
+  {
+    id: 'contenido',
+    name: 'Contenido',
+    sections: ['servicios', 'productos', 'instagram', 'galeria', 'blog', 'testimonios', 'marcos', 'equipo', 'sociales', 'bandera'],
+  },
+  {
+    id: 'diseno',
+    name: 'Diseño',
+    sections: ['qr', 'fuentes'],
+  },
+  {
+    id: 'avanzado',
+    name: 'Avanzado',
+    sections: ['avanzado', 'motores', 'privacidad', 'terminos', 'secciones', 'fondos', 'pagos'],
+  },
+];
+
+/** Computa el % de completitud global de la tarjeta (para mostrar en el sidebar). */
+function useCardCompletitud(card: BusinessCard | null): number {
+  return useMemo(() => {
+    if (!card) return 0;
+    const fields = [
+      { ok: !!card.cardName?.trim(), weight: 10 },
+      { ok: !!card.linkName?.trim() && card.linkName.length >= 3, weight: 8 },
+      { ok: !!card.description?.trim() && card.description.length >= 20, weight: 12 },
+      { ok: !!card.profilePhoto, weight: 12 },
+      { ok: !!card.coverPhoto, weight: 8 },
+      { ok: !!card.logo, weight: 6 },
+      { ok: !!card.whatsappNumber?.trim(), weight: 12 },
+      { ok: card.services.length > 0, weight: 8 },
+      { ok: card.products.length > 0, weight: 6 },
+      { ok: card.gallery.length > 0, weight: 6 },
+      { ok: card.testimonials.length > 0, weight: 5 },
+      { ok: Object.values(card.socialLinks).some(v => v), weight: 4 },
+      { ok: !!card.qrGeneratedAt, weight: 3 },
+    ];
+    const total = fields.reduce((s, f) => s + f.weight, 0);
+    const got = fields.reduce((s, f) => s + (f.ok ? f.weight : 0), 0);
+    return Math.round((got / total) * 100);
+  }, [card]);
+}
+
+// ---------------------------------------------------------------------------
+// Floating Vista Previa panel (draggable, resizable, minimizable)
+// ---------------------------------------------------------------------------
+
+function FloatingPreviewPanel({ card, plan }: { card: BusinessCard; plan: string }) {
+  const [minimized, setMinimized] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [visible, setVisible] = useState(true);
+  // "Last saved" timestamp updates automatically when the card changes
+  const savedTime = useMemo(
+    () => new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+    [card]
+  );
+
+  if (!visible) {
+    return (
+      <motion.button
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        onClick={() => setVisible(true)}
+        className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 transition-transform hover:scale-110"
+        aria-label="Mostrar vista previa"
+      >
+        <Eye className="h-5 w-5" />
+      </motion.button>
+    );
+  }
+
+  const widthClass = expanded ? 'w-[420px]' : minimized ? 'w-72' : 'w-80';
+  const heightClass = minimized ? 'h-12' : expanded ? 'h-[600px]' : 'h-[420px]';
+
+  return (
+    <motion.div
+      drag
+      dragMomentum={false}
+      dragElastic={0.12}
+      initial={{ x: 0, y: 0, opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.25 }}
+      className={cn(
+        'fixed bottom-6 right-6 z-40 flex flex-col overflow-hidden rounded-xl border border-emerald-200/60 bg-white shadow-2xl shadow-emerald-900/10 ring-1 ring-emerald-900/5',
+        widthClass,
+        heightClass,
+        minimized && 'overflow-hidden'
+      )}
+      style={{ maxWidth: 'calc(100vw - 3rem)' }}
+    >
+      {/* Drag handle / header */}
+      <div
+        className="flex cursor-grab items-center gap-2 border-b bg-gradient-to-r from-emerald-600 to-emerald-700 px-3 py-2 text-white active:cursor-grabbing"
+      >
+        <Grip className="h-3.5 w-3.5 text-emerald-100" />
+        <Eye className="h-3.5 w-3.5" />
+        <span className="flex-1 truncate text-xs font-semibold">Vista Previa en Vivo</span>
+        {/* Live indicator */}
+        <span className="flex items-center gap-1 rounded-full bg-white/15 px-1.5 py-0.5 text-[10px] font-bold">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" />
+          LIVE
+        </span>
+        {/* Minimize button */}
+        <button
+          type="button"
+          onClick={() => setMinimized(m => !m)}
+          className="rounded p-0.5 transition-colors hover:bg-white/20"
+          aria-label={minimized ? 'Expandir panel' : 'Minimizar panel'}
+        >
+          {minimized ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
+        </button>
+        {/* Expand button */}
+        {!minimized && (
+          <button
+            type="button"
+            onClick={() => setExpanded(e => !e)}
+            className="rounded p-0.5 transition-colors hover:bg-white/20"
+            aria-label={expanded ? 'Contraer panel' : 'Expandir panel'}
+          >
+            {expanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          </button>
+        )}
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={() => setVisible(false)}
+          className="rounded p-0.5 transition-colors hover:bg-white/20"
+          aria-label="Cerrar panel"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      {/* Content */}
+      {!minimized && (
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <ScrollArea className="flex-1">
+            <div className="bg-muted/30 p-3">
+              <CardPreview card={card} userPlan={plan} />
+            </div>
+          </ScrollArea>
+          {/* Save indicator footer */}
+          <div className="flex items-center justify-between gap-2 border-t bg-emerald-50/40 px-3 py-1.5 text-[11px] text-emerald-700">
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+              Guardado automáticamente
+            </span>
+            <span className="flex items-center gap-1 text-muted-foreground">
+              <Clock className="h-3 w-3" /> {savedTime}
+            </span>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Componente principal: CardEditor
 // ---------------------------------------------------------------------------
 
@@ -2469,8 +2819,11 @@ export function CardEditor() {
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [collapsedCats, setCollapsedCats] = useState<Record<string, boolean>>({});
 
   const plan = user?.plan || 'gratis';
+  const completitud = useCardCompletitud(card);
 
   // No hay tarjeta seleccionada
   if (!card) {
@@ -2500,6 +2853,52 @@ export function CardEditor() {
     restricted: plan === 'gratis' && !FREE_PLAN_ALLOWED.includes(s.id),
   }));
 
+  // Filter sections by search query
+  const filteredSections = searchQuery.trim()
+    ? sectionList.filter(s =>
+        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.description.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : sectionList;
+
+  const toggleCat = (catId: string) => {
+    setCollapsedCats(prev => ({ ...prev, [catId]: !prev[catId] }));
+  };
+
+  // Build categorized sections for sidebar (when not searching)
+  const categorizedSections = EDITOR_CATEGORIES.map(cat => ({
+    ...cat,
+    items: cat.sections
+      .map(sid => sectionList.find(s => s.id === sid))
+      .filter((s): s is NonNullable<typeof s> => Boolean(s)),
+  })).filter(cat => cat.items.length > 0);
+
+  // Helper to render a section button
+  const renderSectionButton = (s: typeof sectionList[number]) => {
+    const isActive = selectedSection === s.id;
+    return (
+      <button
+        key={s.id}
+        onClick={() => {
+          setEditorSection(s.id);
+          setSidebarOpen(false);
+        }}
+        className={cn(
+          'group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition',
+          isActive
+            ? 'bg-emerald-600 font-medium text-white shadow-sm'
+            : 'text-foreground/80 hover:bg-muted hover:text-foreground'
+        )}
+      >
+        <DynamicIcon name={s.icon} className={cn('h-4 w-4 shrink-0', isActive ? 'text-white' : 'text-muted-foreground group-hover:text-foreground')} />
+        <span className="flex-1 truncate">{s.name}</span>
+        {s.restricted && (
+          <Lock className={cn('h-3 w-3', isActive ? 'text-white/70' : 'text-amber-500')} />
+        )}
+      </button>
+    );
+  };
+
   // Contenido del sidebar (compartido entre vista fija y Sheet móvil)
   const sidebarContent = (
     <div className="flex h-full flex-col">
@@ -2512,37 +2911,124 @@ export function CardEditor() {
           <ArrowLeft className="h-4 w-4" /> Volver al Panel
         </Button>
       </div>
+
+      {/* Completion % indicator */}
+      <div className="px-3 pb-3">
+        <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-amber-50/40 p-3 ring-1 ring-emerald-200/40">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-[11px] font-medium text-slate-700">Completitud</p>
+              <p className="text-[10px] text-muted-foreground">
+                {completitud >= 80 ? '¡Casi lista!' : 'Sigue completando'}
+              </p>
+            </div>
+            <div className="relative h-10 w-10">
+              <svg width="40" height="40" className="-rotate-90">
+                <circle cx="20" cy="20" r="16" fill="none" stroke="currentColor" strokeWidth="4" className="text-slate-200" />
+                <circle
+                  cx="20" cy="20" r="16" fill="none"
+                  stroke="url(#sidebarGrad)" strokeWidth="4" strokeLinecap="round"
+                  strokeDasharray={`${(completitud / 100) * (2 * Math.PI * 16)} ${2 * Math.PI * 16}`}
+                  className="transition-all duration-500"
+                />
+                <defs>
+                  <linearGradient id="sidebarGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#059669" />
+                    <stop offset="100%" stopColor="#f59e0b" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-[10px] font-bold text-slate-700">{completitud}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Search / filter */}
+      <div className="px-3 pb-2">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Filtrar secciones…"
+            className="h-8 pl-8 pr-8 text-xs"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-muted"
+              aria-label="Limpiar búsqueda"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      </div>
+
       <Separator />
+
       <ScrollArea className="flex-1">
-        <nav className="space-y-0.5 p-2">
-          {sectionList.map(s => {
-            const isActive = selectedSection === s.id;
-            return (
-              <button
-                key={s.id}
-                onClick={() => {
-                  setEditorSection(s.id);
-                  setSidebarOpen(false);
-                }}
-                className={cn(
-                  'group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition',
-                  isActive
-                    ? 'bg-emerald-600 font-medium text-white shadow-sm'
-                    : 'text-foreground/80 hover:bg-muted hover:text-foreground'
-                )}
-              >
-                <DynamicIcon name={s.icon} className={cn('h-4 w-4 shrink-0', isActive ? 'text-white' : 'text-muted-foreground group-hover:text-foreground')} />
-                <span className="flex-1 truncate">{s.name}</span>
-                {s.restricted && (
-                  <Lock className={cn('h-3 w-3', isActive ? 'text-white/70' : 'text-amber-500')} />
-                )}
-              </button>
-            );
-          })}
-        </nav>
+        {searchQuery.trim() ? (
+          /* Flat filtered list when searching */
+          <nav className="space-y-0.5 p-2">
+            {filteredSections.length > 0 ? (
+              filteredSections.map(renderSectionButton)
+            ) : (
+              <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+                Sin coincidencias para &quot;{searchQuery}&quot;
+              </p>
+            )}
+          </nav>
+        ) : (
+          /* Categorized list */
+          <nav className="space-y-1 p-2">
+            {categorizedSections.map(cat => {
+              const collapsed = collapsedCats[cat.id];
+              return (
+                <Collapsible key={cat.id} open={!collapsed} onOpenChange={() => toggleCat(cat.id)}>
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      className="group flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 transition-colors hover:bg-muted/60 hover:text-foreground"
+                    >
+                      {collapsed
+                        ? <ChevronRight className="h-3 w-3" />
+                        : <ChevronDown className="h-3 w-3" />}
+                      <span className="flex-1 text-left">{cat.name}</span>
+                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                        {cat.items.length}
+                      </span>
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-0.5 pt-1">
+                    {cat.items.map(renderSectionButton)}
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            })}
+          </nav>
+        )}
       </ScrollArea>
+
       <Separator />
-      <div className="p-3">
+
+      {/* Save indicator */}
+      <div className="flex items-center justify-between gap-2 px-3 py-2 text-[11px]">
+        <span className="flex items-center gap-1.5 text-emerald-700">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+          Guardado automático
+        </span>
+        <span className="flex items-center gap-1 text-muted-foreground">
+          <Clock className="h-3 w-3" />
+          {new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+        </span>
+      </div>
+
+      <div className="p-3 pt-1">
         <Button
           variant="outline"
           className="w-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-950/50 xl:hidden"
@@ -2593,7 +3079,7 @@ export function CardEditor() {
         </div>
       </main>
 
-      {/* Preview - desktop */}
+      {/* Preview - desktop (right column) */}
       <aside className="hidden w-96 shrink-0 border-l bg-card xl:flex xl:flex-col">
         <div className="border-b px-4 py-3">
           <div className="flex items-center gap-2">
@@ -2611,7 +3097,12 @@ export function CardEditor() {
         </ScrollArea>
       </aside>
 
-      {/* Preview - mobile/tablet (Dialog) */}
+      {/* Floating Vista Previa panel - shown on screens below xl */}
+      <div className="xl:hidden">
+        <FloatingPreviewPanel card={card} plan={plan} />
+      </div>
+
+      {/* Preview - mobile/tablet (Dialog) - kept for explicit "Ver Vista Previa" button */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-h-[95vh] max-w-2xl overflow-y-auto">
           <DialogHeader>

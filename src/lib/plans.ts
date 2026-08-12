@@ -218,4 +218,5 @@ export const DASHBOARD_SECTIONS = [
   { id: 'affiliations', name: 'Afiliaciones', icon: 'Users', description: 'Programa de afiliados' },
   { id: 'storage', name: 'Almacenamiento', icon: 'Database', description: 'Capacidad de almacenamiento' },
   { id: 'settings', name: 'Ajustes / Pagos', icon: 'Settings', description: 'Métodos de pago y configuración' },
+  { id: 'help', name: 'Ayuda', icon: 'LifeBuoy', description: 'Centro de ayuda y soporte' },
 ] as const;

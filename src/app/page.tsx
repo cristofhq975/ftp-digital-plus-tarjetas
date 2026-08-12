@@ -10,6 +10,9 @@ import { PublicCardSection } from '@/components/sections/public-card';
 import { QrExpiredSection } from '@/components/sections/qr-expired';
 import { AnalyticsPage } from '@/components/sections/analytics-page';
 import { TemplateGallery } from '@/components/sections/template-gallery';
+import { HelpCenter } from '@/components/sections/help-center';
+import { SupportPage } from '@/components/sections/support-page';
+import { TermsPage, PrivacyPage, RefundsPage } from '@/components/sections/legal-pages';
 
 export default function Home() {
   const currentView = useAppStore(s => s.currentView);
@@ -35,12 +38,22 @@ export default function Home() {
       return <AnalyticsPage />;
     case 'template-gallery':
       return <TemplateGallery />;
+    case 'help':
+      return <HelpCenter />;
+    case 'support':
+      return <SupportPage />;
     case 'editor':
       return <CardEditor />;
     case 'public-card':
       return <PublicCardSection />;
     case 'qr-expired':
       return <QrExpiredSection />;
+    case 'terms':
+      return <TermsPage />;
+    case 'privacy':
+      return <PrivacyPage />;
+    case 'refunds':
+      return <RefundsPage />;
     default:
       return <LandingPage />;
   }

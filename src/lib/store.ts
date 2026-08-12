@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
-import { User, BusinessCard, ViewType, ContactMessage, Appointment, PlanType, Schedule, SocialLinks } from './types';
+import { User, BusinessCard, ViewType, ContactMessage, Appointment, PlanType, Schedule, SocialLinks, SupportTicket, SupportTicketResponse } from './types';
 import { PLANS } from './plans';
 import { generateId, generateQrExpiration } from './card-utils';
 
@@ -317,6 +317,54 @@ const DEMO_APPOINTMENTS: Appointment[] = [
   },
 ];
 
+// Tickets de soporte demo
+const DEMO_SUPPORT_TICKETS: SupportTicket[] = [
+  {
+    id: 'ticket-demo-1',
+    userId: 'user-pro',
+    subject: 'No puedo personalizar el código QR',
+    category: 'tecnico',
+    priority: 'media',
+    message: 'Hola, intento cambiar el color del código QR en mi tarjeta pero al guardar los cambios no se aplican. Ya intenté refrescar la página.',
+    status: 'resuelto',
+    createdAt: new Date(Date.now() - 172800000).toISOString(),
+    responses: [
+      {
+        author: 'Soporte FTP Digital Plus',
+        message: 'Hola, gracias por contactarnos. Hemos revisado tu cuenta y detectamos un problema de caché. Por favor, intenta limpiar la caché de tu navegador y vuelve a guardar los cambios. Si el problema persiste, avísanos.',
+        date: new Date(Date.now() - 170000000).toISOString(),
+      },
+      {
+        author: 'Usuario',
+        message: '¡Muchas gracias! Limpié la caché y ya funciona perfectamente. Pueden cerrar el ticket.',
+        date: new Date(Date.now() - 168000000).toISOString(),
+      },
+      {
+        author: 'Soporte FTP Digital Plus',
+        message: 'Perfecto, marcamos tu ticket como resuelto. Quedamos atentos por si necesitas algo más. ¡Que tengas un excelente día!',
+        date: new Date(Date.now() - 167000000).toISOString(),
+      },
+    ],
+  },
+  {
+    id: 'ticket-demo-2',
+    userId: 'user-basico',
+    subject: 'Consulta sobre upgrade a plan Pro',
+    category: 'facturacion',
+    priority: 'baja',
+    message: 'Buenos días, estoy considerando cambiar al plan Pro. ¿Pueden informarme si el pago es anual únicamente o si tienen opción de pago mensual?',
+    status: 'en_progreso',
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+    responses: [
+      {
+        author: 'Soporte FTP Digital Plus',
+        message: 'Hola, gracias por tu interés en el plan Pro. Actualmente el plan Pro tiene un costo anual de $500 MXN, lo que equivale a aproximadamente $41.66 MXN al mes. No contamos con opción de pago mensual por separado, pero el pago anual te representa un ahorro considerable. ¿Te gustaría que procedamos con la actualización?',
+        date: new Date(Date.now() - 82000000).toISOString(),
+      },
+    ],
+  },
+];
+
 interface AppState {
   // Auth
   currentUser: User | null;
@@ -329,6 +377,10 @@ interface AppState {
   cards: BusinessCard[];
   messages: ContactMessage[];
   appointments: Appointment[];
+  // Favorites (Task 6-c)
+  favoriteCardIds: string[];
+  // Support tickets (Task 6-a)
+  supportTickets: SupportTicket[];
   // Actions
   login: (email: string, password: string) => boolean;
   logout: () => void;
@@ -346,6 +398,9 @@ interface AppState {
   markMessageRead: (messageId: string) => void;
   addAppointment: (appt: Omit<Appointment, 'id'>) => void;
   upgradePlan: (plan: PlanType) => void;
+  toggleFavorite: (cardId: string) => void;
+  addTicket: (ticket: Omit<SupportTicket, 'id' | 'status' | 'createdAt' | 'responses'>) => string;
+  addTicketResponse: (ticketId: string, response: SupportTicketResponse, status?: SupportTicket['status']) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -359,6 +414,8 @@ export const useAppStore = create<AppState>()(
       cards: createDemoCards(),
       messages: DEMO_MESSAGES,
       appointments: DEMO_APPOINTMENTS,
+      favoriteCardIds: [],
+      supportTickets: DEMO_SUPPORT_TICKETS,
 
       login: (email, password) => {
         const user = get().users.find(
@@ -474,6 +531,40 @@ export const useAppStore = create<AppState>()(
           currentUser: { ...user, plan },
         }));
       },
+
+      toggleFavorite: (cardId) => {
+        set(state => ({
+          favoriteCardIds: state.favoriteCardIds.includes(cardId)
+            ? state.favoriteCardIds.filter(id => id !== cardId)
+            : [...state.favoriteCardIds, cardId],
+        }));
+      },
+
+      addTicket: (ticket) => {
+        const newTicket: SupportTicket = {
+          ...ticket,
+          id: generateId(),
+          status: 'abierto',
+          createdAt: new Date().toISOString(),
+          responses: [],
+        };
+        set(state => ({ supportTickets: [newTicket, ...state.supportTickets] }));
+        return newTicket.id;
+      },
+
+      addTicketResponse: (ticketId, response, status) => {
+        set(state => ({
+          supportTickets: state.supportTickets.map(t =>
+            t.id === ticketId
+              ? {
+                  ...t,
+                  status: status ?? t.status,
+                  responses: [...t.responses, response],
+                }
+              : t
+          ),
+        }));
+      },
     }),
     {
       name: 'ftp-digital-plus-store',
@@ -493,6 +584,8 @@ export const useAppStore = create<AppState>()(
         cards: state.cards,
         messages: state.messages,
         appointments: state.appointments,
+        favoriteCardIds: state.favoriteCardIds,
+        supportTickets: state.supportTickets,
       }),
     }
   )

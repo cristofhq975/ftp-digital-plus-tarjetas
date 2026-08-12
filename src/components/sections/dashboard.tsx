@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Edit, Eye, Copy, Trash2, ExternalLink, MoreVertical, Menu, X,
@@ -9,9 +9,12 @@ import {
   Database, Settings as SettingsIcon, LayoutDashboard, Users, Share2,
   Sparkles, Crown, Zap, ArrowUpRight, Bell, Star, Phone, FileText,
   ShoppingCart, Wallet, Gift, Download, ShieldCheck, CheckCircle2,
-  AlertCircle, CircleUser, Mailbox, LucideIcon,
+  AlertCircle, CircleUser, Mailbox, LucideIcon, Briefcase, ShoppingBag,
+  HelpCircle, Image as ImageIcon, Images, Activity,
+  Camera, Smartphone, Upload, LifeBuoy,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Area, AreaChart, ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip } from 'recharts';
 import { Button } from '@/components/ui/button';
 import {
   Card, CardHeader, CardContent, CardTitle, CardDescription,
@@ -39,6 +42,7 @@ import { DynamicIcon } from '@/components/dynamic-icon';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationsPanel } from '@/components/notifications-panel';
 import { OnboardingWizard } from '@/components/onboarding-wizard';
+import { FavoritesWidget } from '@/components/sections/favorites';
 import { useAppStore, useCurrentUserCards } from '@/lib/store';
 import { PLANS, DASHBOARD_SECTIONS } from '@/lib/plans';
 import { BusinessCard, PlanType, ContactMessage, Appointment } from '@/lib/types';
@@ -96,7 +100,17 @@ export function Dashboard() {
       setMobileOpen(false);
       return;
     }
+    if (id === 'help' as any) {
+      navigate('help');
+      setMobileOpen(false);
+      return;
+    }
     setActiveSection(id);
+    setMobileOpen(false);
+  };
+
+  const handleSupport = () => {
+    navigate('support');
     setMobileOpen(false);
   };
 
@@ -125,6 +139,7 @@ export function Dashboard() {
               activeSection={activeSection}
               onNavigate={handleNavigate}
               onLogout={handleLogout}
+              onSupport={handleSupport}
             />
           </SheetContent>
         </Sheet>
@@ -149,6 +164,7 @@ export function Dashboard() {
             activeSection={activeSection}
             onNavigate={handleNavigate}
             onLogout={handleLogout}
+            onSupport={handleSupport}
           />
         </aside>
 
@@ -200,17 +216,59 @@ export function Dashboard() {
 
 // ============================ SIDEBAR ============================
 function SidebarContent({
-  user, cardsCount, maxCards, unreadCount, activeSection, onNavigate, onLogout,
+  user, cardsCount, maxCards, unreadCount, activeSection, onNavigate, onLogout, onSupport,
 }: {
-  user: { name: string; email: string; plan: PlanType };
+  user: { name: string; email: string; plan: PlanType; id?: string };
   cardsCount: number;
   maxCards: number;
   unreadCount: number;
   activeSection: SectionId;
   onNavigate: (id: SectionId) => void;
   onLogout: () => void;
+  onSupport: () => void;
 }) {
   const planColors = PLAN_COLORS[user.plan];
+  const plan = PLANS[user.plan];
+  const cardsUsagePercent = Math.min(100, (cardsCount / maxCards) * 100);
+  // Storage is approximated for the ring (we use plan.storage and assume 35% used as a demo)
+  const storageUsedPct = Math.min(100, 35);
+  const primaryCard = useAppStore(s => {
+    const all = s.cards;
+    return all.find(c => c.userId === user.id) || null;
+  });
+  const favoriteIds = useAppStore(s => s.favoriteCardIds);
+
+  // SVG circular progress ring geometry
+  const ringSize = 64;
+  const ringStroke = 6;
+  const radius = (ringSize - ringStroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const cardsDash = (cardsUsagePercent / 100) * circumference;
+
+  const handlePublicCard = () => {
+    if (primaryCard) {
+      useAppStore.getState().selectCard(primaryCard.id);
+      useAppStore.getState().navigate('public-card');
+    } else {
+      toast.info('No tienes tarjetas para mostrar');
+    }
+  };
+  const handleShare = () => {
+    if (primaryCard) {
+      const link = `https://ftpdigitalplus.com/t/${primaryCard.linkName}`;
+      if (navigator.share) {
+        navigator.share({ title: primaryCard.cardName, url: link }).catch(() => {});
+      } else {
+        navigator.clipboard?.writeText(link);
+        toast.success('Enlace copiado', { description: link });
+      }
+    } else {
+      toast.info('Crea una tarjeta para compartirla');
+    }
+  };
+  const handleHelp = () => {
+    toast.info('Centro de ayuda', { description: 'Contáctanos en soporte@ftpdigitalplus.com' });
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -220,32 +278,89 @@ function SidebarContent({
         <ThemeToggle className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700" />
       </div>
 
-      {/* User info */}
+      {/* User info + plan progress ring */}
       <div className="border-b px-5 py-4">
         <div className="flex items-center gap-3">
-          <Avatar className="h-11 w-11 ring-2 ring-emerald-200">
-            <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-emerald-700 text-sm font-bold text-white">
-              {user.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <div className="relative">
+            <Avatar className="h-11 w-11 ring-2 ring-emerald-200">
+              <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-emerald-700 text-sm font-bold text-white">
+                {user.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            {/* Online status indicator */}
+            <span
+              className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500"
+              aria-label="En línea"
+            >
+              <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
+            </span>
+          </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-slate-800">{user.name}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
           </div>
         </div>
+
+        {/* Plan progress ring + usage */}
+        <div className="mt-4 flex items-center gap-3 rounded-xl bg-gradient-to-br from-slate-50 to-emerald-50/40 p-3 ring-1 ring-slate-200/60">
+          {/* Circular progress ring (SVG) */}
+          <div className="relative" style={{ width: ringSize, height: ringSize }}>
+            <svg width={ringSize} height={ringSize} className="-rotate-90">
+              <circle
+                cx={ringSize / 2}
+                cy={ringSize / 2}
+                r={radius}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={ringStroke}
+                className="text-slate-200"
+              />
+              <circle
+                cx={ringSize / 2}
+                cy={ringSize / 2}
+                r={radius}
+                fill="none"
+                stroke="url(#planGrad)"
+                strokeWidth={ringStroke}
+                strokeDasharray={`${cardsDash} ${circumference}`}
+                strokeLinecap="round"
+                className="transition-all duration-500"
+              />
+              <defs>
+                <linearGradient id="planGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#059669" />
+                  <stop offset="100%" stopColor="#f59e0b" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-xs font-bold text-slate-700">{cardsUsagePercent.toFixed(0)}%</span>
+            </div>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-slate-700">Uso del plan</p>
+            <p className="text-[11px] text-muted-foreground">
+              <CreditCard className="mr-1 inline h-3 w-3" />
+              {cardsCount} / {maxCards} tarjetas
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              <Database className="mr-1 inline h-3 w-3" />
+              {storageUsedPct}% de {plan.storage} MB
+            </p>
+          </div>
+        </div>
+
+        {/* Plan badge */}
         <div className={cn('mt-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ring-1', planColors.bg, planColors.text, planColors.ring)}>
           {user.plan === 'pro' && <Crown className="h-3 w-3" />}
           {user.plan === 'basico' && <Zap className="h-3 w-3" />}
           {user.plan === 'gratis' && <Sparkles className="h-3 w-3" />}
           Plan {planColors.label}
         </div>
-        <div className="mt-2 text-[11px] text-muted-foreground">
-          {cardsCount} de {maxCards} tarjetas usadas
-        </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 custom-scrollbar">
         <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
           Menú Principal
         </p>
@@ -274,6 +389,9 @@ function SidebarContent({
                       {unreadCount}
                     </span>
                   )}
+                  {section.id === 'tablero' && favoriteIds.length > 0 && !isActive && (
+                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                  )}
                   {isActive && <ChevronRight className="h-4 w-4" />}
                 </button>
               </li>
@@ -282,8 +400,74 @@ function SidebarContent({
         </ul>
       </nav>
 
-      {/* Logout */}
-      <div className="border-t p-3">
+      {/* Quick action buttons */}
+      <div className="border-t px-3 py-3">
+        <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+          Acciones Rápidas
+        </p>
+        <div className="grid grid-cols-3 gap-1.5">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePublicCard}
+                  className="flex flex-col items-center gap-0.5 border-slate-200 py-2 text-[10px] text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  <span className="hidden lg:inline">Mi Tarjeta</span>
+                  <span className="lg:hidden">Ver</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Ver mi tarjeta pública</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleShare}
+                  className="flex flex-col items-center gap-0.5 border-slate-200 py-2 text-[10px] text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                >
+                  <Share2 className="h-4 w-4" />
+                  <span>Compartir</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Compartir enlace</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleHelp}
+                  className="flex flex-col items-center gap-0.5 border-slate-200 py-2 text-[10px] text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                  <span>Ayuda</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Centro de ayuda</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </div>
+
+      {/* Logout + Soporte */}
+      <div className="space-y-1.5 border-t p-3">
+        <Button
+          variant="ghost"
+          onClick={onSupport}
+          className="w-full justify-start gap-3 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+        >
+          <LifeBuoy className="h-[18px] w-[18px]" />
+          Soporte
+        </Button>
         <Button
           variant="ghost"
           onClick={onLogout}
@@ -298,6 +482,118 @@ function SidebarContent({
 }
 
 // ============================ TABLERO ============================
+
+const DAILY_TIPS = [
+  {
+    title: 'Personaliza tu QR',
+    text: 'Cambia el color y la forma de tu QR para que combine con tu marca. ¡Destaca entre la competencia!',
+  },
+  {
+    title: 'Activa el horario',
+    text: 'Configurar tu horario de atención ayuda a tus clientes a saber cuándo pueden contactarte.',
+  },
+  {
+    title: 'Agrega testimonios',
+    text: 'Las opiniones de clientes satisfechos aumentan la confianza y conversión de nuevos visitantes.',
+  },
+  {
+    title: 'Comparte en redes',
+    text: 'Coloca el enlace de tu tarjeta en tu biografía de Instagram, Facebook y WhatsApp Business.',
+  },
+  {
+    title: 'Revisa tus estadísticas',
+    text: 'Monitorea qué tarjetas reciben más visitas y ajusta tu estrategia de contenido.',
+  },
+];
+
+const MOCK_ACTIVITIES = [
+  {
+    id: 'a1',
+    type: 'card_created',
+    title: 'Nueva tarjeta creada',
+    description: 'Restaurante El Sabor',
+    timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+    icon: Plus,
+    color: 'emerald',
+  },
+  {
+    id: 'a2',
+    type: 'message_received',
+    title: 'Nuevo mensaje recibido',
+    description: 'Patricia López te contactó',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+    icon: Mail,
+    color: 'amber',
+  },
+  {
+    id: 'a3',
+    type: 'qr_scanned',
+    title: 'QR escaneado',
+    description: 'Tu tarjeta recibió un nuevo escaneo',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+    icon: QrCode,
+    color: 'teal',
+  },
+  {
+    id: 'a4',
+    type: 'view',
+    title: 'Nueva visita',
+    description: 'Alguien vio tu tarjeta pública',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
+    icon: Eye,
+    color: 'emerald',
+  },
+  {
+    id: 'a5',
+    type: 'appointment',
+    title: 'Cita agendada',
+    description: 'Jorge Ruiz agendó una cita',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+    icon: CalendarIcon,
+    color: 'amber',
+  },
+];
+
+function getRelativeTime(iso: string): string {
+  const now = Date.now();
+  const diff = now - new Date(iso).getTime();
+  const minutes = Math.floor(diff / (1000 * 60));
+  if (minutes < 1) return 'hace un momento';
+  if (minutes < 60) return `hace ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'ayer';
+  return `hace ${days} días`;
+}
+
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  const chartData = data.map((v, i) => ({ i, v }));
+  return (
+    <div className="h-10 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData} margin={{ top: 2, bottom: 2, left: 0, right: 0 }}>
+          <defs>
+            <linearGradient id={`sparkGrad-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <Area
+            type="monotone"
+            dataKey="v"
+            stroke={color}
+            strokeWidth={2}
+            fill={`url(#sparkGrad-${color.replace('#', '')})`}
+            isAnimationActive={true}
+            animationDuration={900}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 function TableroSection({ onCreateOpen }: { onCreateOpen: () => void }) {
   const currentUser = useAppStore(s => s.currentUser)!;
   const cards = useCurrentUserCards();
@@ -306,12 +602,23 @@ function TableroSection({ onCreateOpen }: { onCreateOpen: () => void }) {
   const navigate = useAppStore(s => s.navigate);
   const deleteCard = useAppStore(s => s.deleteCard);
   const toggleCardActive = useAppStore(s => s.toggleCardActive);
+  const toggleFavorite = useAppStore(s => s.toggleFavorite);
+  const favoriteIds = useAppStore(s => s.favoriteCardIds);
 
   const plan = PLANS[currentUser.plan];
   const totalViews = cards.reduce((sum, c) => sum + c.views, 0);
   const totalQrScans = cards.reduce((sum, c) => sum + c.qrScans, 0);
   const unreadCount = messages.filter(m => !m.read).length;
   const canCreateMore = cards.length < plan.maxCards;
+
+  // Pick a random tip on mount, rotate every 12s
+  const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * DAILY_TIPS.length));
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTipIndex(prev => (prev + 1) % DAILY_TIPS.length);
+    }, 12000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleEdit = (card: BusinessCard) => {
     selectCard(card.id);
@@ -330,7 +637,27 @@ function TableroSection({ onCreateOpen }: { onCreateOpen: () => void }) {
     deleteCard(card.id);
     toast.success(`Tarjeta "${card.cardName}" eliminada`);
   };
+  const handleToggleFav = (card: BusinessCard) => {
+    toggleFavorite(card.id);
+    const isFav = favoriteIds.includes(card.id);
+    toast.success(
+      isFav ? 'Quitada de favoritos' : 'Agregada a favoritos',
+      { description: card.cardName }
+    );
+  };
   const handleUpgrade = () => navigate('pricing');
+
+  // Mock sparkline data (deterministic-ish per mount, varies by stat)
+  const sparkData = useMemo(() => {
+    const seed = (n: number, max: number) =>
+      Array.from({ length: 12 }, (_, i) => Math.max(0, Math.round(max * (0.4 + 0.5 * Math.sin(i * 0.7 + n)))));
+    return {
+      cards: seed(1, 5),
+      views: seed(2, 200),
+      qr: seed(3, 100),
+      messages: seed(4, 8),
+    };
+  }, []);
 
   const stats = [
     {
@@ -340,6 +667,8 @@ function TableroSection({ onCreateOpen }: { onCreateOpen: () => void }) {
       icon: CreditCard,
       color: 'emerald',
       gradient: 'from-emerald-500 to-emerald-700',
+      spark: sparkData.cards,
+      sparkColor: '#059669',
     },
     {
       label: 'Total de visitas',
@@ -348,6 +677,8 @@ function TableroSection({ onCreateOpen }: { onCreateOpen: () => void }) {
       icon: Eye,
       color: 'amber',
       gradient: 'from-amber-500 to-orange-600',
+      spark: sparkData.views,
+      sparkColor: '#f59e0b',
     },
     {
       label: 'Escaneos QR',
@@ -356,6 +687,8 @@ function TableroSection({ onCreateOpen }: { onCreateOpen: () => void }) {
       icon: QrCode,
       color: 'emerald',
       gradient: 'from-teal-500 to-emerald-600',
+      spark: sparkData.qr,
+      sparkColor: '#10b981',
     },
     {
       label: 'Mensajes sin leer',
@@ -364,15 +697,25 @@ function TableroSection({ onCreateOpen }: { onCreateOpen: () => void }) {
       icon: Mail,
       color: unreadCount > 0 ? 'rose' : 'emerald',
       gradient: unreadCount > 0 ? 'from-rose-500 to-pink-600' : 'from-slate-500 to-slate-700',
+      spark: sparkData.messages,
+      sparkColor: unreadCount > 0 ? '#f43f5e' : '#64748b',
     },
   ];
 
+  const activityColors: Record<string, { bg: string; text: string }> = {
+    emerald: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+    amber: { bg: 'bg-amber-100', text: 'text-amber-700' },
+    teal: { bg: 'bg-teal-100', text: 'text-teal-700' },
+    rose: { bg: 'bg-rose-100', text: 'text-rose-700' },
+  };
+
   return (
     <div className="space-y-6">
-      {/* Welcome header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-800 p-6 text-white shadow-xl md:p-8">
+      {/* Welcome header with animated gradient + daily tip */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-800 p-6 text-white shadow-xl md:p-8 animate-gradient">
         <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-amber-400/20 blur-3xl" />
         <div className="absolute -bottom-12 -left-12 h-40 w-40 rounded-full bg-emerald-400/30 blur-2xl" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/10 via-transparent to-emerald-300/10" />
         <div className="relative">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -391,6 +734,33 @@ function TableroSection({ onCreateOpen }: { onCreateOpen: () => void }) {
               Plan {plan.name}
             </div>
           </div>
+
+          {/* Daily rotating tip */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={tipIndex}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.4 }}
+              className="mt-5 flex items-start gap-3 rounded-xl bg-white/15 px-4 py-3 backdrop-blur ring-1 ring-white/20"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-300 to-amber-500 text-amber-900 shadow-md">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div className="flex-1">
+                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200">
+                  Consejo del día
+                  <span className="rounded-full bg-amber-400/30 px-1.5 py-0.5 text-[10px]">
+                    {tipIndex + 1}/{DAILY_TIPS.length}
+                  </span>
+                </p>
+                <p className="mt-0.5 text-sm font-semibold text-white">{DAILY_TIPS[tipIndex].title}</p>
+                <p className="mt-0.5 text-xs text-emerald-50">{DAILY_TIPS[tipIndex].text}</p>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
           {!canCreateMore && (
             <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg bg-amber-500/20 px-4 py-2.5 text-sm ring-1 ring-amber-300/40">
               <AlertCircle className="h-4 w-4 text-amber-200" />
@@ -403,7 +773,7 @@ function TableroSection({ onCreateOpen }: { onCreateOpen: () => void }) {
         </div>
       </div>
 
-      {/* Stats cards */}
+      {/* Stats cards with sparklines */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map((stat, i) => (
           <motion.div
@@ -425,10 +795,63 @@ function TableroSection({ onCreateOpen }: { onCreateOpen: () => void }) {
                 <p className="mt-4 text-3xl font-bold text-slate-800">{stat.value.toLocaleString('es-MX')}</p>
                 <p className="text-sm font-medium text-slate-600">{stat.label}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{stat.sub}</p>
+                {/* Sparkline mini chart */}
+                <div className="mt-3 -mb-1">
+                  <Sparkline data={stat.spark} color={stat.sparkColor} />
+                </div>
               </CardContent>
             </Card>
           </motion.div>
         ))}
+      </div>
+
+      {/* Favorites Widget + Recent Activity (2-column on xl) */}
+      <div className="grid gap-6 xl:grid-cols-2">
+        <FavoritesWidget onViewAll={() => onCreateOpen()} />
+        {/* Recent activity timeline */}
+        <Card className="border-slate-200/60 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-sm">
+                <Activity className="h-4 w-4" />
+              </div>
+              Actividad Reciente
+            </CardTitle>
+            <Badge variant="secondary" className="bg-slate-100 text-slate-600">Últimas 24 h</Badge>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <ol className="relative space-y-3">
+              {MOCK_ACTIVITIES.map((act, i) => {
+                const cfg = activityColors[act.color] || activityColors.emerald;
+                return (
+                  <motion.li
+                    key={act.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.06 }}
+                    className="relative flex items-start gap-3"
+                  >
+                    {/* Timeline line */}
+                    {i !== MOCK_ACTIVITIES.length - 1 && (
+                      <span className="absolute left-[18px] top-9 h-[calc(100%-12px)] w-px bg-slate-200" aria-hidden />
+                    )}
+                    <div className={cn('relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-4 ring-white', cfg.bg, cfg.text)}>
+                      <act.icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1 pt-0.5">
+                      <p className="text-sm font-semibold text-slate-800">{act.title}</p>
+                      <p className="truncate text-xs text-muted-foreground">{act.description}</p>
+                      <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
+                        <Clock className="h-3 w-3" />
+                        {getRelativeTime(act.timestamp)}
+                      </p>
+                    </div>
+                  </motion.li>
+                );
+              })}
+            </ol>
+          </CardContent>
+        </Card>
       </div>
 
       {/* My cards section */}
@@ -486,11 +909,13 @@ function TableroSection({ onCreateOpen }: { onCreateOpen: () => void }) {
                   >
                     <CardItem
                       card={card}
+                      isFavorite={favoriteIds.includes(card.id)}
                       onEdit={() => handleEdit(card)}
                       onView={() => handleView(card)}
                       onCopy={() => handleCopy(card)}
                       onDelete={() => handleDelete(card)}
                       onToggle={() => toggleCardActive(card.id)}
+                      onToggleFav={() => handleToggleFav(card)}
                     />
                   </motion.div>
                 ))}
@@ -508,7 +933,7 @@ function TableroSection({ onCreateOpen }: { onCreateOpen: () => void }) {
 
 // ============================ CARD ITEM ============================
 function CardItem({
-  card, onEdit, onView, onCopy, onDelete, onToggle,
+  card, onEdit, onView, onCopy, onDelete, onToggle, onToggleFav, isFavorite,
 }: {
   card: BusinessCard;
   onEdit: () => void;
@@ -516,8 +941,9 @@ function CardItem({
   onCopy: () => void;
   onDelete: () => void;
   onToggle: () => void;
+  onToggleFav: () => void;
+  isFavorite: boolean;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const initials = card.cardName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
   return (
@@ -525,15 +951,37 @@ function CardItem({
       {/* Top color bar */}
       <div className="h-1.5 w-full" style={{ background: `linear-gradient(90deg, ${card.primaryColor}, ${card.secondaryColor})` }} />
 
+      {/* Favorite star toggle - top right */}
+      <button
+        type="button"
+        onClick={onToggleFav}
+        aria-label={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+        className={cn(
+          'absolute right-3 top-3 z-10 rounded-full p-1.5 shadow-sm backdrop-blur transition-all hover:scale-110 active:scale-95',
+          isFavorite ? 'bg-amber-100 text-amber-500' : 'bg-white/80 text-slate-400 hover:text-amber-500'
+        )}
+      >
+        <Star className={cn('h-4 w-4', isFavorite && 'fill-amber-400')} />
+      </button>
+
       <div className="p-5">
         <div className="flex items-start gap-3">
+          {/* Thumbnail preview / colored avatar */}
           <div
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white shadow-md"
+            className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl text-base font-bold text-white shadow-md ring-1 ring-black/5"
             style={{ background: `linear-gradient(135deg, ${card.primaryColor}, ${card.secondaryColor})` }}
           >
-            {initials}
+            {card.profilePhoto ? (
+              <img src={card.profilePhoto} alt={card.cardName} className="h-full w-full object-cover" />
+            ) : (
+              <span>{initials}</span>
+            )}
+            {/* Mini FTP badge overlay */}
+            <span className="absolute -bottom-px -right-px rounded-tl-md bg-black/30 px-1 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white/90 backdrop-blur">
+              FTP+
+            </span>
           </div>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 pr-6">
             <div className="flex items-center gap-2">
               <h3 className="truncate font-semibold text-slate-800">{card.cardName}</h3>
               <Badge
@@ -549,23 +997,33 @@ function CardItem({
             <p className="mt-0.5 truncate text-xs text-muted-foreground">
               ftpdigitalplus.com/t/<span className="font-medium text-emerald-700">{card.linkName}</span>
             </p>
+            {card.description && (
+              <p className="mt-1 line-clamp-1 text-xs text-slate-500">{card.description}</p>
+            )}
           </div>
         </div>
 
-        {/* Stats inline */}
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
-            <Eye className="h-4 w-4 text-slate-400" />
-            <div>
-              <p className="text-xs text-muted-foreground">Visitas</p>
+        {/* Stats inline with icons */}
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2">
+            <Eye className="h-4 w-4 shrink-0 text-emerald-500" />
+            <div className="min-w-0">
+              <p className="text-[10px] text-muted-foreground">Visitas</p>
               <p className="text-sm font-semibold text-slate-800">{card.views.toLocaleString('es-MX')}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
-            <QrCode className="h-4 w-4 text-slate-400" />
-            <div>
-              <p className="text-xs text-muted-foreground">Escaneos QR</p>
+          <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2">
+            <QrCode className="h-4 w-4 shrink-0 text-amber-500" />
+            <div className="min-w-0">
+              <p className="text-[10px] text-muted-foreground">QR</p>
               <p className="text-sm font-semibold text-slate-800">{card.qrScans.toLocaleString('es-MX')}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2">
+            <Briefcase className="h-4 w-4 shrink-0 text-teal-500" />
+            <div className="min-w-0">
+              <p className="text-[10px] text-muted-foreground">Servicios</p>
+              <p className="text-sm font-semibold text-slate-800">{card.services.length}</p>
             </div>
           </div>
         </div>
@@ -1405,21 +1863,23 @@ function StorageSection() {
   const currentUser = useAppStore(s => s.currentUser)!;
   const plan = PLANS[currentUser.plan];
   const maxStorage = plan.storage; // MB
+  const [showTips, setShowTips] = useState(false);
 
   // Fake storage calculation
   const items = useMemo(() => {
-    const result: { card: string; type: string; size: number; icon: LucideIcon }[] = [];
+    const result: { card: string; type: string; size: number; icon: LucideIcon; category: 'photos' | 'gallery' | 'products' | 'other' }[] = [];
     cards.forEach(card => {
-      if (card.profilePhoto) result.push({ card: card.cardName, type: 'Foto de perfil', size: 1.2, icon: CircleUser });
-      if (card.coverPhoto) result.push({ card: card.cardName, type: 'Foto de portada', size: 2.5, icon: FileText });
-      card.gallery.forEach(() => result.push({ card: card.cardName, type: 'Imagen de galería', size: 1.8, icon: FileText }));
-      card.services.forEach(s => s.photo && result.push({ card: card.cardName, type: `Foto servicio: ${s.name}`, size: 1.5, icon: Briefcase }));
-      card.products.forEach(p => p.image && result.push({ card: card.cardName, type: `Imagen producto: ${p.name}`, size: 1.5, icon: ShoppingBag }));
+      if (card.profilePhoto) result.push({ card: card.cardName, type: 'Foto de perfil', size: 1.2, icon: CircleUser, category: 'photos' });
+      if (card.coverPhoto) result.push({ card: card.cardName, type: 'Foto de portada', size: 2.5, icon: ImageIcon, category: 'photos' });
+      if (card.logo) result.push({ card: card.cardName, type: 'Logo de marca', size: 0.8, icon: Sparkles, category: 'other' });
+      card.gallery.forEach(() => result.push({ card: card.cardName, type: 'Imagen de galería', size: 1.8, icon: Images, category: 'gallery' }));
+      card.services.forEach(s => s.photo && result.push({ card: card.cardName, type: `Foto servicio: ${s.name}`, size: 1.5, icon: Briefcase, category: 'other' }));
+      card.products.forEach(p => p.image && result.push({ card: card.cardName, type: `Imagen producto: ${p.name}`, size: 1.5, icon: ShoppingBag, category: 'products' }));
     });
     // Add demo items if empty
     if (result.length === 0) {
       cards.forEach(card => {
-        result.push({ card: card.cardName, type: 'Logo de marca', size: 0.8, icon: Sparkles });
+        result.push({ card: card.cardName, type: 'Logo de marca', size: 0.8, icon: Sparkles, category: 'other' });
       });
     }
     return result;
@@ -1428,6 +1888,25 @@ function StorageSection() {
   const usedStorage = items.reduce((sum, i) => sum + i.size, 0);
   const usagePercent = Math.min(100, (usedStorage / maxStorage) * 100);
   const isNearLimit = usagePercent > 80;
+
+  // Breakdown by category
+  const breakdown = useMemo(() => {
+    const groups: Record<string, number> = { photos: 0, gallery: 0, products: 0, other: 0 };
+    items.forEach(i => { groups[i.category] = (groups[i.category] || 0) + i.size; });
+    return [
+      { name: 'Fotos de perfil', value: Number(groups.photos.toFixed(1)), color: '#059669' },
+      { name: 'Galería', value: Number(groups.gallery.toFixed(1)), color: '#f59e0b' },
+      { name: 'Productos', value: Number(groups.products.toFixed(1)), color: '#10b981' },
+      { name: 'Otros', value: Number(groups.other.toFixed(1)), color: '#94a3b8' },
+    ].filter(g => g.value > 0);
+  }, [items]);
+
+  const freeSpaceTips = [
+    { icon: Trash2, title: 'Elimina imágenes duplicadas', text: 'Revisa tus galerías y elimina fotos repetidas o antiguas.' },
+    { icon: ImageIcon, title: 'Comprime fotos grandes', text: 'Usa imágenes de menos de 1 MB. Reduce calidad al 80% sin pérdida visible.' },
+    { icon: Briefcase, title: 'Revisa fotos de servicios', text: 'Elimina fotos de servicios que ya no ofreces.' },
+    { icon: Sparkles, title: 'Optimiza tu logo', text: 'Un logo SVG pesa menos que uno PNG. Considera convertirlo.' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -1464,6 +1943,107 @@ function StorageSection() {
               <span>Estás cerca del límite. Considera eliminar archivos o mejorar tu plan.</span>
             </div>
           )}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowTips(s => !s)}
+              className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+            >
+              <Sparkles className="h-3.5 w-3.5" /> Liberar espacio
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => toast.info('Mejora tu plan para más almacenamiento')}
+              className="text-amber-700 hover:bg-amber-50"
+            >
+              <Crown className="h-3.5 w-3.5" /> Mejorar plan
+            </Button>
+          </div>
+          <AnimatePresence>
+            {showTips && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-4 grid gap-3 rounded-xl bg-gradient-to-br from-emerald-50/60 to-amber-50/40 p-4 ring-1 ring-emerald-200/40 sm:grid-cols-2">
+                  {freeSpaceTips.map((tip) => (
+                    <div key={tip.title} className="flex items-start gap-3 rounded-lg bg-white/70 p-3 backdrop-blur">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                        <tip.icon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-slate-800">{tip.title}</p>
+                        <p className="text-[11px] text-muted-foreground">{tip.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </CardContent>
+      </Card>
+
+      {/* Storage breakdown donut + legend */}
+      <Card className="border-slate-200/60 shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Database className="h-4 w-4 text-emerald-600" /> Desglose de almacenamiento
+          </CardTitle>
+          <CardDescription>Distribución por tipo de contenido</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid items-center gap-6 md:grid-cols-2">
+            {/* Donut chart */}
+            <div className="relative mx-auto h-52 w-52">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={breakdown}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={62}
+                    outerRadius={88}
+                    paddingAngle={2}
+                    strokeWidth={0}
+                  >
+                    {breakdown.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <RTooltip
+                    formatter={(v: number, n: string) => [`${v} MB`, n]}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              {/* Center label */}
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-2xl font-bold text-slate-800">{usedStorage.toFixed(1)}</span>
+                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">MB usados</span>
+              </div>
+            </div>
+            {/* Legend */}
+            <div className="space-y-2">
+              {breakdown.map((g) => {
+                const pct = usedStorage > 0 ? (g.value / usedStorage) * 100 : 0;
+                return (
+                  <div key={g.name} className="flex items-center gap-3 rounded-lg border border-slate-200/60 bg-white p-2.5">
+                    <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: g.color }} />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-slate-800">{g.name}</p>
+                      <p className="text-[11px] text-muted-foreground">{pct.toFixed(0)}% del total</p>
+                    </div>
+                    <span className="text-sm font-semibold text-slate-700">{g.value} MB</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -1482,7 +2062,7 @@ function StorageSection() {
               description="Todavía no has subido imágenes a tus tarjetas."
             />
           ) : (
-            <div className="max-h-96 space-y-2 overflow-y-auto pr-2">
+            <div className="max-h-96 space-y-2 overflow-y-auto pr-2 custom-scrollbar">
               {items.map((item, i) => (
                 <motion.div
                   key={i}
@@ -1518,11 +2098,50 @@ function SettingsSection() {
   const [stripe, setStripe] = useState(false);
   const [bank, setBank] = useState(true);
   const [emailNotif, setEmailNotif] = useState(true);
+  const [pushNotif, setPushNotif] = useState(true);
   const [smsNotif, setSmsNotif] = useState(false);
   const [twoFactor, setTwoFactor] = useState(false);
   const currentUser = useAppStore(s => s.currentUser)!;
+  const navigate = useAppStore(s => s.navigate);
+  const logout = useAppStore(s => s.logout);
+  const [profilePhoto, setProfilePhoto] = useState<string>(currentUser.avatar || '');
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const save = () => toast.success('Configuración guardada correctamente');
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Solo se permiten archivos de imagen');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La imagen no debe superar los 5 MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setProfilePhoto(reader.result as string);
+      toast.success('Foto de perfil actualizada');
+    };
+    reader.readAsDataURL(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleDeleteAccount = () => {
+    if (deleteConfirm !== 'ELIMINAR') {
+      toast.error('Debes escribir "ELIMINAR" para confirmar');
+      return;
+    }
+    logout();
+    navigate('landing');
+    toast.success('Tu cuenta ha sido eliminada (demostración)');
+    setDeleteOpen(false);
+    setDeleteConfirm('');
+  };
 
   return (
     <div className="space-y-6">
@@ -1609,26 +2228,92 @@ function SettingsSection() {
 
         {/* General Tab */}
         <TabsContent value="general" className="space-y-4">
+          {/* Profile photo upload */}
           <Card className="border-slate-200/60 shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Notificaciones</CardTitle>
-              <CardDescription>Define cómo quieres enterarte de novedades.</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Camera className="h-4 w-4 text-emerald-600" /> Foto de perfil
+              </CardTitle>
+              <CardDescription>Tu foto aparecerá en el panel y en comentarios.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap items-center gap-4">
+                <Avatar className="h-20 w-20 ring-2 ring-emerald-200">
+                  {profilePhoto ? (
+                    <img src={profilePhoto} alt={currentUser.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-emerald-700 text-lg font-bold text-white">
+                      {currentUser.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                <div className="flex-1">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                    >
+                      <Upload className="h-3.5 w-3.5" /> Subir foto
+                    </Button>
+                    {profilePhoto && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => { setProfilePhoto(''); toast.info('Foto de perfil eliminada'); }}
+                        className="border-rose-200 text-rose-600 hover:bg-rose-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                      </Button>
+                    )}
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Formatos: JPG, PNG, GIF. Tamaño máximo: 5 MB. Recomendado: 400x400px.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Notification preferences */}
+          <Card className="border-slate-200/60 shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Bell className="h-4 w-4 text-emerald-600" /> Preferencias de notificaciones
+              </CardTitle>
+              <CardDescription>Elige cómo quieres recibir alertas de actividad.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <SettingToggle
                 icon={<Mail className="h-4 w-4" />}
                 title="Notificaciones por correo"
-                description="Recibe mensajes y citas en tu correo"
+                description="Recibe mensajes, citas y resúmenes en tu correo"
                 checked={emailNotif}
-                onCheckedChange={setEmailNotif}
+                onCheckedChange={(v) => { setEmailNotif(v); toast.info(`Correo ${v ? 'activado' : 'desactivado'}`); }}
+              />
+              <Separator />
+              <SettingToggle
+                icon={<Smartphone className="h-4 w-4" />}
+                title="Notificaciones push"
+                description="Alertas en tiempo real en tu navegador o dispositivo"
+                checked={pushNotif}
+                onCheckedChange={(v) => { setPushNotif(v); toast.info(`Push ${v ? 'activadas' : 'desactivadas'}`); }}
               />
               <Separator />
               <SettingToggle
                 icon={<Phone className="h-4 w-4" />}
                 title="Notificaciones por SMS"
-                description="Recibe alertas por mensaje de texto"
+                description="Recibe alertas críticas por mensaje de texto"
                 checked={smsNotif}
-                onCheckedChange={setSmsNotif}
+                onCheckedChange={(v) => { setSmsNotif(v); toast.info(`SMS ${v ? 'activado' : 'desactivado'}`); }}
               />
               <Separator />
               <SettingToggle
@@ -1673,8 +2358,80 @@ function SettingsSection() {
               </Button>
             </CardContent>
           </Card>
+
+          {/* Danger zone */}
+          <Card className="overflow-hidden border-rose-300/60 shadow-sm">
+            <div className="bg-rose-50/60 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <CardTitle className="text-base text-rose-700">Zona de peligro</CardTitle>
+                  <CardDescription className="text-rose-600/80">
+                    Acciones irreversibles sobre tu cuenta.
+                  </CardDescription>
+                </div>
+              </div>
+            </div>
+            <CardContent className="space-y-4 p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rose-200/60 bg-white p-4">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-800">Eliminar cuenta</p>
+                  <p className="text-xs text-muted-foreground">
+                    Borra permanentemente tu cuenta, tarjetas y datos asociados. Esta acción no se puede deshacer.
+                  </p>
+                </div>
+                <Button
+                  variant="destructive"
+                  onClick={() => setDeleteOpen(true)}
+                  className="bg-rose-600 hover:bg-rose-700"
+                >
+                  <Trash2 className="h-4 w-4" /> Eliminar cuenta
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Delete account confirmation dialog */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-700">
+              <AlertCircle className="h-5 w-5" /> Eliminar cuenta
+            </DialogTitle>
+            <DialogDescription>
+              Esta acción es <strong className="text-rose-700">irreversible</strong>. Se perderán todas tus tarjetas, mensajes, citas y configuraciones.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="rounded-lg bg-rose-50 p-3 text-xs text-rose-700 ring-1 ring-rose-200">
+              <p className="font-semibold">Para confirmar, escribe <span className="font-mono">ELIMINAR</span> en el campo siguiente:</p>
+            </div>
+            <Input
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              placeholder="Escribe ELIMINAR"
+              className="font-mono"
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => { setDeleteOpen(false); setDeleteConfirm(''); }}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteConfirm !== 'ELIMINAR'}
+              onClick={handleDeleteAccount}
+              className="bg-rose-600 hover:bg-rose-700"
+            >
+              <Trash2 className="h-4 w-4" /> Eliminar definitivamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

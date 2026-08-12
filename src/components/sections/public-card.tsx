@@ -40,7 +40,8 @@ import {
 /* ---------- helpers ---------- */
 
 function getQrValue(card: BusinessCard, plan: PlanType): string {
-  const expired = plan.qrExpires && card.qrExpiresAt ? isQrExpired(card) : false;
+  const planConfig = PLANS[plan];
+  const expired = planConfig.qrExpires && card.qrExpiresAt ? isQrExpired(card) : false;
   if (expired) return 'https://ftpdigitalplus.com/qr-expirado';
   if (card.whatsappNumber) {
     return buildWhatsappUrl(card.whatsappNumber, card.whatsappMessage || 'Hola, vi tu tarjeta digital');

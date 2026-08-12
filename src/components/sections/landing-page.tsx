@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/lib/store';
 import { FTPLogo } from '@/components/ftp-logo';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -11,6 +11,8 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 import {
   QrCode,
   Briefcase,
@@ -33,6 +35,19 @@ import {
   MessageCircle,
   Mail,
   Phone,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Heart,
+  Users,
+  Award,
+  TrendingUp,
+  FileText,
+  Shield,
+  RefreshCw,
+  Send,
+  Quote,
+  Building2,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
@@ -91,6 +106,97 @@ const FEATURES = [
   },
 ];
 
+const ADDITIONAL_FEATURES = [
+  {
+    icon: MessageCircle,
+    title: 'WhatsApp Integrado',
+    description:
+      'Recibe mensajes directos de tus clientes a tu WhatsApp sin exponer tu número públicamente.',
+    accent: 'from-emerald-500 to-teal-600',
+  },
+  {
+    icon: Users,
+    title: 'Equipo y Citas',
+    description:
+      'Agrega miembros de tu equipo con perfiles individuales y sistema de citas independiente.',
+    accent: 'from-amber-500 to-orange-600',
+  },
+  {
+    icon: Award,
+    title: 'Testimonios',
+    description:
+      'Muestra reseñas y calificaciones de tus clientes para generar confianza social.',
+    accent: 'from-emerald-500 to-green-600',
+  },
+  {
+    icon: Globe,
+    title: 'SEO Optimizado',
+    description:
+      'Cada tarjeta está optimizada para buscadores con metadatos personalizables por ti.',
+    accent: 'from-amber-500 to-yellow-600',
+  },
+  {
+    icon: TrendingUp,
+    title: 'Afiliados',
+    description:
+      'Genera ingresos extras recomendando FTP Digital Plus con tu código de afiliado.',
+    accent: 'from-emerald-500 to-emerald-700',
+  },
+  {
+    icon: Heart,
+    title: 'Personalización Total',
+    description:
+      'Colores, fuentes, CSS personalizado y hasta JavaScript para control absoluto del diseño.',
+    accent: 'from-amber-500 to-rose-600',
+  },
+];
+
+const TRUSTED_COMPANIES = [
+  { name: 'Consultorio González', initials: 'CG' },
+  { name: 'Restaurante El Sabor', initials: 'RS' },
+  { name: 'Boutique Rosa', initials: 'BR' },
+  { name: 'Tech Solutions MX', initials: 'TS' },
+];
+
+const COMPARISON_ROWS = [
+  {
+    label: 'Precio',
+    ftp: 'Desde $0',
+    others: '$200 - $1,500/mes',
+    traditional: '$500 - $2,000 una vez',
+  },
+  {
+    label: 'QR incluido',
+    ftp: 'Sí, en todos los planes',
+    others: 'Sí, con costo extra',
+    traditional: 'No',
+  },
+  {
+    label: 'Actualizable',
+    ftp: 'En tiempo real',
+    others: 'Sí, pero lento',
+    traditional: 'No, debes reimprimir',
+  },
+  {
+    label: 'Estadísticas',
+    ftp: 'Completas y en vivo',
+    others: 'Limitadas',
+    traditional: 'Ninguna',
+  },
+  {
+    label: 'Múltiples funciones',
+    ftp: '24+ secciones',
+    others: '5-10 secciones',
+    traditional: 'Solo contacto',
+  },
+  {
+    label: 'Sin costos ocultos',
+    ftp: '100% transparente',
+    others: 'Comisiones por uso',
+    traditional: 'Costos de reimpresión',
+  },
+];
+
 const STEPS = [
   {
     number: '01',
@@ -126,6 +232,7 @@ const TESTIMONIALS = [
   {
     name: 'Dra. María González',
     role: 'Médico Internista',
+    company: 'Consultorio González',
     text: 'FTP Digital Plus transformó la manera en que mis pacientes me contactan. Las citas en línea me ahorran horas cada semana.',
     rating: 5,
     initials: 'MG',
@@ -133,6 +240,7 @@ const TESTIMONIALS = [
   {
     name: 'Roberto Cruz',
     role: 'Restaurantero',
+    company: 'Restaurante El Sabor',
     text: 'El menú digital con QR es espectacular. Mis clientes lo aman y las reservaciones aumentaron un 40% en dos meses.',
     rating: 5,
     initials: 'RC',
@@ -140,9 +248,26 @@ const TESTIMONIALS = [
   {
     name: 'Patricia López',
     role: 'Diseñadora Gráfica',
+    company: 'Boutique Rosa',
     text: 'Mi portafolio se ve increíble. El plan Básico me dio todo lo que necesitaba para impresionar a mis clientes.',
     rating: 5,
     initials: 'PL',
+  },
+  {
+    name: 'Miguel Ángel Torres',
+    role: 'Chef Ejecutivo',
+    company: 'Tech Solutions MX',
+    text: 'La analítica avanzada del plan Pro me permitió entender mejor a mis clientes y duplicar mis ventas en línea.',
+    rating: 5,
+    initials: 'MT',
+  },
+  {
+    name: 'Laura Sánchez',
+    role: 'Gerente de Marketing',
+    company: 'Agencia Creativa',
+    text: 'Probamos varias plataformas y FTP Digital Plus es sin duda la más completa y fácil de usar. 100% recomendada.',
+    rating: 5,
+    initials: 'LS',
   },
 ];
 
@@ -288,11 +413,19 @@ function Hero() {
   const navigate = useAppStore(s => s.navigate);
   const fade = fadeUpProps();
 
+  const scrollToNext = () => {
+    const el = document.getElementById('caracteristicas');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <section
       id="inicio"
       className="relative overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-800 text-white"
     >
+      {/* Animated gradient overlay */}
+      <div className="pointer-events-none absolute inset-0 animate-gradient bg-gradient-to-br from-emerald-600 via-emerald-700 to-amber-600/40 opacity-30" />
+
       {/* Decorative blobs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -left-24 -top-24 size-96 rounded-full bg-amber-400/20 blur-3xl" />
@@ -305,6 +438,35 @@ function Hero() {
               'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
             backgroundSize: '32px 32px',
           }}
+        />
+      </div>
+
+      {/* Floating decorative shapes */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <motion.div
+          animate={{ y: [0, -20, 0], rotate: [0, 180, 360] }}
+          transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute right-[8%] top-[18%] hidden size-12 rounded-2xl border border-amber-300/30 bg-amber-400/10 backdrop-blur-sm lg:block"
+        />
+        <motion.div
+          animate={{ y: [0, 18, 0], x: [0, 8, 0] }}
+          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+          className="absolute left-[5%] top-[40%] hidden size-3 rounded-full bg-amber-300/60 lg:block"
+        />
+        <motion.div
+          animate={{ y: [0, -14, 0] }}
+          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+          className="absolute right-[15%] bottom-[20%] hidden size-4 rounded-full bg-emerald-200/50 lg:block"
+        />
+        <motion.div
+          animate={{ y: [0, 16, 0], rotate: [0, -90, 0] }}
+          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 0.8 }}
+          className="absolute left-[12%] bottom-[15%] hidden size-8 rounded-lg border border-emerald-200/30 bg-emerald-300/10 backdrop-blur-sm lg:block"
+        />
+        <motion.div
+          animate={{ y: [0, -10, 0], opacity: [0.4, 1, 0.4] }}
+          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
+          className="absolute right-[40%] top-[12%] hidden size-2 rounded-full bg-amber-200/70 lg:block"
         />
       </div>
 
@@ -359,6 +521,31 @@ function Hero() {
               <CheckCircle2 className="size-4 text-amber-300" /> 100% en español
             </span>
           </div>
+
+          {/* Trusted by row */}
+          <div className="flex flex-col gap-3 pt-6">
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-100/70">
+              Empresas que confían en nosotros
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              {TRUSTED_COMPANIES.map((company, idx) => (
+                <motion.div
+                  key={company.name}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 + idx * 0.1, duration: 0.4 }}
+                  className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 backdrop-blur-sm"
+                >
+                  <span className="flex size-6 items-center justify-center rounded-md bg-gradient-to-br from-amber-300 to-amber-400 text-[10px] font-bold text-amber-950">
+                    {company.initials}
+                  </span>
+                  <span className="text-xs font-medium text-emerald-50/90">
+                    {company.name}
+                  </span>
+                </motion.div>
+              ))}
+            </div>
+          </div>
         </motion.div>
 
         {/* Right: floating card mockup */}
@@ -371,6 +558,23 @@ function Hero() {
           <FloatingCardPreview />
         </motion.div>
       </div>
+
+      {/* Scroll indicator */}
+      <button
+        onClick={scrollToNext}
+        aria-label="Desplazarse hacia abajo"
+        className="absolute bottom-4 left-1/2 z-10 hidden -translate-x-1/2 flex-col items-center gap-1 text-emerald-50/70 transition-colors hover:text-white lg:flex"
+      >
+        <span className="text-[10px] font-medium uppercase tracking-widest">
+          Explora más
+        </span>
+        <motion.div
+          animate={{ y: [0, 6, 0] }}
+          transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <ChevronDown className="size-5" />
+        </motion.div>
+      </button>
 
       {/* Bottom wave */}
       <div className="relative">
@@ -506,6 +710,8 @@ function FloatingCardPreview() {
 /* ------------------------------------------------------------------ */
 
 function Features() {
+  const [showMore, setShowMore] = useState(false);
+
   return (
     <section id="caracteristicas" className="relative bg-white py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -526,15 +732,27 @@ function Features() {
         <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((feature, idx) => (
             <motion.div key={feature.title} {...fadeUpProps(idx * 0.08)}>
-              <Card className="group h-full border-slate-200/70 transition-all duration-300 hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-100/60">
-                <CardContent className="flex h-full flex-col gap-4">
-                  <div
-                    className={cn(
-                      'flex size-12 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md transition-transform duration-300 group-hover:scale-110',
-                      feature.accent,
-                    )}
-                  >
-                    <feature.icon className="size-6" />
+              <Card className="card-hover group relative h-full overflow-hidden border-slate-200/70 hover:border-emerald-200">
+                {/* Glow accent */}
+                <div
+                  className={cn(
+                    'pointer-events-none absolute -right-12 -top-12 size-32 rounded-full bg-gradient-to-br opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-20',
+                    feature.accent,
+                  )}
+                />
+                <CardContent className="relative flex h-full flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <div
+                      className={cn(
+                        'flex size-12 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md transition-transform duration-300 group-hover:scale-110',
+                        feature.accent,
+                      )}
+                    >
+                      <feature.icon className="size-6" />
+                    </div>
+                    <span className="font-mono text-3xl font-bold text-slate-100 transition-colors group-hover:text-emerald-100">
+                      {String(idx + 1).padStart(2, '0')}
+                    </span>
                   </div>
                   <div className="flex flex-col gap-2">
                     <h3 className="text-lg font-semibold text-slate-900">
@@ -549,6 +767,89 @@ function Features() {
             </motion.div>
           ))}
         </div>
+
+        {/* Expandable additional features */}
+        <AnimatePresence initial={false}>
+          {showMore && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden"
+            >
+              <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {ADDITIONAL_FEATURES.map((feature, idx) => (
+                  <motion.div
+                    key={feature.title}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05, duration: 0.4 }}
+                  >
+                    <Card className="card-hover group relative h-full overflow-hidden border-slate-200/70 hover:border-emerald-200">
+                      <div
+                        className={cn(
+                          'pointer-events-none absolute -right-12 -top-12 size-32 rounded-full bg-gradient-to-br opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-20',
+                          feature.accent,
+                        )}
+                      />
+                      <CardContent className="relative flex h-full flex-col gap-4">
+                        <div className="flex items-center justify-between">
+                          <div
+                            className={cn(
+                              'flex size-12 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md transition-transform duration-300 group-hover:scale-110',
+                              feature.accent,
+                            )}
+                          >
+                            <feature.icon className="size-6" />
+                          </div>
+                          <span className="font-mono text-3xl font-bold text-slate-100 transition-colors group-hover:text-emerald-100">
+                            {String(FEATURES.length + idx + 1).padStart(2, '0')}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <h3 className="text-lg font-semibold text-slate-900">
+                            {feature.title}
+                          </h3>
+                          <p className="text-sm leading-relaxed text-slate-600">
+                            {feature.description}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <motion.div {...fadeUpProps(0.15)} className="mt-10 text-center">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => setShowMore(v => !v)}
+            className="gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+          >
+            {showMore ? (
+              <>
+                Ver menos funciones
+                <ChevronDown className="size-4 rotate-180" />
+              </>
+            ) : (
+              <>
+                Ver más funciones
+                <ChevronDown className="size-4" />
+              </>
+            )}
+          </Button>
+          {!showMore && (
+            <p className="mt-3 text-xs text-slate-500">
+              Descubre {ADDITIONAL_FEATURES.length} funciones adicionales que
+              hacen de FTP Digital Plus la plataforma más completa.
+            </p>
+          )}
+        </motion.div>
       </div>
     </section>
   );
@@ -636,6 +937,130 @@ function Stats() {
             </motion.div>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Comparison section                                                 */
+/* ------------------------------------------------------------------ */
+
+function Comparison() {
+  return (
+    <section className="relative overflow-hidden bg-gradient-to-b from-slate-50 to-white py-20 sm:py-28">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <motion.div {...fadeUpProps()} className="mx-auto max-w-2xl text-center">
+          <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">
+            <Award className="mr-1 size-3.5" />
+            Comparativa
+          </Badge>
+          <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+            FTP Digital Plus vs. la competencia
+          </h2>
+          <p className="mt-4 text-lg text-slate-600">
+            Compara nuestras funciones con otras plataformas digitales y las
+            tarjetas tradicionales de papel.
+          </p>
+        </motion.div>
+
+        {/* Mobile: stacked cards */}
+        <motion.div {...fadeUpProps(0.1)} className="mt-12 lg:hidden">
+          {COMPARISON_ROWS.map((row, idx) => (
+            <Card key={row.label} className="mb-3 overflow-hidden border-slate-200">
+              <CardContent className="p-0">
+                <div className="border-b border-slate-100 bg-slate-50 px-4 py-2.5">
+                  <p className="text-sm font-semibold text-slate-900">{row.label}</p>
+                </div>
+                <div className="grid grid-cols-3 divide-x divide-slate-100">
+                  <div className="bg-emerald-50/50 p-3 text-center">
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                      FTP
+                    </p>
+                    <p className="text-xs font-medium text-slate-800">{row.ftp}</p>
+                  </div>
+                  <div className="p-3 text-center">
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                      Otras
+                    </p>
+                    <p className="text-xs text-slate-600">{row.others}</p>
+                  </div>
+                  <div className="p-3 text-center">
+                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                      Papel
+                    </p>
+                    <p className="text-xs text-slate-600">{row.traditional}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </motion.div>
+
+        {/* Desktop: table */}
+        <motion.div {...fadeUpProps(0.1)} className="mt-12 hidden lg:block">
+          <Card className="overflow-hidden border-slate-200 shadow-lg">
+            <CardContent className="p-0">
+              {/* Header row */}
+              <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] border-b border-slate-200">
+                <div className="bg-slate-50 px-6 py-5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Característica
+                  </span>
+                </div>
+                <div className="relative bg-gradient-to-b from-emerald-600 to-emerald-700 px-6 py-5 text-center">
+                  <div className="absolute inset-x-0 -top-3 mx-auto w-fit">
+                    <Badge className="border-0 bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-amber-950 shadow">
+                      RECOMENDADO
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-sm font-bold text-white">FTP Digital Plus</p>
+                </div>
+                <div className="bg-slate-50 px-6 py-5 text-center">
+                  <p className="text-sm font-semibold text-slate-700">Otras plataformas</p>
+                </div>
+                <div className="bg-slate-50 px-6 py-5 text-center">
+                  <p className="text-sm font-semibold text-slate-700">Tarjetas tradicionales</p>
+                </div>
+              </div>
+
+              {/* Data rows */}
+              {COMPARISON_ROWS.map((row, idx) => (
+                <div
+                  key={row.label}
+                  className={cn(
+                    'grid grid-cols-[1.5fr_1fr_1fr_1fr] border-b border-slate-100 last:border-b-0',
+                    idx % 2 === 1 && 'bg-slate-50/40',
+                  )}
+                >
+                  <div className="px-6 py-4">
+                    <p className="text-sm font-medium text-slate-900">{row.label}</p>
+                  </div>
+                  <div className="bg-emerald-50/40 px-6 py-4 text-center">
+                    <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-800">
+                      <CheckCircle2 className="size-4 text-emerald-600" />
+                      {row.ftp}
+                    </p>
+                  </div>
+                  <div className="px-6 py-4 text-center">
+                    <p className="text-sm text-slate-600">{row.others}</p>
+                  </div>
+                  <div className="px-6 py-4 text-center">
+                    <p className="text-sm text-slate-500">{row.traditional}</p>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div {...fadeUpProps(0.2)} className="mt-8 text-center">
+          <p className="text-sm text-slate-600">
+            <Sparkles className="mr-1 inline size-4 text-amber-500" />
+            FTP Digital Plus ofrece la mejor relación precio-funcionalidades del
+            mercado mexicano.
+          </p>
+        </motion.div>
       </div>
     </section>
   );
@@ -760,12 +1185,37 @@ function PricingPreview() {
 /* ------------------------------------------------------------------ */
 
 function Testimonials() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const next = useCallback(() => {
+    setActiveIndex(i => (i + 1) % TESTIMONIALS.length);
+  }, []);
+
+  const prev = useCallback(() => {
+    setActiveIndex(i => (i - 1 + TESTIMONIALS.length) % TESTIMONIALS.length);
+  }, []);
+
+  useEffect(() => {
+    if (isPaused) return;
+    const interval = setInterval(() => {
+      setActiveIndex(i => (i + 1) % TESTIMONIALS.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isPaused]);
+
+  const active = TESTIMONIALS[activeIndex];
+
   return (
-    <section className="bg-gradient-to-b from-white to-slate-50 py-20 sm:py-28">
+    <section
+      className="bg-gradient-to-b from-white to-slate-50 py-20 sm:py-28"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.div {...fadeUpProps()} className="mx-auto max-w-2xl text-center">
           <Badge className="border-amber-200 bg-amber-50 text-amber-700">
-            <Star className="mr-1 size-3.5" />
+            <Star className="mr-1 size-3.5 fill-amber-400 text-amber-500" />
             Testimonios
           </Badge>
           <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
@@ -776,33 +1226,112 @@ function Testimonials() {
           </p>
         </motion.div>
 
-        <div className="mt-14 grid gap-6 lg:grid-cols-3">
-          {TESTIMONIALS.map((t, idx) => (
-            <motion.div key={t.name} {...fadeUpProps(idx * 0.1)}>
-              <Card className="h-full border-slate-200/70 shadow-sm hover:shadow-md">
-                <CardContent className="flex h-full flex-col gap-4">
-                  <div className="flex gap-0.5">
-                    {Array.from({ length: t.rating }).map((_, i) => (
-                      <Star key={i} className="size-4 fill-amber-400 text-amber-400" />
+        {/* Main carousel */}
+        <motion.div {...fadeUpProps(0.1)} className="mx-auto mt-14 max-w-4xl">
+          <Card className="relative overflow-hidden border-emerald-100 shadow-lg">
+            <div className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-amber-200/20 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-16 -left-16 size-48 rounded-full bg-emerald-200/30 blur-3xl" />
+
+            <CardContent className="relative flex flex-col items-center gap-6 p-8 text-center sm:p-12">
+              <Quote className="size-10 text-emerald-200" />
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeIndex}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -12 }}
+                  transition={{ duration: 0.35 }}
+                  className="flex w-full flex-col items-center gap-5"
+                >
+                  <div className="flex gap-1">
+                    {Array.from({ length: active.rating }).map((_, i) => (
+                      <Star
+                        key={i}
+                        className="size-5 fill-amber-400 text-amber-400"
+                      />
                     ))}
                   </div>
-                  <p className="flex-1 text-sm leading-relaxed text-slate-700">
-                    “{t.text}”
+
+                  <p className="max-w-2xl text-balance text-lg font-medium leading-relaxed text-slate-800 sm:text-xl">
+                    “{active.text}”
                   </p>
-                  <div className="flex items-center gap-3 border-t border-slate-100 pt-4">
-                    <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-sm font-bold text-white">
-                      {t.initials}
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-base font-bold text-white shadow-md">
+                      {active.initials}
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">{t.name}</p>
-                      <p className="text-xs text-slate-500">{t.role}</p>
+                    <div className="text-left">
+                      <p className="font-semibold text-slate-900">{active.name}</p>
+                      <p className="text-sm text-slate-500">{active.role}</p>
+                      <p className="flex items-center gap-1 text-xs text-emerald-700">
+                        <Building2 className="size-3" />
+                        {active.company}
+                      </p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+                </motion.div>
+              </AnimatePresence>
+
+              {/* Controls */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={prev}
+                  aria-label="Testimonio anterior"
+                  className="flex size-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                >
+                  <ChevronLeft className="size-5" />
+                </button>
+                <div className="flex items-center gap-1.5">
+                  {TESTIMONIALS.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setActiveIndex(i)}
+                      aria-label={`Ir al testimonio ${i + 1}`}
+                      className={cn(
+                        'h-2 rounded-full transition-all',
+                        i === activeIndex
+                          ? 'w-6 bg-emerald-600'
+                          : 'w-2 bg-slate-300 hover:bg-slate-400',
+                      )}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={next}
+                  aria-label="Testimonio siguiente"
+                  className="flex size-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                >
+                  <ChevronRight className="size-5" />
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Company logos / names strip */}
+        <motion.div
+          {...fadeUpProps(0.2)}
+          className="mt-10 flex flex-wrap items-center justify-center gap-3"
+        >
+          {TESTIMONIALS.map((t, idx) => (
+            <button
+              key={t.name}
+              onClick={() => setActiveIndex(idx)}
+              className={cn(
+                'flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all',
+                idx === activeIndex
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:text-emerald-700',
+              )}
+            >
+              <span className="flex size-5 items-center justify-center rounded-md bg-gradient-to-br from-amber-300 to-amber-400 text-[9px] font-bold text-amber-950">
+                {t.initials}
+              </span>
+              {t.company}
+            </button>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );
@@ -877,13 +1406,24 @@ function FinalCTA() {
 function SiteFooter() {
   const navigate = useAppStore(s => s.navigate);
   const year = new Date().getFullYear();
+  const [email, setEmail] = useState('');
+
+  const handleNewsletter = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) {
+      toast.error('Por favor ingresa tu correo electrónico');
+      return;
+    }
+    toast.success('¡Gracias por suscribirte! Te mantendremos al tanto de nuestras novedades.');
+    setEmail('');
+  };
 
   return (
     <footer className="border-t border-slate-200 bg-slate-50">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid gap-10 lg:grid-cols-4">
-          {/* Brand */}
-          <div className="flex flex-col gap-4">
+        <div className="grid gap-10 lg:grid-cols-12">
+          {/* Brand + social */}
+          <div className="flex flex-col gap-4 lg:col-span-4">
             <FTPLogo variant="full" className="h-9 w-auto" />
             <p className="max-w-xs text-sm text-slate-600">
               Agencia de Diseño Web y Marketing Digital. Creamos experiencias
@@ -891,17 +1431,21 @@ function SiteFooter() {
             </p>
             <div className="flex gap-2">
               {[
-                { Icon: Facebook, label: 'Facebook' },
-                { Icon: Instagram, label: 'Instagram' },
-                { Icon: Linkedin, label: 'LinkedIn' },
-                { Icon: Twitter, label: 'Twitter' },
-              ].map(({ Icon, label }) => (
+                { Icon: Facebook, label: 'Facebook', color: 'hover:bg-[#1877F2] hover:border-[#1877F2] hover:text-white' },
+                { Icon: Instagram, label: 'Instagram', color: 'hover:bg-gradient-to-br hover:from-[#E4405F] hover:to-[#F77737] hover:border-transparent hover:text-white' },
+                { Icon: Linkedin, label: 'LinkedIn', color: 'hover:bg-[#0A66C2] hover:border-[#0A66C2] hover:text-white' },
+                { Icon: Twitter, label: 'Twitter', color: 'hover:bg-black hover:border-black hover:text-white' },
+                { Icon: MessageCircle, label: 'WhatsApp', color: 'hover:bg-[#25D366] hover:border-[#25D366] hover:text-white' },
+              ].map(({ Icon, label, color }) => (
                 <a
                   key={label}
                   href="#"
                   onClick={e => e.preventDefault()}
                   aria-label={label}
-                  className="flex size-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                  className={cn(
+                    'flex size-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md',
+                    color,
+                  )}
                 >
                   <Icon className="size-4" />
                 </a>
@@ -910,13 +1454,13 @@ function SiteFooter() {
           </div>
 
           {/* Product */}
-          <div>
+          <div className="lg:col-span-2">
             <h3 className="text-sm font-semibold text-slate-900">Producto</h3>
             <ul className="mt-4 flex flex-col gap-2.5 text-sm">
               {[
                 { label: 'Características', action: () => document.getElementById('caracteristicas')?.scrollIntoView({ behavior: 'smooth' }) },
                 { label: 'Planes', action: () => navigate('pricing') },
-                { label: 'Plantillas', action: () => navigate('pricing') },
+                { label: 'Plantillas', action: () => navigate('template-gallery') },
                 { label: 'Iniciar Sesión', action: () => navigate('login') },
               ].map(item => (
                 <li key={item.label}>
@@ -931,38 +1475,69 @@ function SiteFooter() {
             </ul>
           </div>
 
-          {/* Company */}
-          <div>
-            <h3 className="text-sm font-semibold text-slate-900">Empresa</h3>
+          {/* Legal */}
+          <div className="lg:col-span-2">
+            <h3 className="text-sm font-semibold text-slate-900">Legal</h3>
             <ul className="mt-4 flex flex-col gap-2.5 text-sm">
-              {['Sobre nosotros', 'Blog', 'Contacto', 'Soporte'].map(label => (
-                <li key={label}>
-                  <a
-                    href="#"
-                    onClick={e => e.preventDefault()}
-                    className="text-slate-600 transition-colors hover:text-emerald-700"
+              {[
+                { label: 'Términos y Condiciones', view: 'terms' as const, icon: FileText },
+                { label: 'Política de Privacidad', view: 'privacy' as const, icon: Shield },
+                { label: 'Política de Reembolsos', view: 'refunds' as const, icon: RefreshCw },
+              ].map(item => (
+                <li key={item.label}>
+                  <button
+                    onClick={() => {
+                      navigate(item.view);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="flex items-center gap-1.5 text-slate-600 transition-colors hover:text-emerald-700"
                   >
-                    {label}
-                  </a>
+                    <item.icon className="size-3.5 text-emerald-500" />
+                    {item.label}
+                  </button>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Contact */}
-          <div>
-            <h3 className="text-sm font-semibold text-slate-900">Contacto</h3>
-            <ul className="mt-4 flex flex-col gap-2.5 text-sm text-slate-600">
+          {/* Newsletter + contact */}
+          <div className="lg:col-span-4">
+            <h3 className="text-sm font-semibold text-slate-900">
+              Mantente al día
+            </h3>
+            <p className="mt-4 text-sm text-slate-600">
+              Suscríbete a nuestro newsletter y recibe tips, novedades y promociones
+              exclusivas.
+            </p>
+            <form onSubmit={handleNewsletter} className="mt-4 flex gap-2">
+              <Input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="tu@correo.com"
+                aria-label="Correo electrónico"
+                className="border-slate-200 bg-white focus-visible:ring-emerald-500"
+              />
+              <Button
+                type="submit"
+                className="gap-1.5 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm hover:from-emerald-700 hover:to-emerald-600"
+              >
+                <Send className="size-4" />
+                <span className="hidden sm:inline">Suscribirme</span>
+              </Button>
+            </form>
+
+            <ul className="mt-5 flex flex-col gap-2 text-xs text-slate-500">
               <li className="flex items-center gap-2">
-                <Mail className="size-4 text-emerald-600" />
+                <Mail className="size-3.5 text-emerald-600" />
                 hola@ftpdigitalplus.com
               </li>
               <li className="flex items-center gap-2">
-                <Phone className="size-4 text-emerald-600" />
+                <Phone className="size-3.5 text-emerald-600" />
                 +52 55 1234 5678
               </li>
               <li className="flex items-center gap-2">
-                <Globe className="size-4 text-emerald-600" />
+                <Globe className="size-3.5 text-emerald-600" />
                 Ciudad de México, México
               </li>
             </ul>
@@ -973,17 +1548,74 @@ function SiteFooter() {
           <p className="text-sm text-slate-500">
             © {year} FTP Digital Plus — Agencia de Diseño Web y Marketing Digital.
           </p>
-          <div className="flex gap-6 text-sm text-slate-500">
-            <a href="#" onClick={e => e.preventDefault()} className="hover:text-emerald-700">
-              Privacidad
-            </a>
-            <a href="#" onClick={e => e.preventDefault()} className="hover:text-emerald-700">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-500">
+            <button
+              onClick={() => navigate('terms')}
+              className="transition-colors hover:text-emerald-700"
+            >
               Términos
-            </a>
+            </button>
+            <span className="text-slate-300">·</span>
+            <button
+              onClick={() => navigate('privacy')}
+              className="transition-colors hover:text-emerald-700"
+            >
+              Privacidad
+            </button>
+            <span className="text-slate-300">·</span>
+            <button
+              onClick={() => navigate('refunds')}
+              className="transition-colors hover:text-emerald-700"
+            >
+              Reembolsos
+            </button>
           </div>
         </div>
       </div>
     </footer>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Live Demo floating button                                          */
+/* ------------------------------------------------------------------ */
+
+function LiveDemoButton() {
+  const navigate = useAppStore(s => s.navigate);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => {
+      setVisible(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.5, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.5, y: 20 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          onClick={() => navigate('login')}
+          aria-label="Ver demostración"
+          className="group fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/40 transition-transform hover:scale-105"
+        >
+          {/* Pulse rings */}
+          <span className="pointer-events-none absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-30" />
+          <span className="pointer-events-none absolute inset-0 animate-pulse rounded-full bg-emerald-300 opacity-20" />
+          <span className="relative flex size-5 items-center justify-center rounded-full bg-white/20">
+            <Sparkles className="size-3.5 text-amber-200" />
+          </span>
+          <span className="relative">Ver Demo</span>
+          <ArrowRight className="relative size-4 transition-transform group-hover:translate-x-0.5" />
+        </motion.button>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -1000,11 +1632,13 @@ export function LandingPage() {
         <Features />
         <HowItWorks />
         <Stats />
+        <Comparison />
         <PricingPreview />
         <Testimonials />
         <FinalCTA />
       </main>
       <SiteFooter />
+      <LiveDemoButton />
     </div>
   );
 }
