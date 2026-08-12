@@ -347,3 +347,167 @@
   outline: 2px solid oklch(0.55 0.15 160);
   outline-offset: 2px;
 }
+
+/* ============================================
+   Accessibility utilities & micro-animations (Task 8-c)
+   ============================================ */
+
+/* Elemento enfocable pero visualmente oculto hasta recibir foco */
+.sr-only-focusable:not(:focus):not(:focus-within) {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Focus visible mejorado para todos los elementos interactivos */
+*:focus-visible {
+  outline: 2px solid oklch(0.55 0.15 160);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Soporte para usuarios que prefieren movimiento reducido */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Modo de alto contraste */
+@media (prefers-contrast: high) {
+  :root {
+    --border: oklch(0 0 0);
+    --input: oklch(0 0 0);
+  }
+}
+
+/* Skip link — escondido hasta recibir foco, animación suave de entrada */
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 16px;
+  z-index: 9999;
+  background: oklch(0.55 0.15 160);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 0 0 8px 8px;
+  font-weight: 600;
+  transition: top 0.2s ease;
+}
+.skip-link:focus {
+  top: 0;
+}
+
+/* Skeleton shimmer — placeholders de carga */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    oklch(0.96 0.01 150) 0%,
+    oklch(0.92 0.01 150) 50%,
+    oklch(0.96 0.01 150) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Micro-interacción: botón presionado */
+.button-press {
+  transition: transform 0.1s ease;
+}
+.button-press:active {
+  transform: scale(0.97);
+}
+
+/* Card lift on hover — elevación sutil al pasar el cursor */
+.card-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -8px oklch(0.55 0.15 160 / 0.15);
+}
+
+/* Text reveal animation */
+@keyframes text-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.text-reveal {
+  animation: text-reveal 0.4s ease-out;
+}
+
+/* Number count-up animation (definido por consistencia, usado por CountUp.tsx) */
+@keyframes count-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Stagger children — reveal secuencial de hijos directos */
+.stagger-children > * {
+  opacity: 0;
+  animation: text-reveal 0.4s ease-out forwards;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger-children > *:nth-child(2) { animation-delay: 0.1s; }
+.stagger-children > *:nth-child(3) { animation-delay: 0.15s; }
+.stagger-children > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger-children > *:nth-child(5) { animation-delay: 0.25s; }
+.stagger-children > *:nth-child(6) { animation-delay: 0.3s; }
+
+/* Ripple effect para botones */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+.ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s, height 0.3s;
+}
+.ripple:active::after {
+  width: 300px;
+  height: 300px;
+}
+
+/* Glow pulse para elementos importantes */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 oklch(0.55 0.15 160 / 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px oklch(0.55 0.15 160 / 0);
+  }
+}
+.glow-pulse {
+  animation: glow-pulse 2s infinite;
+}

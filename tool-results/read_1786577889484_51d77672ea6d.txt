@@ -1,0 +1,830 @@
+     1→'use client';
+     2→
+     3→import { useState, useMemo, useRef } from 'react';
+     4→import { motion, AnimatePresence } from 'framer-motion';
+     5→import {
+     6→  Search, BookOpen, HelpCircle, LifeBuoy, CheckCircle, Clock, ChevronRight,
+     7→  MessageCircle, Video, FileText, ArrowLeft, ArrowRight, Sparkles,
+     8→  Smartphone, QrCode, Share2, BarChart3, Plus, LucideIcon,
+     9→} from 'lucide-react';
+    10→import { toast } from 'sonner';
+    11→
+    12→import { Button } from '@/components/ui/button';
+    13→import {
+    14→  Card, CardHeader, CardContent, CardTitle, CardDescription,
+    15→} from '@/components/ui/card';
+    16→import { Input } from '@/components/ui/input';
+    17→import { Badge } from '@/components/ui/badge';
+    18→import {
+    19→  Accordion, AccordionItem, AccordionTrigger, AccordionContent,
+    20→} from '@/components/ui/accordion';
+    21→import {
+    22→  Dialog, DialogContent, DialogHeader, DialogTitle,
+    23→  DialogDescription,
+    24→} from '@/components/ui/dialog';
+    25→import { FTPLogo } from '@/components/ftp-logo';
+    26→import { ThemeToggle } from '@/components/theme-toggle';
+    27→import { useAppStore } from '@/lib/store';
+    28→import { cn } from '@/lib/utils';
+    29→
+    30→// ============================ DATOS ============================
+    31→type FAQCategory = 'Cuenta' | 'Facturación' | 'Técnico' | 'Tarjetas';
+    32→
+    33→interface FAQItem {
+    34→  id: string;
+    35→  category: FAQCategory;
+    36→  question: string;
+    37→  answer: string;
+    38→}
+    39→
+    40→const FAQ_ITEMS: FAQItem[] = [
+    41→  {
+    42→    id: 'faq-1',
+    43→    category: 'Cuenta',
+    44→    question: '¿Cómo puedo registrarme en FTP Digital Plus?',
+    45→    answer:
+    46→      'Para registrarte, haz clic en el botón "Crear Cuenta" ubicado en la esquina superior derecha de la página principal. Completa el formulario con tu nombre, correo electrónico y una contraseña. Te asignaremos automáticamente el plan Gratis para que puedas crear tu primera tarjeta digital. Si deseas más funciones, puedes actualizar a los planes Básico o Pro en cualquier momento desde tu panel.',
+    47→  },
+    48→  {
+    49→    id: 'faq-2',
+    50→    category: 'Cuenta',
+    51→    question: '¿Puedo cambiar mi plan más adelante?',
+    52→    answer:
+    53→      'Sí, puedes actualizar o cambiar tu plan en cualquier momento desde el panel de control en la sección "Ajustes / Pagos" o desde la página de "Ver Planes". Al actualizar, se aplican los nuevos límites y funciones de inmediato. Si pasas de un plan de pago a uno inferior, las tarjetas que excedan el nuevo límite se desactivarán pero no se eliminarán; podrás reactivarlas si vuelves a subir de plan.',
+    54→  },
+    55→  {
+    56→    id: 'faq-3',
+    57→    category: 'Cuenta',
+    58→    question: '¿Cómo recupero mi contraseña si la olvido?',
+    59→    answer:
+    60→      'En la pantalla de inicio de sesión haz clic en el enlace "¿Olvidaste tu contraseña?". Ingresa tu correo electrónico y te enviaremos un enlace de recuperación válido por 1 hora. Por seguridad, el enlace solo puede usarse una vez. Si no recibes el correo en pocos minutos, revisa tu carpeta de spam o contacto a soporte@ftpdigitalplus.com.',
+    61→  },
+    62→  {
+    63→    id: 'faq-4',
+    64→    category: 'Facturación',
+    65→    question: '¿Qué métodos de pago aceptan?',
+    66→    answer:
+    67→      'Aceptamos tarjetas de crédito y débito Visa, Mastercard y American Express, así como transferencias bancarias SPEI (para usuarios en México) y PayPal. Todos los pagos se procesan a través de pasarelas cifradas con estándar PCI-DSS. Las facturas se generan automáticamente y puedes descargarlas desde la sección "Ajustes / Pagos" de tu panel.',
+    68→  },
+    69→  {
+    70→    id: 'faq-5',
+    71→    category: 'Facturación',
+    72→    question: '¿Puedo obtener un reembolso?',
+    73→    answer:
+    74→      'Sí. Ofrecemos una garantía de satisfacción de 14 días. Si no estás conforme con tu plan Básico o Pro, solicita el reembolso dentro de los primeros 14 días posteriores a la compra y te devolveremos el 100% del monto. El reembolso se aplica al método de pago original en un plazo de 5 a 10 días hábiles. Consulta nuestra política completa en la sección de Términos y Condiciones.',
+    75→  },
+    76→  {
+    77→    id: 'faq-6',
+    78→    category: 'Facturación',
+    79→    question: '¿La suscripción del Plan Pro se renueva automáticamente?',
+    80→    answer:
+    81→      'Sí, el plan Pro es una suscripción anual que se renueva automáticamente al finalizar cada ciclo de 12 meses. Te enviaremos un correo de aviso 7 días antes del cargo. Si deseas cancelar la renovación automática, puedes hacerlo desde "Ajustes / Pagos" en tu panel. Al cancelar, mantienes acceso a las funciones Pro hasta que termine el ciclo facturado.',
+    82→  },
+    83→  {
+    84→    id: 'faq-7',
+    85→    category: 'Técnico',
+    86→    question: 'Mi código QR no funciona, ¿qué hago?',
+    87→    answer:
+    88→      'Si tu QR no escanea correctamente: 1) Verifica que el QR no esté dañado o pixelado al imprimirlo (recomendamos descargar la imagen en alta resolución). 2) Asegúrate de que el color del QR tenga buen contraste con el fondo (QR oscuro sobre fondo claro funciona mejor). 3) Si tienes plan Gratis, recuerda que el QR expira cada 7 días; regenéralo desde el editor. 4) Prueba escanear con otra aplicación de cámara. Si el problema continúa, contacta a soporte.',
+    89→  },
+    90→  {
+    91→    id: 'faq-8',
+    92→    category: 'Técnico',
+    93→    question: '¿La plataforma funciona en móviles y tablets?',
+    94→    answer:
+    95→      'Sí, FTP Digital Plus es 100% responsivo. Tanto el panel de administración como las tarjetas digitales públicas se adaptan a cualquier dispositivo: smartphones, tablets y computadoras. Las tarjetas digitales están optimizadas para carga rápida en conexiones móviles (3G o superior) y los códigos QR funcionan con cualquier cámara de smartphone moderna.',
+    96→  },
+    97→  {
+    98→    id: 'faq-9',
+    99→    category: 'Tarjetas',
+   100→    question: '¿Cuántas tarjetas digitales puedo crear?',
+   101→    answer:
+   102→      'Depende de tu plan: el plan Gratis incluye 1 tarjeta digital, el plan Básico permite hasta 2 tarjetas y el plan Pro hasta 5 tarjetas. Cada tarjeta puede tener su propio enlace personalizado (solo en plan Pro), plantilla, colores, servicios, productos, galería y configuraciones independientes. Puedes gestionar todas tus tarjetas desde el "Tablero" en tu panel.',
+   103→  },
+   104→  {
+   105→    id: 'faq-10',
+   106→    category: 'Tarjetas',
+   107→    question: '¿Puedo personalizar el diseño de mi tarjeta?',
+   108→    answer:
+   109→      '¡Por supuesto! Dispones de 5 plantillas profesionales (Moderno, Clásico, Minimalista, Elegante y Dinámica), 8 paletas de colores predefinidas, 8 tipografías premium, y en los planes Básico y Pro puedes personalizar los colores manualmente, agregar CSS y JavaScript personalizado, y configurar todos los elementos visuales. Entra al editor de la tarjeta y explora las 24 secciones de personalización disponibles.',
+   110→  },
+   111→];
+   112→
+   113→interface GuideItem {
+   114→  id: string;
+   115→  title: string;
+   116→  description: string;
+   117→  readTime: number; // minutos
+   118→  icon: LucideIcon;
+   119→  iconBg: string;
+   120→  iconColor: string;
+   121→  steps: { title: string; description: string }[];
+   122→}
+   123→
+   124→const GUIDES: GuideItem[] = [
+   125→  {
+   126→    id: 'guide-1',
+   127→    title: 'Cómo crear tu primera tarjeta',
+   128→    description: 'Aprende a crear y configurar tu primera tarjeta digital en menos de 5 minutos.',
+   129→    readTime: 5,
+   130→    icon: Plus,
+   131→    iconBg: 'bg-emerald-100 dark:bg-emerald-950/40',
+   132→    iconColor: 'text-emerald-700 dark:text-emerald-400',
+   133→    steps: [
+   134→      { title: 'Inicia sesión en tu cuenta', description: 'Accede a tu panel con tu correo y contraseña. Si no tienes cuenta, regístrate gratis en segundos.' },
+   135→      { title: 'Haz clic en "Nueva Tarjeta"', description: 'Desde el Tablero, pulsa el botón verde "Nueva Tarjeta" en la esquina superior derecha.' },
+   136→      { title: 'Define el nombre y enlace', description: 'Asigna un nombre a tu tarjeta (ej. "Consultorio Médico") y un enlace único (ej. /t/consultorio-medico).' },
+   137→      { title: 'Personaliza los detalles básicos', description: 'Agrega tu foto de perfil, descripción, logo y portada en la sección "Detalles Básicos" del editor.' },
+   138→      { title: 'Guarda y comparte', description: 'Pulsa "Guardar cambios" y obtén tu código QR y enlace para compartir tu tarjeta.' },
+   139→    ],
+   140→  },
+   141→  {
+   142→    id: 'guide-2',
+   143→    title: 'Personalizar tu código QR',
+   144→    description: 'Cambia colores, forma y estilo de tu código QR para que combine con tu marca.',
+   145→    readTime: 3,
+   146→    icon: QrCode,
+   147→    iconBg: 'bg-amber-100 dark:bg-amber-950/40',
+   148→    iconColor: 'text-amber-700 dark:text-amber-400',
+   149→    steps: [
+   150→      { title: 'Abre el editor de tu tarjeta', description: 'Desde el Tablero, haz clic en "Editar" en la tarjeta que deseas modificar.' },
+   151→      { title: 'Ve a la sección "Personalizar QR"', description: 'En el menú lateral izquierdo del editor, busca el ícono QR y haz clic.' },
+   152→      { title: 'Elige la forma del QR', description: 'Selecciona entre Cuadrado, Redondo o Puntos. Cada estilo da un look distinto a tu QR.' },
+   153→      { title: 'Personaliza los colores', description: 'Cambia el color del QR y el color de fondo. Asegúrate de mantener buen contraste.' },
+   154→      { title: 'Agrega un logo al centro (opcional)', description: 'En los planes Básico y Pro puedes incrustar tu logo en el centro del QR.' },
+   155→      { title: 'Genera y descarga', description: 'Pulsa "Generar QR" y luego "Descargar" para obtener la imagen en alta resolución.' },
+   156→    ],
+   157→  },
+   158→  {
+   159→    id: 'guide-3',
+   160→    title: 'Configurar WhatsApp',
+   161→    description: 'Conecta tu número de WhatsApp para que los clientes te contacten con un clic.',
+   162→    readTime: 4,
+   163→    icon: MessageCircle,
+   164→    iconBg: 'bg-emerald-100 dark:bg-emerald-950/40',
+   165→    iconColor: 'text-emerald-700 dark:text-emerald-400',
+   166→    steps: [
+   167→      { title: 'Abre la sección WhatsApp', description: 'En el editor de tu tarjeta, ve a "Configuración WhatsApp" en el menú lateral.' },
+   168→      { title: 'Ingresa tu número', description: 'Escribe tu número de WhatsApp con código de país (ej. 52 para México). Sin signos ni espacios.' },
+   169→      { title: 'Verifica el número', description: 'Pulsa "Verificar número" para confirmar que el WhatsApp está activo. Recibirás un mensaje de prueba.' },
+   170→      { title: 'Personaliza el mensaje', description: 'Escribe el mensaje que verán tus clientes al hacer clic en el botón de WhatsApp.' },
+   171→      { title: 'Guarda los cambios', description: 'Pulsa "Guardar" y prueba el botón en la vista previa de tu tarjeta digital.' },
+   172→    ],
+   173→  },
+   174→  {
+   175→    id: 'guide-4',
+   176→    title: 'Agregar productos y servicios',
+   177→    description: 'Crea tu catálogo de productos y servicios disponibles en tu tarjeta digital.',
+   178→    readTime: 6,
+   179→    icon: BookOpen,
+   180→    iconBg: 'bg-amber-100 dark:bg-amber-950/40',
+   181→    iconColor: 'text-amber-700 dark:text-amber-400',
+   182→    steps: [
+   183→      { title: 'Ve a la sección "Servicios"', description: 'En el editor, abre la pestaña "Servicios" del menú lateral.' },
+   184→      { title: 'Pulsa "Agregar Servicio"', description: 'Completa el nombre, descripción, foto y URL externa (opcional) del servicio.' },
+   185→      { title: 'Repite para cada servicio', description: 'Puedes agregar tantos servicios como necesites. Se mostrarán en una cuadrícula elegante.' },
+   186→      { title: 'Pasa a la sección "Productos"', description: 'Cambia a la pestaña "Productos" del menú lateral.' },
+   187→      { title: 'Agrega productos con precio', description: 'Incluye nombre, precio, moneda, descripción, imagen y enlace de compra.' },
+   188→      { title: 'Guarda y visualiza', description: 'Guarda los cambios y previsualiza tu tarjeta para ver cómo lucen los catálogos.' },
+   189→    ],
+   190→  },
+   191→  {
+   192→    id: 'guide-5',
+   193→    title: 'Compartir tu tarjeta',
+   194→    description: 'Difunde tu tarjeta digital por QR, enlace, redes sociales y más.',
+   195→    readTime: 2,
+   196→    icon: Share2,
+   197→    iconBg: 'bg-emerald-100 dark:bg-emerald-950/40',
+   198→    iconColor: 'text-emerald-700 dark:text-emerald-400',
+   199→    steps: [
+   200→      { title: 'Abre tu tarjeta pública', description: 'Desde el Tablero, haz clic en "Ver" en tu tarjeta. Se abrirá la vista pública.' },
+   201→      { title: 'Pulsa el botón "Compartir"', description: 'Aparece un menú con todas las opciones de compartir disponibles.' },
+   202→      { title: 'Copia el enlace', description: 'Copia el enlace único de tu tarjeta para enviarlo por correo, WhatsApp o SMS.' },
+   203→      { title: 'Descarga el QR', description: 'Descarga la imagen del QR en alta resolución para imprimir en tarjetas físicas.' },
+   204→      { title: 'Comparte en redes sociales', description: 'Publica directamente en Facebook, Instagram, LinkedIn o Twitter con un clic.' },
+   205→    ],
+   206→  },
+   207→  {
+   208→    id: 'guide-6',
+   209→    title: 'Analíticas y estadísticas',
+   210→    description: 'Conoce cuántas visitas y escaneos recibe tu tarjeta digital.',
+   211→    readTime: 7,
+   212→    icon: BarChart3,
+   213→    iconBg: 'bg-amber-100 dark:bg-amber-950/40',
+   214→    iconColor: 'text-amber-700 dark:text-amber-400',
+   215→    steps: [
+   216→      { title: 'Ve a la sección "Analítica"', description: 'Desde el panel principal, haz clic en "Analítica" en el menú lateral.' },
+   217→      { title: 'Revisa las métricas generales', description: 'Visualiza visitas totales, escaneos QR, mensajes recibidos y citas agendadas.' },
+   218→      { title: 'Explora las gráficas', description: 'Filtra por rango de tiempo (7, 30, 90 días) y analiza tendencias de crecimiento.' },
+   219→      { title: 'Compara tus tarjetas', description: 'Si tienes varias, compara su rendimiento en la tabla de "Tarjetas con mejor rendimiento".' },
+   220→      { title: 'Analiza dispositivos y geografía', description: 'Conoce qué dispositivos usan tus visitantes y desde qué ciudades te visitan.' },
+   221→      { title: 'Exporta el reporte', description: 'Pulsa "Exportar" para descargar un PDF con todas las estadísticas (planes Básico y Pro).' },
+   222→    ],
+   223→  },
+   224→];
+   225→
+   226→const FAQ_CATEGORIES: FAQCategory[] = ['Cuenta', 'Facturación', 'Técnico', 'Tarjetas'];
+   227→
+   228→const CATEGORY_COLORS: Record<FAQCategory, string> = {
+   229→  'Cuenta': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400',
+   230→  'Facturación': 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400',
+   231→  'Técnico': 'bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-400',
+   232→  'Tarjetas': 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400',
+   233→};
+   234→
+   235→// ============================ HELPERS ============================
+   236→const fadeUp = (delay = 0) => ({
+   237→  initial: { opacity: 0, y: 16 },
+   238→  animate: { opacity: 1, y: 0 },
+   239→  transition: { duration: 0.45, delay, ease: 'easeOut' as const },
+   240→});
+   241→
+   242→// ============================ SUB-COMPONENTES ============================
+   243→function Footer() {
+   244→  return (
+   245→    <footer className="mt-auto border-t bg-white/80 backdrop-blur dark:bg-slate-950/60">
+   246→      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-4 text-center sm:flex-row sm:px-8 sm:text-left">
+   247→        <div className="flex items-center gap-2">
+   248→          <FTPLogo variant="icon" className="h-6 w-6" />
+   249→          <span className="text-xs text-muted-foreground">
+   250→            © {new Date().getFullYear()} FTP Digital Plus · Tarjetas de Presentación Digitales
+   251→          </span>
+   252→        </div>
+   253→        <span className="text-xs text-muted-foreground">
+   254→          Centro de Ayuda · <span className="font-medium text-emerald-700 dark:text-emerald-400">Soporte 24/7</span>
+   255→        </span>
+   256→      </div>
+   257→    </footer>
+   258→  );
+   259→}
+   260→
+   261→function HeaderBar() {
+   262→  const navigate = useAppStore(s => s.navigate);
+   263→  const currentUser = useAppStore(s => s.currentUser);
+   264→
+   265→  return (
+   266→    <header className="sticky top-0 z-30 border-b border-emerald-100/60 bg-white/80 backdrop-blur dark:border-emerald-900/40 dark:bg-slate-950/80">
+   267→      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-8">
+   268→        <button
+   269→          onClick={() => navigate(currentUser ? 'dashboard' : 'landing')}
+   270→          className="flex items-center gap-2 rounded-md px-2 py-1 text-sm font-medium text-slate-600 transition hover:text-emerald-700 dark:text-slate-300 dark:hover:text-emerald-400"
+   271→        >
+   272→          <ArrowLeft className="h-4 w-4" />
+   273→          <span className="hidden sm:inline">Volver</span>
+   274→        </button>
+   275→
+   276→        <div className="flex items-center gap-2">
+   277→          <FTPLogo variant="icon" className="h-7 w-7" />
+   278→          <span className="text-sm font-bold text-slate-800 dark:text-slate-200">FTP Digital Plus</span>
+   279→        </div>
+   280→
+   281→        <div className="flex items-center gap-1">
+   282→          <ThemeToggle className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-slate-300 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400" />
+   283→          <Button
+   284→            size="sm"
+   285→            className="hidden bg-emerald-600 hover:bg-emerald-700 sm:inline-flex"
+   286→            onClick={() => navigate('support')}
+   287→          >
+   288→            <LifeBuoy className="mr-1.5 h-4 w-4" />
+   289→            Contactar Soporte
+   290→          </Button>
+   291→        </div>
+   292→      </div>
+   293→    </header>
+   294→  );
+   295→}
+   296→
+   297→function HeroSection({
+   298→  search, setSearch, resultCount,
+   299→}: {
+   300→  search: string;
+   301→  setSearch: (v: string) => void;
+   302→  resultCount: number;
+   303→}) {
+   304→  return (
+   305→    <section className="relative overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-800 px-4 py-14 sm:px-8 sm:py-20">
+   306→      {/* Decorative blobs */}
+   307→      <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl" />
+   308→      <div className="pointer-events-none absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-emerald-400/30 blur-3xl" />
+   309→
+   310→      <div className="relative mx-auto max-w-4xl text-center">
+   311→        <motion.div
+   312→          initial={{ opacity: 0, scale: 0.9 }}
+   313→          animate={{ opacity: 1, scale: 1 }}
+   314→          transition={{ duration: 0.5 }}
+   315→          className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white backdrop-blur"
+   316→        >
+   317→          <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+   318→          Estamos aquí para ayudarte
+   319→        </motion.div>
+   320→
+   321→        <motion.h1
+   322→          initial={{ opacity: 0, y: 20 }}
+   323→          animate={{ opacity: 1, y: 0 }}
+   324→          transition={{ duration: 0.5, delay: 0.05 }}
+   325→          className="text-3xl font-extrabold tracking-tight text-white sm:text-5xl"
+   326→        >
+   327→          Centro de Ayuda
+   328→        </motion.h1>
+   329→
+   330→        <motion.p
+   331→          initial={{ opacity: 0, y: 16 }}
+   332→          animate={{ opacity: 1, y: 0 }}
+   333→          transition={{ duration: 0.5, delay: 0.1 }}
+   334→          className="mx-auto mt-3 max-w-2xl text-sm text-emerald-50/90 sm:text-base"
+   335→        >
+   336→          Encuentra respuestas rápidas, guías paso a paso y contacta a nuestro equipo de soporte.
+   337→        </motion.p>
+   338→
+   339→        <motion.div
+   340→          initial={{ opacity: 0, y: 16 }}
+   341→          animate={{ opacity: 1, y: 0 }}
+   342→          transition={{ duration: 0.5, delay: 0.15 }}
+   343→          className="mx-auto mt-6 flex max-w-xl items-center gap-2 rounded-xl bg-white p-2 shadow-xl shadow-emerald-900/20"
+   344→        >
+   345→          <Search className="ml-2 h-5 w-5 shrink-0 text-slate-400" />
+   346→          <input
+   347→            type="text"
+   348→            value={search}
+   349→            onChange={(e) => setSearch(e.target.value)}
+   350→            placeholder="Busca preguntas, temas o problemas..."
+   351→            className="flex-1 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+   352→            aria-label="Buscar en el centro de ayuda"
+   353→          />
+   354→          {search && (
+   355→            <button
+   356→              onClick={() => setSearch('')}
+   357→              className="rounded-md px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100"
+   358→              aria-label="Limpiar búsqueda"
+   359→            >
+   360→              Limpiar
+   361→            </button>
+   362→          )}
+   363→        </motion.div>
+   364→
+   365→        {search && (
+   366→          <p className="mt-3 text-xs text-emerald-50/80">
+   367→            {resultCount > 0
+   368→              ? `${resultCount} resultado${resultCount === 1 ? '' : 's'} encontrado${resultCount === 1 ? '' : 's'}`
+   369→              : 'No se encontraron resultados. Intenta con otra palabra o contacta a soporte.'}
+   370→          </p>
+   371→        )}
+   372→      </div>
+   373→    </section>
+   374→  );
+   375→}
+   376→
+   377→function QuickActions({ onNavigateSupport }: { onNavigateSupport: () => void }) {
+   378→  const actions = [
+   379→    {
+   380→      title: 'Guías y Tutoriales',
+   381→      description: 'Aprende a usar todas las funciones',
+   382→      icon: BookOpen,
+   383→      iconBg: 'bg-emerald-100 dark:bg-emerald-950/40',
+   384→      iconColor: 'text-emerald-700 dark:text-emerald-400',
+   385→      target: 'guides',
+   386→      cta: 'Ver guías',
+   387→    },
+   388→    {
+   389→      title: 'Preguntas Frecuentes',
+   390→      description: 'Respuestas a las dudas más comunes',
+   391→      icon: HelpCircle,
+   392→      iconBg: 'bg-amber-100 dark:bg-amber-950/40',
+   393→      iconColor: 'text-amber-700 dark:text-amber-400',
+   394→      target: 'faq',
+   395→      cta: 'Ver FAQ',
+   396→    },
+   397→    {
+   398→      title: 'Contactar Soporte',
+   399→      description: 'Habla con nuestro equipo',
+   400→      icon: LifeBuoy,
+   401→      iconBg: 'bg-rose-100 dark:bg-rose-950/40',
+   402→      iconColor: 'text-rose-700 dark:text-rose-400',
+   403→      target: 'support',
+   404→      cta: 'Abrir ticket',
+   405→    },
+   406→    {
+   407→      title: 'Estado del Servicio',
+   408→      description: 'Sistemas operando con normalidad',
+   409→      icon: CheckCircle,
+   410→      iconBg: 'bg-teal-100 dark:bg-teal-950/40',
+   411→      iconColor: 'text-teal-700 dark:text-teal-400',
+   412→      target: 'status',
+   413→      cta: 'Ver estado',
+   414→      isStatus: true,
+   415→    },
+   416→  ];
+   417→
+   418→  const handleAction = (action: typeof actions[number]) => {
+   419→    if (action.target === 'support') {
+   420→      onNavigateSupport();
+   421→      return;
+   422→    }
+   423→    if (action.target === 'status') {
+   424→      toast.success('Sistemas operativos', {
+   425→        description: 'Todos los servicios de FTP Digital Plus funcionan con normalidad.',
+   426→      });
+   427→      return;
+   428→    }
+   429→    const el = document.getElementById(action.target);
+   430→    if (el) {
+   431→      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+   432→    }
+   433→  };
+   434→
+   435→  return (
+   436→    <section className="mx-auto -mt-10 max-w-7xl px-4 sm:px-8">
+   437→      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+   438→        {actions.map((action, i) => (
+   439→          <motion.button
+   440→            key={action.title}
+   441→            onClick={() => handleAction(action)}
+   442→            initial={{ opacity: 0, y: 20 }}
+   443→            animate={{ opacity: 1, y: 0 }}
+   444→            transition={{ duration: 0.4, delay: i * 0.08 }}
+   445→            whileHover={{ y: -4 }}
+   446→            className="group flex flex-col items-start gap-3 rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-all hover:border-emerald-300 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:hover:border-emerald-700"
+   447→          >
+   448→            <div className={cn('flex h-11 w-11 items-center justify-center rounded-lg', action.iconBg)}>
+   449→              <action.icon className={cn('h-5 w-5', action.iconColor)} />
+   450→            </div>
+   451→            <div className="flex-1">
+   452→              <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{action.title}</h3>
+   453→              <p className="mt-1 text-xs text-muted-foreground">{action.description}</p>
+   454→            </div>
+   455→            {action.isStatus && (
+   456→              <div className="flex items-center gap-1.5 rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-700 dark:bg-teal-950/40 dark:text-teal-400">
+   457→                <span className="relative flex h-1.5 w-1.5">
+   458→                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-500 opacity-75" />
+   459→                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-teal-500" />
+   460→                </span>
+   461→                Operativo
+   462→              </div>
+   463→            )}
+   464→            <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+   465→              {action.cta}
+   466→              <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+   467→            </span>
+   468→          </motion.button>
+   469→        ))}
+   470→      </div>
+   471→    </section>
+   472→  );
+   473→}
+   474→
+   475→function GuideCard({ guide, onOpen }: { guide: GuideItem; onOpen: () => void }) {
+   476→  return (
+   477→    <motion.button
+   478→      onClick={onOpen}
+   479→      whileHover={{ y: -4 }}
+   480→      initial={{ opacity: 0, y: 16 }}
+   481→      whileInView={{ opacity: 1, y: 0 }}
+   482→      viewport={{ once: true }}
+   483→      transition={{ duration: 0.4 }}
+   484→      className="group flex h-full flex-col items-start gap-3 rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-all hover:border-emerald-300 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:hover:border-emerald-700"
+   485→    >
+   486→      <div className="flex w-full items-start justify-between">
+   487→        <div className={cn('flex h-11 w-11 items-center justify-center rounded-lg', guide.iconBg)}>
+   488→          <guide.icon className={cn('h-5 w-5', guide.iconColor)} />
+   489→        </div>
+   490→        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+   491→          <Clock className="h-3 w-3" />
+   492→          {guide.readTime} min
+   493→        </span>
+   494→      </div>
+   495→      <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100">{guide.title}</h3>
+   496→      <p className="flex-1 text-sm text-muted-foreground">{guide.description}</p>
+   497→      <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+   498→        Leer guía
+   499→        <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+   500→      </span>
+   501→    </motion.button>
+   502→  );
+   503→}
+   504→
+   505→function GuideDialog({ guide, open, onOpenChange }: {
+   506→  guide: GuideItem | null;
+   507→  open: boolean;
+   508→  onOpenChange: (v: boolean) => void;
+   509→}) {
+   510→  if (!guide) return null;
+   511→  return (
+   512→    <Dialog open={open} onOpenChange={onOpenChange}>
+   513→      <DialogContent className="max-w-2xl">
+   514→        <DialogHeader>
+   515→          <div className="flex items-center gap-3">
+   516→            <div className={cn('flex h-11 w-11 items-center justify-center rounded-lg', guide.iconBg)}>
+   517→              <guide.icon className={cn('h-5 w-5', guide.iconColor)} />
+   518→            </div>
+   519→            <div>
+   520→              <DialogTitle className="text-xl">{guide.title}</DialogTitle>
+   521→              <DialogDescription className="mt-0.5 flex items-center gap-2">
+   522→                <Clock className="h-3.5 w-3.5" />
+   523→                {guide.readTime} min de lectura · {guide.steps.length} pasos
+   524→              </DialogDescription>
+   525→            </div>
+   526→          </div>
+   527→        </DialogHeader>
+   528→
+   529→        <div className="max-h-[60vh] overflow-y-auto pr-1">
+   530→          <ol className="relative space-y-5 border-l border-dashed border-emerald-200 pl-6 dark:border-emerald-800">
+   531→            {guide.steps.map((step, i) => (
+   532→              <motion.li
+   533→                key={i}
+   534→                initial={{ opacity: 0, x: -8 }}
+   535→                animate={{ opacity: 1, x: 0 }}
+   536→                transition={{ duration: 0.3, delay: i * 0.06 }}
+   537→                className="relative"
+   538→              >
+   539→                <span className="absolute -left-[1.6rem] flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-bold text-white ring-4 ring-white dark:ring-slate-950">
+   540→                  {i + 1}
+   541→                </span>
+   542→                <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{step.title}</h4>
+   543→                <p className="mt-1 text-sm text-muted-foreground">{step.description}</p>
+   544→              </motion.li>
+   545→            ))}
+   546→          </ol>
+   547→        </div>
+   548→
+   549→        <div className="flex items-center justify-between gap-3 rounded-lg bg-emerald-50 p-3 dark:bg-emerald-950/30">
+   550→          <p className="text-xs text-emerald-800 dark:text-emerald-300">
+   551→            <CheckCircle className="mr-1 inline h-3.5 w-3.5" />
+   552→            ¿Necesitas más ayuda? Nuestro equipo está disponible 24/7.
+   553→          </p>
+   554→          <Button
+   555→            size="sm"
+   556→            className="shrink-0 bg-emerald-600 hover:bg-emerald-700"
+   557→            onClick={() => {
+   558→              onOpenChange(false);
+   559→              useAppStore.getState().navigate('support');
+   560→            }}
+   561→          >
+   562→            Contactar
+   563→          </Button>
+   564→        </div>
+   565→      </DialogContent>
+   566→    </Dialog>
+   567→  );
+   568→}
+   569→
+   570→function GuidesSection({ onOpenGuide }: { onOpenGuide: (g: GuideItem) => void }) {
+   571→  return (
+   572→    <section id="guides" className="mx-auto max-w-7xl scroll-mt-20 px-4 py-12 sm:px-8 sm:py-16">
+   573→      <div className="mb-8 flex flex-col items-start gap-2 sm:flex-row sm:items-end sm:justify-between">
+   574→        <div>
+   575→          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+   576→            <BookOpen className="h-3 w-3" />
+   577→            Tutoriales
+   578→          </div>
+   579→          <h2 className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100 sm:text-3xl">
+   580→            Guías paso a paso
+   581→          </h2>
+   582→          <p className="mt-1 text-sm text-muted-foreground">
+   583→            Aprende a aprovechar al máximo todas las funciones de FTP Digital Plus.
+   584→          </p>
+   585→        </div>
+   586→      </div>
+   587→
+   588→      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+   589→        {GUIDES.map((g) => (
+   590→          <GuideCard key={g.id} guide={g} onOpen={() => onOpenGuide(g)} />
+   591→        ))}
+   592→      </div>
+   593→    </section>
+   594→  );
+   595→}
+   596→
+   597→function FAQSection({ items }: { items: FAQItem[] }) {
+   598→  const grouped = useMemo(() => {
+   599→    return FAQ_CATEGORIES.map((cat) => ({
+   600→      category: cat,
+   601→      items: items.filter((it) => it.category === cat),
+   602→    })).filter((g) => g.items.length > 0);
+   603→  }, [items]);
+   604→
+   605→  return (
+   606→    <section id="faq" className="scroll-mt-20 bg-gradient-to-b from-white to-emerald-50/40 px-4 py-12 dark:from-slate-950 dark:to-emerald-950/10 sm:px-8 sm:py-16">
+   607→      <div className="mx-auto max-w-4xl">
+   608→        <div className="mb-8 text-center">
+   609→          <div className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
+   610→            <HelpCircle className="h-3 w-3" />
+   611→            FAQ
+   612→          </div>
+   613→          <h2 className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100 sm:text-3xl">
+   614→            Preguntas Frecuentes
+   615→          </h2>
+   616→          <p className="mt-1 text-sm text-muted-foreground">
+   617→            Las respuestas a las preguntas que más nos hacen nuestros usuarios.
+   618→          </p>
+   619→        </div>
+   620→
+   621→        {items.length === 0 ? (
+   622→          <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center dark:border-slate-700 dark:bg-slate-900">
+   623→            <HelpCircle className="mx-auto h-10 w-10 text-slate-300" />
+   624→            <p className="mt-3 text-sm font-medium text-slate-600 dark:text-slate-300">
+   625→              No encontramos preguntas que coincidan con tu búsqueda.
+   626→            </p>
+   627→            <p className="mt-1 text-xs text-muted-foreground">
+   628→              Intenta con otras palabras o contacta a soporte.
+   629→            </p>
+   630→          </div>
+   631→        ) : (
+   632→          <div className="space-y-8">
+   633→            {grouped.map((group) => (
+   634→              <div key={group.category}>
+   635→                <h3 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+   636→                  <span className={cn('rounded-md px-2 py-0.5', CATEGORY_COLORS[group.category])}>
+   637→                    {group.category}
+   638→                  </span>
+   639→                  <span className="text-xs font-normal text-muted-foreground">
+   640→                    ({group.items.length})
+   641→                  </span>
+   642→                </h3>
+   643→                <Card className="overflow-hidden border-slate-200 dark:border-slate-800">
+   644→                  <Accordion type="single" collapsible className="px-4">
+   645→                    {group.items.map((item) => (
+   646→                      <AccordionItem key={item.id} value={item.id} className="border-slate-100 dark:border-slate-800">
+   647→                        <AccordionTrigger className="text-left text-sm font-semibold text-slate-800 hover:text-emerald-700 hover:no-underline dark:text-slate-200 dark:hover:text-emerald-400">
+   648→                          {item.question}
+   649→                        </AccordionTrigger>
+   650→                        <AccordionContent className="text-sm leading-relaxed text-muted-foreground">
+   651→                          {item.answer}
+   652→                        </AccordionContent>
+   653→                      </AccordionItem>
+   654→                    ))}
+   655→                  </Accordion>
+   656→                </Card>
+   657→              </div>
+   658→            ))}
+   659→          </div>
+   660→        )}
+   661→      </div>
+   662→    </section>
+   663→  );
+   664→}
+   665→
+   666→function ContactCTA({ onNavigateSupport }: { onNavigateSupport: () => void }) {
+   667→  return (
+   668→    <section className="mx-auto max-w-7xl px-4 py-12 sm:px-8 sm:py-16">
+   669→      <motion.div
+   670→        initial={{ opacity: 0, y: 16 }}
+   671→        whileInView={{ opacity: 1, y: 0 }}
+   672→        viewport={{ once: true }}
+   673→        transition={{ duration: 0.5 }}
+   674→        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-800 p-8 shadow-xl sm:p-12"
+   675→      >
+   676→        <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-amber-400/20 blur-3xl" />
+   677→        <div className="pointer-events-none absolute -bottom-12 -left-12 h-48 w-48 rounded-full bg-emerald-400/30 blur-3xl" />
+   678→
+   679→        <div className="relative flex flex-col items-center gap-6 text-center sm:flex-row sm:justify-between sm:text-left">
+   680→          <div className="max-w-xl">
+   681→            <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white backdrop-blur">
+   682→              <MessageCircle className="h-3.5 w-3.5" />
+   683→              ¿Necesitas más ayuda?
+   684→            </div>
+   685→            <h2 className="mt-3 text-2xl font-bold text-white sm:text-3xl">
+   686→              ¿No encontraste lo que buscas?
+   687→            </h2>
+   688→            <p className="mt-2 text-sm text-emerald-50/90 sm:text-base">
+   689→              Nuestro equipo de soporte está listo para ayudarte. Crea un ticket y te responderemos en menos de 24 horas.
+   690→            </p>
+   691→          </div>
+   692→          <Button
+   693→            size="lg"
+   694→            onClick={onNavigateSupport}
+   695→            className="shrink-0 bg-amber-500 text-white shadow-lg shadow-amber-900/20 hover:bg-amber-600"
+   696→          >
+   697→            <LifeBuoy className="mr-2 h-5 w-5" />
+   698→            Contactar Soporte
+   699→            <ArrowRight className="ml-1 h-4 w-4" />
+   700→          </Button>
+   701→        </div>
+   702→      </motion.div>
+   703→    </section>
+   704→  );
+   705→}
+   706→
+   707→function ResourcesSection() {
+   708→  const resources = [
+   709→    {
+   710→      title: 'Video Tutoriales',
+   711→      description: 'Aprende viendo nuestros videos paso a paso en YouTube.',
+   712→      icon: Video,
+   713→      iconBg: 'bg-rose-100 dark:bg-rose-950/40',
+   714→      iconColor: 'text-rose-700 dark:text-rose-400',
+   715→      action: () => toast.info('Próximamente', { description: 'Nuestros video tutoriales estarán disponibles muy pronto.' }),
+   716→    },
+   717→    {
+   718→      title: 'Documentación PDF',
+   719→      description: 'Descarga los manuales completos en formato PDF.',
+   720→      icon: FileText,
+   721→      iconBg: 'bg-amber-100 dark:bg-amber-950/40',
+   722→      iconColor: 'text-amber-700 dark:text-amber-400',
+   723→      action: () => toast.success('Descargando...', { description: 'El manual PDF comenzará a descargar en breve.' }),
+   724→    },
+   725→    {
+   726→      title: 'Tips de WhatsApp',
+   727→      description: 'Aprovecha al máximo la integración con WhatsApp Business.',
+   728→      icon: Smartphone,
+   729→      iconBg: 'bg-emerald-100 dark:bg-emerald-950/40',
+   730→      iconColor: 'text-emerald-700 dark:text-emerald-400',
+   731→      action: () => toast.info('Abriendo guía', { description: 'Revisa nuestra guía de WhatsApp en el Centro de Ayuda.' }),
+   732→    },
+   733→  ];
+   734→
+   735→  return (
+   736→    <section className="mx-auto max-w-7xl px-4 py-6 sm:px-8">
+   737→      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+   738→        {resources.map((r, i) => (
+   739→          <motion.button
+   740→            key={r.title}
+   741→            onClick={r.action}
+   742→            initial={{ opacity: 0, y: 12 }}
+   743→            whileInView={{ opacity: 1, y: 0 }}
+   744→            viewport={{ once: true }}
+   745→            transition={{ duration: 0.4, delay: i * 0.08 }}
+   746→            whileHover={{ y: -3 }}
+   747→            className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:border-emerald-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-emerald-700"
+   748→          >
+   749→            <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', r.iconBg)}>
+   750→              <r.icon className={cn('h-5 w-5', r.iconColor)} />
+   751→            </div>
+   752→            <div className="min-w-0 flex-1">
+   753→              <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{r.title}</p>
+   754→              <p className="mt-0.5 text-xs text-muted-foreground">{r.description}</p>
+   755→            </div>
+   756→            <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+   757→          </motion.button>
+   758→        ))}
+   759→      </div>
+   760→    </section>
+   761→  );
+   762→}
+   763→
+   764→// ============================ MAIN ============================
+   765→export function HelpCenter() {
+   766→  const navigate = useAppStore(s => s.navigate);
+   767→  const [search, setSearch] = useState('');
+   768→  const [selectedGuide, setSelectedGuide] = useState<GuideItem | null>(null);
+   769→  const [dialogOpen, setDialogOpen] = useState(false);
+   770→  const guidesRef = useRef<HTMLDivElement>(null);
+   771→
+   772→  const filteredFAQ = useMemo(() => {
+   773→    if (!search.trim()) return FAQ_ITEMS;
+   774→    const q = search.toLowerCase();
+   775→    return FAQ_ITEMS.filter((it) =>
+   776→      it.question.toLowerCase().includes(q) ||
+   777→      it.answer.toLowerCase().includes(q) ||
+   778→      it.category.toLowerCase().includes(q)
+   779→    );
+   780→  }, [search]);
+   781→
+   782→  const handleOpenGuide = (g: GuideItem) => {
+   783→    setSelectedGuide(g);
+   784→    setDialogOpen(true);
+   785→  };
+   786→
+   787→  const handleNavigateSupport = () => {
+   788→    navigate('support');
+   789→    toast.info('Te llevamos a soporte', {
+   790→      description: 'Crea un ticket y te responderemos en menos de 24 horas.',
+   791→    });
+   792→  };
+   793→
+   794→  return (
+   795→    <div className="flex min-h-screen flex-col bg-gradient-to-b from-white via-emerald-50/30 to-white dark:from-slate-950 dark:via-emerald-950/10 dark:to-slate-950">
+   796→      <HeaderBar />
+   797→
+   798→      <main className="flex-1">
+   799→        <HeroSection
+   800→          search={search}
+   801→          setSearch={setSearch}
+   802→          resultCount={filteredFAQ.length}
+   803→        />
+   804→
+   805→        <QuickActions onNavigateSupport={handleNavigateSupport} />
+   806→
+   807→        <div ref={guidesRef}>
+   808→          <GuidesSection onOpenGuide={handleOpenGuide} />
+   809→        </div>
+   810→
+   811→        <ResourcesSection />
+   812→
+   813→        <FAQSection items={filteredFAQ} />
+   814→
+   815→        <ContactCTA onNavigateSupport={handleNavigateSupport} />
+   816→      </main>
+   817→
+   818→      <Footer />
+   819→
+   820→      <GuideDialog
+   821→        guide={selectedGuide}
+   822→        open={dialogOpen}
+   823→        onOpenChange={setDialogOpen}
+   824→      />
+   825→    </div>
+   826→  );
+   827→}
+   828→
+   829→export default HelpCenter;
+   830→

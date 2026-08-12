@@ -1,6 +1,7 @@
 'use client';
 
 import { useAppStore } from '@/lib/store';
+import { PageTransition } from '@/components/animations/page-transition';
 import { LandingPage } from '@/components/sections/landing-page';
 import { PricingPage } from '@/components/sections/pricing-page';
 import { CheckoutPage } from '@/components/sections/checkout-page';
@@ -16,7 +17,7 @@ import { SupportPage } from '@/components/sections/support-page';
 import { TermsPage, PrivacyPage, RefundsPage } from '@/components/sections/legal-pages';
 import { ProfilePage } from '@/components/sections/profile-page';
 
-export default function Home() {
+function CurrentView() {
   const currentView = useAppStore(s => s.currentView);
 
   switch (currentView) {
@@ -63,4 +64,14 @@ export default function Home() {
     default:
       return <LandingPage />;
   }
+}
+
+export default function Home() {
+  // PageTransition lee `currentView` del store y usa la key para animar
+  // la salida/entrada entre vistas con un fade + slide sutil.
+  return (
+    <PageTransition>
+      <CurrentView />
+    </PageTransition>
+  );
 }

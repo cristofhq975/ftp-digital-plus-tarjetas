@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>Sin conexión — FTP Digital Plus</title>
+  <meta name="theme-color" content="#059669"/>
+  <link rel="icon" href="/ftp-icon.svg"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      background:linear-gradient(135deg,#ecfdf5 0%,#ffffff 60%,#fef3c7 100%);
+      color:#064e3b;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;
+    }
+    .card{
+      max-width:480px;width:100%;background:#fff;border-radius:24px;padding:2.5rem 2rem;
+      box-shadow:0 20px 50px -20px rgba(5,150,105,0.35);text-align:center;border:1px solid #d1fae5;
+    }
+    .badge{
+      width:84px;height:84px;border-radius:24px;margin:0 auto 1.25rem;
+      background:linear-gradient(135deg,#059669,#10b981);
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:0 10px 24px -8px rgba(5,150,105,0.6);
+    }
+    .badge svg{width:46px;height:46px}
+    h1{font-size:1.5rem;font-weight:800;color:#064e3b;margin-bottom:.5rem}
+    p{font-size:.95rem;line-height:1.55;color:#065f46;opacity:.9;margin-bottom:1.25rem}
+    .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;margin-right:8px;vertical-align:middle;animation:pulse 1.6s infinite ease-in-out}
+    @keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:.5}}
+    .btn{
+      display:inline-block;margin-top:.5rem;padding:.85rem 1.5rem;border-radius:12px;
+      background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-weight:600;
+      text-decoration:none;border:none;cursor:pointer;font-size:.95rem;
+    }
+    .btn:hover{filter:brightness(1.05)}
+    .hint{margin-top:1.25rem;font-size:.8rem;color:#6b7280}
+  </style>
+</head>
+<body>
+  <main class="card" role="main">
+    <div class="badge" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3 12a9 9 0 1 1 18 0" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M3 12a9 9 0 0 0 18 0" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="4 4" opacity=".4"/>
+        <circle cx="12" cy="12" r="2.2" fill="#fbbf24"/>
+      </svg>
+    </div>
+    <h1><span class="dot" aria-hidden="true"></span>Sin conexión</h1>
+    <p>No pudimos cargar FTP Digital Plus porque estás sin internet. Tus tarjetas creadas anteriormente seguirán disponibles cuando recuperes la conexión.</p>
+    <button class="btn" onclick="location.reload()">Reintentar ahora</button>
+    <p class="hint">FTP Digital Plus · Tarjetas de Presentación Digitales</p>
+  </main>
+  <script>
+    window.addEventListener('online', () => location.reload());
+  </script>
+</body>
+</html>

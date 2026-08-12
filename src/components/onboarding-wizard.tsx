@@ -65,6 +65,7 @@ export function OnboardingWizard() {
   const [linkTouched, setLinkTouched] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newCardLinkName, setNewCardLinkName] = useState<string | null>(null);
+  const [startTourAfterFinish, setStartTourAfterFinish] = useState(true);
 
   const closeWizard = useCallback(() => {
     try {
@@ -126,7 +127,14 @@ export function OnboardingWizard() {
       description: 'Ya puedes empezar a crear y compartir tus tarjetas.',
     });
     closeWizard();
-  }, [closeWizard]);
+    // Iniciar tour guiado si el usuario lo solicitó
+    if (startTourAfterFinish) {
+      // Pequeño retardo para que el modal se cierre antes de abrir el tour
+      setTimeout(() => {
+        useAppStore.getState().setTourActive(true);
+      }, 350);
+    }
+  }, [closeWizard, startTourAfterFinish]);
 
   if (!shouldShow || !currentUser) return null;
 
@@ -233,7 +241,13 @@ export function OnboardingWizard() {
                 />
               )}
               {step === 3 && <StepPersonalize />}
-              {step === 4 && <StepShare linkName={shareLinkName} />}
+              {step === 4 && (
+                <StepShare
+                  linkName={shareLinkName}
+                  startTour={startTourAfterFinish}
+                  onStartTourChange={setStartTourAfterFinish}
+                />
+              )}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -607,8 +621,12 @@ function StepPersonalize() {
 /* ------------------------------------------------------------------ */
 function StepShare({
   linkName,
+  startTour,
+  onStartTourChange,
 }: {
   linkName: string | null;
+  startTour: boolean;
+  onStartTourChange: (v: boolean) => void;
 }) {
   const publicUrl = linkName
     ? `ftpdigitalplus.com/t/${linkName}`
@@ -697,6 +715,51 @@ function StepShare({
           </div>
         </div>
       </div>
+
+      {/* Tour opcional al finalizar */}
+      <button
+        type="button"
+        onClick={() => onStartTourChange(!startTour)}
+        className={cn(
+          'mt-4 flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-all',
+          startTour
+            ? 'border-emerald-300 bg-gradient-to-r from-emerald-50 to-amber-50/60 ring-1 ring-emerald-200/60'
+            : 'border-slate-200 bg-white hover:border-emerald-200 hover:bg-emerald-50/30'
+        )}
+        aria-pressed={startTour}
+      >
+        <div
+          className={cn(
+            'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition',
+            startTour
+              ? 'bg-gradient-to-br from-emerald-600 to-amber-500 text-white shadow-md'
+              : 'bg-slate-100 text-slate-500'
+          )}
+        >
+          <Wand2 className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-slate-800">
+            Ver tour de la plataforma
+          </p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            Recorre las funciones principales en 2 minutos al cerrar este tutorial.
+          </p>
+        </div>
+        <span
+          className={cn(
+            'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition',
+            startTour ? 'bg-emerald-600' : 'bg-slate-300'
+          )}
+        >
+          <span
+            className={cn(
+              'inline-block h-5 w-5 transform rounded-full bg-white shadow transition',
+              startTour ? 'translate-x-5' : 'translate-x-0.5'
+            )}
+          />
+        </span>
+      </button>
     </div>
   );
 }

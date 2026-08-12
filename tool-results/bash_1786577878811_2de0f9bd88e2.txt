@@ -1,0 +1,703 @@
+     1→'use client';
+     2→
+     3→import { useState, useMemo, useCallback, useSyncExternalStore } from 'react';
+     4→import { motion, AnimatePresence } from 'framer-motion';
+     5→import { QRCodeCanvas } from 'qrcode.react';
+     6→import { toast } from 'sonner';
+     7→import {
+     8→  X,
+     9→  Check,
+    10→  ArrowRight,
+    11→  ArrowLeft,
+    12→  Sparkles,
+    13→  User,
+    14→  QrCode,
+    15→  Share2,
+    16→  Copy,
+    17→  Wand2,
+    18→} from 'lucide-react';
+    19→import { Button } from '@/components/ui/button';
+    20→import { Input } from '@/components/ui/input';
+    21→import { Label } from '@/components/ui/label';
+    22→import { useAppStore, useCurrentUserCards } from '@/lib/store';
+    23→import { PLANS, EDITOR_SECTIONS } from '@/lib/plans';
+    24→import { DynamicIcon } from '@/components/dynamic-icon';
+    25→import { slugify } from '@/lib/card-utils';
+    26→import { cn } from '@/lib/utils';
+    27→
+    28→const STORAGE_KEY = 'ftp-onboarding-completed';
+    29→const TOTAL_STEPS = 4;
+    30→
+    31→// Read onboarding-completed flag from localStorage (client-only) via
+    32→// useSyncExternalStore to avoid setState-in-effect lint warnings.
+    33→const subscribeNoop = () => () => {};
+    34→function readCompletedClient(): boolean {
+    35→  try {
+    36→    return localStorage.getItem(STORAGE_KEY) === '1';
+    37→  } catch {
+    38→    return false;
+    39→  }
+    40→}
+    41→function readCompletedServer(): boolean {
+    42→  return false;
+    43→}
+    44→
+    45→export function OnboardingWizard() {
+    46→  const currentUser = useAppStore(s => s.currentUser);
+    47→  const createCard = useAppStore(s => s.createCard);
+    48→  const cards = useCurrentUserCards();
+    49→  const selectedCard = useAppStore(s => {
+    50→    if (!s.selectedCardId) return null;
+    51→    return s.cards.find(c => c.id === s.selectedCardId) || null;
+    52→  });
+    53→
+    54→  const isCompleted = useSyncExternalStore(
+    55→    subscribeNoop,
+    56→    readCompletedClient,
+    57→    readCompletedServer
+    58→  );
+    59→  const [dismissed, setDismissed] = useState(false);
+    60→  const shouldShow = !!currentUser && !isCompleted && !dismissed;
+    61→
+    62→  const [step, setStep] = useState(1);
+    63→  const [cardName, setCardName] = useState('');
+    64→  const [linkName, setLinkName] = useState('');
+    65→  const [linkTouched, setLinkTouched] = useState(false);
+    66→  const [creating, setCreating] = useState(false);
+    67→  const [newCardLinkName, setNewCardLinkName] = useState<string | null>(null);
+    68→
+    69→  const closeWizard = useCallback(() => {
+    70→    try {
+    71→      localStorage.setItem(STORAGE_KEY, '1');
+    72→    } catch {
+    73→      /* ignore */
+    74→    }
+    75→    setDismissed(true);
+    76→  }, []);
+    77→
+    78→  const hasExistingCard = cards.length > 0;
+    79→  const plan = currentUser ? PLANS[currentUser.plan] : null;
+    80→  const atLimit = plan ? cards.length >= plan.maxCards : false;
+    81→
+    82→  const canCreate = useMemo(() => {
+    83→    if (!cardName.trim() || !linkName.trim()) return false;
+    84→    if (cards.some(c => c.linkName === linkName)) return false;
+    85→    return true;
+    86→  }, [cardName, linkName, cards]);
+    87→
+    88→  const handleCreateCard = useCallback(() => {
+    89→    if (!canCreate || atLimit) return;
+    90→    setCreating(true);
+    91→    // Small delay for UX feedback
+    92→    setTimeout(() => {
+    93→      const id = createCard(linkName.trim(), cardName.trim());
+    94→      setCreating(false);
+    95→      if (id) {
+    96→        setNewCardLinkName(linkName.trim());
+    97→        toast.success('¡Tarjeta creada!', {
+    98→          description: `"${cardName}" está lista para personalizar.`,
+    99→        });
+   100→        setStep(3);
+   101→      } else {
+   102→        toast.error('No se pudo crear la tarjeta', {
+   103→          description: 'Es posible que hayas alcanzado el límite de tu plan.',
+   104→        });
+   105→      }
+   106→    }, 400);
+   107→  }, [canCreate, atLimit, createCard, linkName, cardName]);
+   108→
+   109→  const handleNext = useCallback(() => {
+   110→    setStep(s => Math.min(TOTAL_STEPS, s + 1));
+   111→  }, []);
+   112→
+   113→  const handlePrev = useCallback(() => {
+   114→    setStep(s => Math.max(1, s - 1));
+   115→  }, []);
+   116→
+   117→  const handleSkip = useCallback(() => {
+   118→    toast.info('Tutorial omitido', {
+   119→      description: 'Puedes completarlo más adelante si lo deseas.',
+   120→    });
+   121→    closeWizard();
+   122→  }, [closeWizard]);
+   123→
+   124→  const handleFinish = useCallback(() => {
+   125→    toast.success('¡Listo! Bienvenido a FTP Digital Plus', {
+   126→      description: 'Ya puedes empezar a crear y compartir tus tarjetas.',
+   127→    });
+   128→    closeWizard();
+   129→  }, [closeWizard]);
+   130→
+   131→  if (!shouldShow || !currentUser) return null;
+   132→
+   133→  // Determine which card link name to show in step 4
+   134→  const shareLinkName =
+   135→    newCardLinkName ||
+   136→    (selectedCard?.linkName ?? null) ||
+   137→    (cards[0]?.linkName ?? null);
+   138→
+   139→  const progress = (step / TOTAL_STEPS) * 100;
+   140→
+   141→  return (
+   142→    <div
+   143→      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-3 backdrop-blur-sm sm:p-6"
+   144→      role="dialog"
+   145→      aria-modal="true"
+   146→      aria-labelledby="onboarding-title"
+   147→    >
+   148→      <motion.div
+   149→        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+   150→        animate={{ opacity: 1, scale: 1, y: 0 }}
+   151→        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+   152→        transition={{ duration: 0.25, ease: 'easeOut' }}
+   153→        className="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-emerald-900/10"
+   154→      >
+   155→        {/* Top bar */}
+   156→        <div className="flex items-center justify-between gap-3 border-b border-emerald-100/70 bg-gradient-to-r from-emerald-50/80 via-white to-amber-50/50 px-4 py-3 sm:px-6">
+   157→          <div className="flex items-center gap-3">
+   158→            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-sm">
+   159→              <Sparkles className="h-4 w-4" />
+   160→            </div>
+   161→            <div>
+   162→              <p className="text-xs font-medium uppercase tracking-wider text-emerald-700">
+   163→                Tutorial · Paso {step} de {TOTAL_STEPS}
+   164→              </p>
+   165→              <p className="text-[11px] text-muted-foreground">
+   166→                {step === 1 && 'Bienvenida'}
+   167→                {step === 2 && 'Crea tu primera tarjeta'}
+   168→                {step === 3 && 'Personaliza tu tarjeta'}
+   169→                {step === 4 && 'Comparte con el mundo'}
+   170→              </p>
+   171→            </div>
+   172→          </div>
+   173→          <div className="flex items-center gap-1">
+   174→            <Button
+   175→              variant="ghost"
+   176→              size="sm"
+   177→              onClick={handleSkip}
+   178→              className="text-xs text-slate-600 hover:bg-slate-100 hover:text-slate-800"
+   179→            >
+   180→              <span className="hidden sm:inline">Saltar tutorial</span>
+   181→              <span className="sm:hidden">Saltar</span>
+   182→            </Button>
+   183→            <Button
+   184→              variant="ghost"
+   185→              size="icon"
+   186→              onClick={closeWizard}
+   187→              className="size-8 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+   188→              aria-label="Cerrar"
+   189→            >
+   190→              <X className="h-4 w-4" />
+   191→            </Button>
+   192→          </div>
+   193→        </div>
+   194→
+   195→        {/* Progress bar */}
+   196→        <div className="h-1 w-full bg-emerald-50">
+   197→          <motion.div
+   198→            className="h-full bg-gradient-to-r from-emerald-500 to-amber-500"
+   199→            initial={false}
+   200→            animate={{ width: `${progress}%` }}
+   201→            transition={{ duration: 0.4, ease: 'easeInOut' }}
+   202→          />
+   203→        </div>
+   204→
+   205→        {/* Step content */}
+   206→        <div className="flex-1 overflow-y-auto">
+   207→          <AnimatePresence mode="wait">
+   208→            <motion.div
+   209→              key={step}
+   210→              initial={{ opacity: 0, x: 24 }}
+   211→              animate={{ opacity: 1, x: 0 }}
+   212→              exit={{ opacity: 0, x: -24 }}
+   213→              transition={{ duration: 0.25, ease: 'easeOut' }}
+   214→              className="px-4 py-6 sm:px-8 sm:py-8"
+   215→            >
+   216→              {step === 1 && <StepWelcome />}
+   217→              {step === 2 && (
+   218→                <StepCreateCard
+   219→                  cardName={cardName}
+   220→                  linkName={linkName}
+   221→                  onCardNameChange={v => {
+   222→                    setCardName(v);
+   223→                    if (!linkTouched) setLinkName(slugify(v));
+   224→                  }}
+   225→                  onLinkNameChange={v => {
+   226→                    setLinkTouched(true);
+   227→                    setLinkName(v);
+   228→                  }}
+   229→                  hasExistingCard={hasExistingCard}
+   230→                  existingCount={cards.length}
+   231→                  atLimit={atLimit}
+   232→                  linkTaken={cards.some(c => c.linkName === linkName)}
+   233→                />
+   234→              )}
+   235→              {step === 3 && <StepPersonalize />}
+   236→              {step === 4 && <StepShare linkName={shareLinkName} />}
+   237→            </motion.div>
+   238→          </AnimatePresence>
+   239→        </div>
+   240→
+   241→        {/* Bottom navigation */}
+   242→        <div className="flex items-center justify-between gap-3 border-t border-emerald-100/70 bg-white px-4 py-3 sm:px-8">
+   243→          <div className="flex items-center gap-1.5">
+   244→            {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+   245→              <div
+   246→                key={i}
+   247→                className={cn(
+   248→                  'h-1.5 rounded-full transition-all',
+   249→                  i + 1 === step
+   250→                    ? 'w-6 bg-emerald-600'
+   251→                    : i + 1 < step
+   252→                      ? 'w-1.5 bg-emerald-400'
+   253→                      : 'w-1.5 bg-slate-200'
+   254→                )}
+   255→              />
+   256→            ))}
+   257→          </div>
+   258→          <div className="flex items-center gap-2">
+   259→            {step > 1 && step !== 4 && (
+   260→              <Button
+   261→                variant="outline"
+   262→                size="sm"
+   263→                onClick={handlePrev}
+   264→                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+   265→              >
+   266→                <ArrowLeft className="h-4 w-4" />
+   267→                Atrás
+   268→              </Button>
+   269→            )}
+   270→            {step === 1 && (
+   271→              <Button
+   272→                size="sm"
+   273→                onClick={handleNext}
+   274→                className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm hover:from-emerald-700 hover:to-emerald-600"
+   275→              >
+   276→                Siguiente
+   277→                <ArrowRight className="h-4 w-4" />
+   278→              </Button>
+   279→            )}
+   280→            {step === 2 && (
+   281→              <>
+   282→                {hasExistingCard && (
+   283→                  <Button
+   284→                    size="sm"
+   285→                    variant="outline"
+   286→                    onClick={handleNext}
+   287→                    className="border-slate-200 text-slate-600 hover:bg-slate-50"
+   288→                  >
+   289→                    Continuar sin crear
+   290→                    <ArrowRight className="h-4 w-4" />
+   291→                  </Button>
+   292→                )}
+   293→                {!atLimit && (
+   294→                  <Button
+   295→                    size="sm"
+   296→                    onClick={handleCreateCard}
+   297→                    disabled={!canCreate || creating}
+   298→                    className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm hover:from-emerald-700 hover:to-emerald-600 disabled:opacity-50"
+   299→                  >
+   300→                    {creating ? (
+   301→                      <>
+   302→                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+   303→                        Creando…
+   304→                      </>
+   305→                    ) : (
+   306→                      <>
+   307→                        Crear y continuar
+   308→                        <ArrowRight className="h-4 w-4" />
+   309→                      </>
+   310→                    )}
+   311→                  </Button>
+   312→                )}
+   313→                {atLimit && !hasExistingCard && (
+   314→                  <Button
+   315→                    size="sm"
+   316→                    onClick={handleNext}
+   317→                    className="bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-sm hover:from-amber-600 hover:to-amber-700"
+   318→                  >
+   319→                    Continuar
+   320→                    <ArrowRight className="h-4 w-4" />
+   321→                  </Button>
+   322→                )}
+   323→              </>
+   324→            )}
+   325→            {step === 3 && (
+   326→              <Button
+   327→                size="sm"
+   328→                onClick={handleNext}
+   329→                className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm hover:from-emerald-700 hover:to-emerald-600"
+   330→              >
+   331→                Entendido
+   332→                <ArrowRight className="h-4 w-4" />
+   333→              </Button>
+   334→            )}
+   335→            {step === 4 && (
+   336→              <Button
+   337→                size="sm"
+   338→                onClick={handleFinish}
+   339→                className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm hover:from-emerald-700 hover:to-emerald-600"
+   340→              >
+   341→                <Check className="h-4 w-4" />
+   342→                Finalizar
+   343→              </Button>
+   344→            )}
+   345→          </div>
+   346→        </div>
+   347→      </motion.div>
+   348→    </div>
+   349→  );
+   350→}
+   351→
+   352→/* ------------------------------------------------------------------ */
+   353→/* Step 1 - Welcome                                                    */
+   354→/* ------------------------------------------------------------------ */
+   355→function StepWelcome() {
+   356→  return (
+   357→    <div className="flex flex-col items-center text-center">
+   358→      <motion.div
+   359→        initial={{ scale: 0.7, opacity: 0 }}
+   360→        animate={{ scale: 1, opacity: 1 }}
+   361→        transition={{ type: 'spring', stiffness: 200, damping: 18, delay: 0.1 }}
+   362→        className="relative mb-6"
+   363→      >
+   364→        <div className="absolute inset-0 -z-10 rounded-full bg-emerald-400/30 blur-2xl" />
+   365→        <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 text-5xl shadow-xl shadow-emerald-500/30 ring-4 ring-white">
+   366→          <motion.span
+   367→            animate={{ rotate: [0, -10, 10, -10, 0], scale: [1, 1.1, 1] }}
+   368→            transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 2 }}
+   369→          >
+   370→            👋
+   371→          </motion.span>
+   372→        </div>
+   373→      </motion.div>
+   374→
+   375→      <h2
+   376→        id="onboarding-title"
+   377→        className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl"
+   378→      >
+   379→        ¡Bienvenido a{' '}
+   380→        <span className="bg-gradient-to-r from-emerald-600 to-amber-500 bg-clip-text text-transparent">
+   381→          FTP Digital Plus
+   382→        </span>
+   383→        !
+   384→      </h2>
+   385→      <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
+   386→        En menos de 2 minutos vas a crear tu primera tarjeta de presentación
+   387→        digital, personalizarla con tus datos y compartir con quien tú quieras
+   388→        mediante QR o enlace.
+   389→      </p>
+   390→
+   391→      <div className="mt-6 grid w-full max-w-md grid-cols-1 gap-2 sm:grid-cols-3">
+   392→        {[
+   393→          { icon: User, label: 'Crea', color: 'text-emerald-600 bg-emerald-50' },
+   394→          { icon: Wand2, label: 'Personaliza', color: 'text-amber-600 bg-amber-50' },
+   395→          { icon: Share2, label: 'Comparte', color: 'text-emerald-600 bg-emerald-50' },
+   396→        ].map(({ icon: Icon, label, color }, i) => (
+   397→          <motion.div
+   398→            key={label}
+   399→            initial={{ opacity: 0, y: 8 }}
+   400→            animate={{ opacity: 1, y: 0 }}
+   401→            transition={{ delay: 0.2 + i * 0.1 }}
+   402→            className="flex flex-col items-center gap-1.5 rounded-xl border border-emerald-100/70 bg-white/60 px-3 py-3"
+   403→          >
+   404→            <div className={cn('flex h-8 w-8 items-center justify-center rounded-full', color)}>
+   405→              <Icon className="h-4 w-4" />
+   406→            </div>
+   407→            <span className="text-xs font-medium text-slate-700">{label}</span>
+   408→          </motion.div>
+   409→        ))}
+   410→      </div>
+   411→    </div>
+   412→  );
+   413→}
+   414→
+   415→/* ------------------------------------------------------------------ */
+   416→/* Step 2 - Create first card                                          */
+   417→/* ------------------------------------------------------------------ */
+   418→function StepCreateCard({
+   419→  cardName,
+   420→  linkName,
+   421→  onCardNameChange,
+   422→  onLinkNameChange,
+   423→  hasExistingCard,
+   424→  existingCount,
+   425→  atLimit,
+   426→  linkTaken,
+   427→}: {
+   428→  cardName: string;
+   429→  linkName: string;
+   430→  onCardNameChange: (v: string) => void;
+   431→  onLinkNameChange: (v: string) => void;
+   432→  hasExistingCard: boolean;
+   433→  existingCount: number;
+   434→  atLimit: boolean;
+   435→  linkTaken: boolean;
+   436→}) {
+   437→  return (
+   438→    <div>
+   439→      <div className="mb-5 flex items-start gap-3">
+   440→        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100">
+   441→          <User className="h-5 w-5 text-emerald-700" />
+   442→        </div>
+   443→        <div>
+   444→          <h2 className="text-xl font-bold text-slate-900">Crea tu primera tarjeta</h2>
+   445→          <p className="mt-0.5 text-sm text-muted-foreground">
+   446→            Dale un nombre a tu tarjeta y elige un enlace fácil de recordar.
+   447→          </p>
+   448→        </div>
+   449→      </div>
+   450→
+   451→      {hasExistingCard && (
+   452→        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3 py-2.5 text-xs text-emerald-800">
+   453→          Ya tienes <strong>{existingCount}</strong>{' '}
+   454→          {existingCount === 1 ? 'tarjeta creada' : 'tarjetas creadas'}.
+   455→          Puedes crear una nueva o continuar con las que ya tienes.
+   456→        </div>
+   457→      )}
+   458→
+   459→      {atLimit && hasExistingCard && (
+   460→        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2.5 text-xs text-amber-800">
+   461→          Has alcanzado el límite de tarjetas de tu plan. Puedes continuar sin
+   462→          crear una nueva.
+   463→        </div>
+   464→      )}
+   465→
+   466→      <div className="space-y-4">
+   467→        <div className="space-y-1.5">
+   468→          <Label htmlFor="ob-card-name" className="text-sm font-medium text-slate-700">
+   469→            Nombre de la tarjeta
+   470→          </Label>
+   471→          <Input
+   472→            id="ob-card-name"
+   473→            placeholder="Ej. Juan Pérez, Boutique Rosa, Restaurante El Sabor"
+   474→            value={cardName}
+   475→            onChange={e => onCardNameChange(e.target.value)}
+   476→            maxLength={60}
+   477→            className="border-slate-200 focus-visible:ring-emerald-500/30 focus-visible:border-emerald-500"
+   478→            autoFocus
+   479→          />
+   480→          <p className="text-[11px] text-muted-foreground">
+   481→            Así aparecerá en tu tarjeta y en el panel.
+   482→          </p>
+   483→        </div>
+   484→
+   485→        <div className="space-y-1.5">
+   486→          <Label htmlFor="ob-link-name" className="text-sm font-medium text-slate-700">
+   487→            Enlace personalizado
+   488→          </Label>
+   489→          <div className="flex items-stretch overflow-hidden rounded-md border border-slate-200 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20">
+   490→            <span className="flex select-none items-center bg-slate-50 px-3 text-sm text-muted-foreground">
+   491→              ftpdigitalplus.com/t/
+   492→            </span>
+   493→            <Input
+   494→              id="ob-link-name"
+   495→              placeholder="juan-perez"
+   496→              value={linkName}
+   497→              onChange={e => onLinkNameChange(slugify(e.target.value))}
+   498→              className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-0"
+   499→            />
+   500→          </div>
+   501→          {linkTaken && linkName.length > 0 && (
+   502→            <p className="flex items-center gap-1 text-[11px] font-medium text-rose-600">
+   503→              <X className="h-3 w-3" />
+   504→              Este enlace ya está en uso. Prueba con otro.
+   505→            </p>
+   506→          )}
+   507→          {!linkTaken && linkName.length > 0 && (
+   508→            <p className="flex items-center gap-1 text-[11px] font-medium text-emerald-600">
+   509→              <Check className="h-3 w-3" />
+   510→              Enlace disponible.
+   511→            </p>
+   512→          )}
+   513→          {linkName.length === 0 && (
+   514→            <p className="text-[11px] text-muted-foreground">
+   515→              Se genera automáticamente a partir del nombre. Solo minúsculas y guiones.
+   516→            </p>
+   517→          )}
+   518→        </div>
+   519→      </div>
+   520→
+   521→      <div className="mt-5 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
+   522→        <p className="text-xs font-medium text-slate-600">Vista previa del enlace</p>
+   523→        <p className="mt-1 break-all font-mono text-xs text-emerald-700">
+   524→          ftpdigitalplus.com/t/{linkName || 'tu-enlace'}
+   525→        </p>
+   526→      </div>
+   527→    </div>
+   528→  );
+   529→}
+   530→
+   531→/* ------------------------------------------------------------------ */
+   532→/* Step 3 - Personalize (24 sections tips)                             */
+   533→/* ------------------------------------------------------------------ */
+   534→function StepPersonalize() {
+   535→  return (
+   536→    <div>
+   537→      <div className="mb-5 flex items-start gap-3">
+   538→        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
+   539→          <Wand2 className="h-5 w-5 text-amber-700" />
+   540→        </div>
+   541→        <div>
+   542→          <h2 className="text-xl font-bold text-slate-900">Personaliza tu tarjeta</h2>
+   543→          <p className="mt-0.5 text-sm text-muted-foreground">
+   544→            Tienes <strong className="text-emerald-700">24 secciones</strong>{' '}
+   545→            disponibles para dejar tu tarjeta lista para todo.
+   546→          </p>
+   547→        </div>
+   548→      </div>
+   549→
+   550→      <div className="grid max-h-64 grid-cols-2 gap-1.5 overflow-y-auto rounded-lg border border-slate-100 bg-slate-50/40 p-2 sm:grid-cols-3">
+   551→        {EDITOR_SECTIONS.map((section, i) => (
+   552→          <motion.div
+   553→            key={section.id}
+   554→            initial={{ opacity: 0, scale: 0.9 }}
+   555→            animate={{ opacity: 1, scale: 1 }}
+   556→            transition={{ delay: i * 0.015 }}
+   557→            className="flex items-center gap-2 rounded-md bg-white px-2 py-1.5 ring-1 ring-slate-100"
+   558→          >
+   559→            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gradient-to-br from-emerald-50 to-amber-50">
+   560→              <DynamicIcon name={section.icon} className="h-3.5 w-3.5 text-emerald-600" />
+   561→            </div>
+   562→            <span className="truncate text-[11px] font-medium text-slate-700">
+   563→              {section.name}
+   564→            </span>
+   565→          </motion.div>
+   566→        ))}
+   567→      </div>
+   568→
+   569→      <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
+   570→        {[
+   571→          {
+   572→            icon: '🎨',
+   573→            title: 'Colores y fuentes',
+   574→            desc: 'Elige tu paleta y tipografía',
+   575→          },
+   576→          {
+   577→            icon: '🖼️',
+   578→            title: 'Fotos y galería',
+   579→            desc: 'Sube tu logo, portada y productos',
+   580→          },
+   581→          {
+   582→            icon: '📊',
+   583→            title: 'SEO y analítica',
+   584→            desc: 'Optimiza para buscadores',
+   585→          },
+   586→        ].map(tip => (
+   587→          <div
+   588→            key={tip.title}
+   589→            className="rounded-lg border border-emerald-100/70 bg-gradient-to-br from-white to-emerald-50/30 p-3"
+   590→          >
+   591→            <div className="text-xl">{tip.icon}</div>
+   592→            <p className="mt-1 text-xs font-semibold text-slate-800">{tip.title}</p>
+   593→            <p className="mt-0.5 text-[11px] text-muted-foreground">{tip.desc}</p>
+   594→          </div>
+   595→        ))}
+   596→      </div>
+   597→
+   598→      <p className="mt-4 text-center text-xs text-muted-foreground">
+   599→        Podrás editar todo esto en cualquier momento desde el editor de tarjetas.
+   600→      </p>
+   601→    </div>
+   602→  );
+   603→}
+   604→
+   605→/* ------------------------------------------------------------------ */
+   606→/* Step 4 - Share                                                      */
+   607→/* ------------------------------------------------------------------ */
+   608→function StepShare({
+   609→  linkName,
+   610→}: {
+   611→  linkName: string | null;
+   612→}) {
+   613→  const publicUrl = linkName
+   614→    ? `ftpdigitalplus.com/t/${linkName}`
+   615→    : 'ftpdigitalplus.com/t/tu-tarjeta';
+   616→
+   617→  const handleCopy = () => {
+   618→    navigator.clipboard?.writeText(`https://${publicUrl}`).then(
+   619→      () =>
+   620→        toast.success('Enlace copiado', {
+   621→          description: publicUrl,
+   622→        }),
+   623→      () => toast.error('No se pudo copiar el enlace')
+   624→    );
+   625→  };
+   626→
+   627→  return (
+   628→    <div>
+   629→      <div className="mb-5 flex items-start gap-3">
+   630→        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100">
+   631→          <Share2 className="h-5 w-5 text-emerald-700" />
+   632→        </div>
+   633→        <div>
+   634→          <h2 className="text-xl font-bold text-slate-900">Comparte tu tarjeta</h2>
+   635→          <p className="mt-0.5 text-sm text-muted-foreground">
+   636→            Tu tarjeta tiene un enlace público y un código QR listos para compartir.
+   637→          </p>
+   638→        </div>
+   639→      </div>
+   640→
+   641→      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+   642→        {/* Public URL */}
+   643→        <div className="flex flex-col justify-between rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50/60 to-white p-4">
+   644→          <div>
+   645→            <div className="mb-2 flex items-center gap-2">
+   646→              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-600 text-white">
+   647→                <Share2 className="h-3.5 w-3.5" />
+   648→              </div>
+   649→              <h3 className="text-sm font-semibold text-slate-800">Enlace público</h3>
+   650→            </div>
+   651→            <p className="break-all rounded-md bg-white px-2.5 py-2 font-mono text-xs text-emerald-700 ring-1 ring-emerald-100">
+   652→              {publicUrl}
+   653→            </p>
+   654→          </div>
+   655→          <Button
+   656→            size="sm"
+   657→            onClick={handleCopy}
+   658→            className="mt-3 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-700 hover:to-emerald-600"
+   659→          >
+   660→            <Copy className="h-4 w-4" />
+   661→            Copiar enlace
+   662→          </Button>
+   663→        </div>
+   664→
+   665→        {/* QR preview */}
+   666→        <div className="rounded-xl border border-amber-100 bg-gradient-to-br from-amber-50/60 to-white p-4">
+   667→          <div className="mb-2 flex items-center gap-2">
+   668→            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-500 text-white">
+   669→              <QrCode className="h-3.5 w-3.5" />
+   670→            </div>
+   671→            <h3 className="text-sm font-semibold text-slate-800">Código QR</h3>
+   672→          </div>
+   673→          <div className="flex items-center justify-center rounded-md bg-white p-3 ring-1 ring-amber-100">
+   674→            <div className="rounded-lg bg-white p-2 shadow-sm">
+   675→              <QRCodeCanvas
+   676→                value={`https://${publicUrl}`}
+   677→                size={120}
+   678→                fgColor="#059669"
+   679→                bgColor="#ffffff"
+   680→                level="M"
+   681→                marginSize={1}
+   682→              />
+   683→            </div>
+   684→          </div>
+   685→        </div>
+   686→      </div>
+   687→
+   688→      <div className="mt-5 rounded-lg border border-emerald-100 bg-emerald-50/40 p-3">
+   689→        <div className="flex items-start gap-2">
+   690→          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+   691→          <div>
+   692→            <p className="text-xs font-semibold text-slate-800">¡Estás listo!</p>
+   693→            <p className="mt-0.5 text-[11px] text-muted-foreground">
+   694→              Imprime tu QR, compártelo en redes o envíalo por WhatsApp. Cada
+   695→              escaneo llevará a tu tarjeta digital.
+   696→            </p>
+   697→          </div>
+   698→        </div>
+   699→      </div>
+   700→    </div>
+   701→  );
+   702→}
+   703→

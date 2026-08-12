@@ -12,6 +12,7 @@ import {
   AlertCircle, CircleUser, Mailbox, LucideIcon, Briefcase, ShoppingBag,
   HelpCircle, Image as ImageIcon, Images, Activity,
   Camera, Smartphone, Upload, LifeBuoy, Search, RefreshCw,
+  Compass,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Area, AreaChart, ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip } from 'recharts';
@@ -43,6 +44,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationsPanel } from '@/components/notifications-panel';
 import { OnboardingWizard } from '@/components/onboarding-wizard';
 import { ShareModal } from '@/components/share-modal';
+import { CountUp } from '@/components/animations/count-up';
 import { FavoritesWidget } from '@/components/sections/favorites';
 import { useAppStore, useCurrentUserCards } from '@/lib/store';
 import { PLANS, DASHBOARD_SECTIONS } from '@/lib/plans';
@@ -777,6 +779,16 @@ function TableroSection({
                   ⌘K
                 </kbd>
               </button>
+              <button
+                type="button"
+                onClick={() => useAppStore.getState().setTourActive(true)}
+                className="flex items-center gap-1.5 rounded-full bg-amber-400/90 px-3 py-1.5 text-xs font-semibold text-amber-950 shadow-sm backdrop-blur transition hover:bg-amber-300"
+                aria-label="Ver tour guiado de la plataforma"
+              >
+                <Compass className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Ver Tour</span>
+                <span className="sm:hidden">Tour</span>
+              </button>
               <div className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-sm font-semibold backdrop-blur">
                 {currentUser.plan === 'pro' && <Crown className="h-4 w-4 text-amber-300" />}
                 {currentUser.plan === 'basico' && <Zap className="h-4 w-4 text-amber-300" />}
@@ -843,7 +855,9 @@ function TableroSection({
                     <Badge variant="secondary" className="bg-amber-100 text-amber-700">Máx</Badge>
                   )}
                 </div>
-                <p className="mt-4 text-3xl font-bold text-slate-800">{stat.value.toLocaleString('es-MX')}</p>
+                <p className="mt-4 text-3xl font-bold text-slate-800">
+                  <CountUp value={stat.value} duration={1200} />
+                </p>
                 <p className="text-sm font-medium text-slate-600">{stat.label}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{stat.sub}</p>
                 {/* Sparkline mini chart */}
@@ -923,7 +937,7 @@ function TableroSection({
             onClick={onCreateOpen}
             disabled={!canCreateMore}
             className={cn(
-              'shrink-0',
+              'button-press shrink-0',
               canCreateMore
                 ? 'bg-emerald-600 hover:bg-emerald-700'
                 : 'bg-slate-300 text-slate-500'
@@ -947,7 +961,7 @@ function TableroSection({
               }
             />
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2 stagger-children">
               <AnimatePresence>
                 {cards.map((card, idx) => (
                   <motion.div
@@ -1089,7 +1103,7 @@ function CardItem({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={onEdit} className="h-9 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800">
+                  <Button variant="outline" size="sm" onClick={onEdit} className="button-press h-9 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800">
                     <Edit className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Editar</span>
                   </Button>
                 </TooltipTrigger>
@@ -1099,7 +1113,7 @@ function CardItem({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={onView} className="h-9 w-9">
+                  <Button variant="outline" size="icon" onClick={onView} className="button-press h-9 w-9">
                     <Eye className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
@@ -1113,7 +1127,7 @@ function CardItem({
                     variant="outline"
                     size="icon"
                     onClick={onShare}
-                    className="h-9 w-9 border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                    className="button-press h-9 w-9 border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
                   >
                     <Share2 className="h-3.5 w-3.5" />
                   </Button>
@@ -1124,7 +1138,7 @@ function CardItem({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={onCopy} className="h-9 w-9">
+                  <Button variant="outline" size="icon" onClick={onCopy} className="button-press h-9 w-9">
                     <Copy className="h-3.5 w-3.5" />
                   </Button>
                 </TooltipTrigger>
@@ -1153,7 +1167,7 @@ function AlertDialogWrap({ onDelete, cardName }: { onDelete: () => void; cardNam
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="h-9 w-9 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700">
+        <Button variant="outline" size="icon" className="button-press h-9 w-9 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700">
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </DialogTrigger>

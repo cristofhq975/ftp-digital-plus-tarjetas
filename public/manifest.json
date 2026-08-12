@@ -1,0 +1,47 @@
+{
+  "name": "FTP Digital Plus - Tarjetas Digitales",
+  "short_name": "FTP Digital",
+  "description": "Crea tarjetas de presentación digitales profesionales con QR, NFC, portafolio y más.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#059669",
+  "categories": ["business", "productivity", "utilities"],
+  "lang": "es-MX",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Mi Panel",
+      "short_name": "Panel",
+      "description": "Ver mi panel de tarjetas",
+      "url": "/?view=dashboard"
+    },
+    {
+      "name": "Crear Tarjeta",
+      "short_name": "Crear",
+      "description": "Crear una nueva tarjeta",
+      "url": "/?view=editor"
+    },
+    {
+      "name": "Analítica",
+      "short_name": "Stats",
+      "description": "Ver estadísticas",
+      "url": "/?view=stats"
+    }
+  ]
+}

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, BookOpen, HelpCircle, LifeBuoy, CheckCircle, Clock, ChevronRight,
   MessageCircle, Video, FileText, ArrowLeft, ArrowRight, Sparkles,
-  Smartphone, QrCode, Share2, BarChart3, Plus, LucideIcon,
+  Smartphone, QrCode, Share2, BarChart3, Plus, LucideIcon, Compass,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -432,6 +432,13 @@ function QuickActions({ onNavigateSupport }: { onNavigateSupport: () => void }) 
     }
   };
 
+  const handleStartTour = () => {
+    useAppStore.getState().setTourActive(true);
+    toast.info('Iniciando tour guiado', {
+      description: 'Te llevaremos por las funciones principales de la plataforma.',
+    });
+  };
+
   return (
     <section className="mx-auto -mt-10 max-w-7xl px-4 sm:px-8">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -468,6 +475,47 @@ function QuickActions({ onNavigateSupport }: { onNavigateSupport: () => void }) 
           </motion.button>
         ))}
       </div>
+
+      {/* Tour Interactivo — featured banner */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.32 }}
+        className="mt-4"
+      >
+        <button
+          type="button"
+          onClick={handleStartTour}
+          className="group relative flex w-full items-center gap-4 overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-amber-50 p-5 text-left shadow-sm transition-all hover:border-emerald-400 hover:shadow-lg dark:border-emerald-800/60 dark:from-emerald-950/30 dark:via-slate-900 dark:to-amber-950/20 dark:hover:border-emerald-600"
+        >
+          {/* Decorative blobs */}
+          <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-amber-300/20 blur-2xl" />
+          <div className="pointer-events-none absolute -bottom-12 -left-8 h-32 w-32 rounded-full bg-emerald-300/25 blur-2xl" />
+
+          <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-amber-500 text-white shadow-md">
+            <Compass className="h-6 w-6" />
+            {/* Pulse ring */}
+            <span className="absolute inset-0 animate-ping rounded-xl bg-emerald-500/40" />
+          </div>
+          <div className="relative min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                Tour Interactivo
+              </h3>
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
+                Recomendado
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Recorre la plataforma en 2 minutos: crear tarjeta, editor, plantillas, analítica y más.
+            </p>
+          </div>
+          <span className="relative inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition group-hover:bg-emerald-700">
+            Iniciar tour
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+          </span>
+        </button>
+      </motion.div>
     </section>
   );
 }

@@ -6,6 +6,8 @@ import { useAppStore } from '@/lib/store';
 import { FTPLogo } from '@/components/ftp-logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationsPanel } from '@/components/notifications-panel';
+import { CountUp } from '@/components/animations/count-up';
+import { Typewriter } from '@/components/animations/typewriter';
 import { PLANS, PLAN_ORDER } from '@/lib/plans';
 import type { PlanType } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -223,10 +225,10 @@ const STEPS = [
 ];
 
 const STATS = [
-  { value: '1000+', label: 'Tarjetas creadas' },
-  { value: '50k+', label: 'Escaneos QR' },
-  { value: '24', label: 'Funciones incluidas' },
-  { value: '99.9%', label: 'Disponibilidad' },
+  { value: 1000, suffix: '+', label: 'Tarjetas creadas' },
+  { value: 50, suffix: 'k+', label: 'Escaneos QR' },
+  { value: 24, suffix: '', label: 'Funciones incluidas' },
+  { value: 99, suffix: '.9%', label: 'Disponibilidad' },
 ];
 
 const TESTIMONIALS = [
@@ -482,7 +484,7 @@ function Hero() {
           <h1 className="text-balance text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl sm:leading-tight lg:text-6xl">
             Tarjetas de Presentación Digitales que{' '}
             <span className="bg-gradient-to-r from-amber-300 to-amber-400 bg-clip-text text-transparent">
-              Impresionan
+              <Typewriter text="Impresionan" speed={110} />
             </span>
           </h1>
 
@@ -730,10 +732,10 @@ function Features() {
           </p>
         </motion.div>
 
-        <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+        <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 stagger-children">
           {FEATURES.map((feature, idx) => (
             <motion.div key={feature.title} {...fadeUpProps(idx * 0.08)}>
-              <Card className="card-hover group relative h-full overflow-hidden border-slate-200/70 hover:border-emerald-200">
+              <Card className="card-hover card-lift group relative h-full overflow-hidden border-slate-200/70 hover:border-emerald-200">
                 {/* Glow accent */}
                 <div
                   className={cn(
@@ -779,7 +781,7 @@ function Features() {
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
               className="overflow-hidden"
             >
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 stagger-children">
                 {ADDITIONAL_FEATURES.map((feature, idx) => (
                   <motion.div
                     key={feature.title}
@@ -787,7 +789,7 @@ function Features() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.05, duration: 0.4 }}
                   >
-                    <Card className="card-hover group relative h-full overflow-hidden border-slate-200/70 hover:border-emerald-200">
+                    <Card className="card-hover card-lift group relative h-full overflow-hidden border-slate-200/70 hover:border-emerald-200">
                       <div
                         className={cn(
                           'pointer-events-none absolute -right-12 -top-12 size-32 rounded-full bg-gradient-to-br opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-20',
@@ -930,7 +932,7 @@ function Stats() {
               className="text-center"
             >
               <p className="bg-gradient-to-r from-amber-300 to-amber-200 bg-clip-text text-4xl font-extrabold text-transparent sm:text-5xl">
-                {stat.value}
+                <CountUp value={stat.value} suffix={stat.suffix} duration={1800} />
               </p>
               <p className="mt-2 text-sm font-medium text-emerald-50/90">
                 {stat.label}

@@ -382,6 +382,8 @@ interface AppState {
   favoriteCardIds: string[];
   // Support tickets (Task 6-a)
   supportTickets: SupportTicket[];
+  // Tour (Task 8-b) — session-only, not persisted
+  tourActive: boolean;
   // Actions
   login: (email: string, password: string) => boolean;
   logout: () => void;
@@ -404,6 +406,7 @@ interface AppState {
   toggleFavorite: (cardId: string) => void;
   addTicket: (ticket: Omit<SupportTicket, 'id' | 'status' | 'createdAt' | 'responses'>) => string;
   addTicketResponse: (ticketId: string, response: SupportTicketResponse, status?: SupportTicket['status']) => void;
+  setTourActive: (active: boolean) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -420,6 +423,7 @@ export const useAppStore = create<AppState>()(
       appointments: DEMO_APPOINTMENTS,
       favoriteCardIds: [],
       supportTickets: DEMO_SUPPORT_TICKETS,
+      tourActive: false,
 
       login: (email, password) => {
         const user = get().users.find(
@@ -583,6 +587,8 @@ export const useAppStore = create<AppState>()(
           ),
         }));
       },
+
+      setTourActive: (active) => set({ tourActive: active }),
     }),
     {
       name: 'ftp-digital-plus-store',
