@@ -373,6 +373,7 @@ interface AppState {
   currentView: ViewType;
   selectedCardId: string | null;
   selectedEditorSection: string;
+  selectedPlanForCheckout: PlanType | null;
   // Data
   cards: BusinessCard[];
   messages: ContactMessage[];
@@ -387,6 +388,7 @@ interface AppState {
   navigate: (view: ViewType) => void;
   selectCard: (cardId: string | null) => void;
   setEditorSection: (section: string) => void;
+  setSelectedPlanForCheckout: (plan: PlanType | null) => void;
   createCard: (linkName: string, cardName: string) => string | null;
   updateCard: (cardId: string, updates: Partial<BusinessCard>) => void;
   deleteCard: (cardId: string) => void;
@@ -398,6 +400,7 @@ interface AppState {
   markMessageRead: (messageId: string) => void;
   addAppointment: (appt: Omit<Appointment, 'id'>) => void;
   upgradePlan: (plan: PlanType) => void;
+  updateUser: (updates: Partial<User>) => void;
   toggleFavorite: (cardId: string) => void;
   addTicket: (ticket: Omit<SupportTicket, 'id' | 'status' | 'createdAt' | 'responses'>) => string;
   addTicketResponse: (ticketId: string, response: SupportTicketResponse, status?: SupportTicket['status']) => void;
@@ -411,6 +414,7 @@ export const useAppStore = create<AppState>()(
       currentView: 'landing',
       selectedCardId: null,
       selectedEditorSection: 'detalles',
+      selectedPlanForCheckout: null,
       cards: createDemoCards(),
       messages: DEMO_MESSAGES,
       appointments: DEMO_APPOINTMENTS,
@@ -438,6 +442,8 @@ export const useAppStore = create<AppState>()(
       selectCard: (cardId) => set({ selectedCardId: cardId }),
 
       setEditorSection: (section) => set({ selectedEditorSection: section }),
+
+      setSelectedPlanForCheckout: (plan) => set({ selectedPlanForCheckout: plan }),
 
       createCard: (linkName, cardName) => {
         const user = get().currentUser;
@@ -532,6 +538,18 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
+      updateUser: (updates) => {
+        const user = get().currentUser;
+        if (!user) return;
+        const updatedUser = { ...user, ...updates };
+        set(state => ({
+          users: state.users.map(u =>
+            u.id === user.id ? { ...u, ...updates } : u
+          ),
+          currentUser: updatedUser,
+        }));
+      },
+
       toggleFavorite: (cardId) => {
         set(state => ({
           favoriteCardIds: state.favoriteCardIds.includes(cardId)
@@ -586,6 +604,7 @@ export const useAppStore = create<AppState>()(
         appointments: state.appointments,
         favoriteCardIds: state.favoriteCardIds,
         supportTickets: state.supportTickets,
+        selectedPlanForCheckout: state.selectedPlanForCheckout,
       }),
     }
   )

@@ -5,6 +5,7 @@ export type PlanType = 'gratis' | 'basico' | 'pro';
 export type ViewType =
   | 'landing'
   | 'pricing'
+  | 'checkout'
   | 'login'
   | 'register'
   | 'dashboard'
@@ -24,7 +25,8 @@ export type ViewType =
   | 'support'
   | 'terms'
   | 'privacy'
-  | 'refunds';
+  | 'refunds'
+  | 'profile';
 
 // Ticket de soporte
 export type SupportTicketCategory = 'cuenta' | 'facturacion' | 'tecnico' | 'tarjeta' | 'otro';

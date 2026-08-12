@@ -1,0 +1,1645 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect, useCallback } from 'react';
+     4→import { motion, AnimatePresence } from 'framer-motion';
+     5→import { useAppStore } from '@/lib/store';
+     6→import { FTPLogo } from '@/components/ftp-logo';
+     7→import { ThemeToggle } from '@/components/theme-toggle';
+     8→import { NotificationsPanel } from '@/components/notifications-panel';
+     9→import { PLANS, PLAN_ORDER } from '@/lib/plans';
+    10→import { cn } from '@/lib/utils';
+    11→import { Button } from '@/components/ui/button';
+    12→import { Card, CardContent } from '@/components/ui/card';
+    13→import { Badge } from '@/components/ui/badge';
+    14→import { Input } from '@/components/ui/input';
+    15→import { toast } from 'sonner';
+    16→import {
+    17→  QrCode,
+    18→  Briefcase,
+    19→  ShoppingBag,
+    20→  CalendarDays,
+    21→  BarChart3,
+    22→  LayoutTemplate,
+    23→  ArrowRight,
+    24→  Menu,
+    25→  X,
+    26→  Star,
+    27→  Sparkles,
+    28→  Zap,
+    29→  Globe,
+    30→  CheckCircle2,
+    31→  Facebook,
+    32→  Instagram,
+    33→  Linkedin,
+    34→  Twitter,
+    35→  MessageCircle,
+    36→  Mail,
+    37→  Phone,
+    38→  ChevronDown,
+    39→  ChevronLeft,
+    40→  ChevronRight,
+    41→  Heart,
+    42→  Users,
+    43→  Award,
+    44→  TrendingUp,
+    45→  FileText,
+    46→  Shield,
+    47→  RefreshCw,
+    48→  Send,
+    49→  Quote,
+    50→  Building2,
+    51→} from 'lucide-react';
+    52→
+    53→/* ------------------------------------------------------------------ */
+    54→/*  Shared data                                                        */
+    55→/* ------------------------------------------------------------------ */
+    56→
+    57→const NAV_LINKS = [
+    58→  { label: 'Inicio', target: 'inicio' },
+    59→  { label: 'Planes', target: 'planes' },
+    60→  { label: 'Características', target: 'caracteristicas' },
+    61→  { label: 'Contacto', target: 'contacto' },
+    62→];
+    63→
+    64→const FEATURES = [
+    65→  {
+    66→    icon: QrCode,
+    67→    title: 'Tarjeta NFC / QR',
+    68→    description:
+    69→      'Comparte tu tarjeta con un solo toque NFC o escaneando un código QR. Compatible con cualquier smartphone.',
+    70→    accent: 'from-emerald-500 to-emerald-600',
+    71→  },
+    72→  {
+    73→    icon: Briefcase,
+    74→    title: 'Portafolio Digital',
+    75→    description:
+    76→      'Muestra tus trabajos, proyectos y artículos de blog en una galería visual atractiva y profesional.',
+    77→    accent: 'from-amber-500 to-amber-600',
+    78→  },
+    79→  {
+    80→    icon: ShoppingBag,
+    81→    title: 'Catálogo de Productos',
+    82→    description:
+    83→      'Vende más mostrando tus productos con precio, descripción y enlace directo a tu tienda.',
+    84→    accent: 'from-emerald-500 to-teal-600',
+    85→  },
+    86→  {
+    87→    icon: CalendarDays,
+    88→    title: 'Sistema de Citas',
+    89→    description:
+    90→      'Permite a tus clientes agendar citas con tu equipo, con horarios y confirmación automática.',
+    91→    accent: 'from-amber-500 to-orange-600',
+    92→  },
+    93→  {
+    94→    icon: BarChart3,
+    95→    title: 'Estadísticas',
+    96→    description:
+    97→      'Mide el rendimiento de tu tarjeta: vistas, escaneos de QR, mensajes recibidos y más.',
+    98→    accent: 'from-emerald-500 to-green-600',
+    99→  },
+   100→  {
+   101→    icon: LayoutTemplate,
+   102→    title: 'Múltiples Plantillas',
+   103→    description:
+   104→      '5 plantillas profesionales (Moderno, Clásico, Minimalista, Elegante y Dinámica) totalmente editables.',
+   105→    accent: 'from-amber-500 to-yellow-600',
+   106→  },
+   107→];
+   108→
+   109→const ADDITIONAL_FEATURES = [
+   110→  {
+   111→    icon: MessageCircle,
+   112→    title: 'WhatsApp Integrado',
+   113→    description:
+   114→      'Recibe mensajes directos de tus clientes a tu WhatsApp sin exponer tu número públicamente.',
+   115→    accent: 'from-emerald-500 to-teal-600',
+   116→  },
+   117→  {
+   118→    icon: Users,
+   119→    title: 'Equipo y Citas',
+   120→    description:
+   121→      'Agrega miembros de tu equipo con perfiles individuales y sistema de citas independiente.',
+   122→    accent: 'from-amber-500 to-orange-600',
+   123→  },
+   124→  {
+   125→    icon: Award,
+   126→    title: 'Testimonios',
+   127→    description:
+   128→      'Muestra reseñas y calificaciones de tus clientes para generar confianza social.',
+   129→    accent: 'from-emerald-500 to-green-600',
+   130→  },
+   131→  {
+   132→    icon: Globe,
+   133→    title: 'SEO Optimizado',
+   134→    description:
+   135→      'Cada tarjeta está optimizada para buscadores con metadatos personalizables por ti.',
+   136→    accent: 'from-amber-500 to-yellow-600',
+   137→  },
+   138→  {
+   139→    icon: TrendingUp,
+   140→    title: 'Afiliados',
+   141→    description:
+   142→      'Genera ingresos extras recomendando FTP Digital Plus con tu código de afiliado.',
+   143→    accent: 'from-emerald-500 to-emerald-700',
+   144→  },
+   145→  {
+   146→    icon: Heart,
+   147→    title: 'Personalización Total',
+   148→    description:
+   149→      'Colores, fuentes, CSS personalizado y hasta JavaScript para control absoluto del diseño.',
+   150→    accent: 'from-amber-500 to-rose-600',
+   151→  },
+   152→];
+   153→
+   154→const TRUSTED_COMPANIES = [
+   155→  { name: 'Consultorio González', initials: 'CG' },
+   156→  { name: 'Restaurante El Sabor', initials: 'RS' },
+   157→  { name: 'Boutique Rosa', initials: 'BR' },
+   158→  { name: 'Tech Solutions MX', initials: 'TS' },
+   159→];
+   160→
+   161→const COMPARISON_ROWS = [
+   162→  {
+   163→    label: 'Precio',
+   164→    ftp: 'Desde $0',
+   165→    others: '$200 - $1,500/mes',
+   166→    traditional: '$500 - $2,000 una vez',
+   167→  },
+   168→  {
+   169→    label: 'QR incluido',
+   170→    ftp: 'Sí, en todos los planes',
+   171→    others: 'Sí, con costo extra',
+   172→    traditional: 'No',
+   173→  },
+   174→  {
+   175→    label: 'Actualizable',
+   176→    ftp: 'En tiempo real',
+   177→    others: 'Sí, pero lento',
+   178→    traditional: 'No, debes reimprimir',
+   179→  },
+   180→  {
+   181→    label: 'Estadísticas',
+   182→    ftp: 'Completas y en vivo',
+   183→    others: 'Limitadas',
+   184→    traditional: 'Ninguna',
+   185→  },
+   186→  {
+   187→    label: 'Múltiples funciones',
+   188→    ftp: '24+ secciones',
+   189→    others: '5-10 secciones',
+   190→    traditional: 'Solo contacto',
+   191→  },
+   192→  {
+   193→    label: 'Sin costos ocultos',
+   194→    ftp: '100% transparente',
+   195→    others: 'Comisiones por uso',
+   196→    traditional: 'Costos de reimpresión',
+   197→  },
+   198→];
+   199→
+   200→const STEPS = [
+   201→  {
+   202→    number: '01',
+   203→    title: 'Crea tu cuenta',
+   204→    description:
+   205→      'Regístrate gratis en segundos. Sin tarjeta de crédito. Comienza con el plan gratuito o elige uno de pago.',
+   206→    icon: Sparkles,
+   207→  },
+   208→  {
+   209→    number: '02',
+   210→    title: 'Personaliza tu tarjeta',
+   211→    description:
+   212→      'Elige plantilla, colores, fuentes, agrega servicios, productos, galería, testimonios y mucho más.',
+   213→    icon: LayoutTemplate,
+   214→  },
+   215→  {
+   216→    number: '03',
+   217→    title: 'Comparte y conecta',
+   218→    description:
+   219→      'Imprime tu QR, usa NFC o comparte el enlace. Recibe mensajes, citas y conecta con tus clientes.',
+   220→    icon: Zap,
+   221→  },
+   222→];
+   223→
+   224→const STATS = [
+   225→  { value: '1000+', label: 'Tarjetas creadas' },
+   226→  { value: '50k+', label: 'Escaneos QR' },
+   227→  { value: '24', label: 'Funciones incluidas' },
+   228→  { value: '99.9%', label: 'Disponibilidad' },
+   229→];
+   230→
+   231→const TESTIMONIALS = [
+   232→  {
+   233→    name: 'Dra. María González',
+   234→    role: 'Médico Internista',
+   235→    company: 'Consultorio González',
+   236→    text: 'FTP Digital Plus transformó la manera en que mis pacientes me contactan. Las citas en línea me ahorran horas cada semana.',
+   237→    rating: 5,
+   238→    initials: 'MG',
+   239→  },
+   240→  {
+   241→    name: 'Roberto Cruz',
+   242→    role: 'Restaurantero',
+   243→    company: 'Restaurante El Sabor',
+   244→    text: 'El menú digital con QR es espectacular. Mis clientes lo aman y las reservaciones aumentaron un 40% en dos meses.',
+   245→    rating: 5,
+   246→    initials: 'RC',
+   247→  },
+   248→  {
+   249→    name: 'Patricia López',
+   250→    role: 'Diseñadora Gráfica',
+   251→    company: 'Boutique Rosa',
+   252→    text: 'Mi portafolio se ve increíble. El plan Básico me dio todo lo que necesitaba para impresionar a mis clientes.',
+   253→    rating: 5,
+   254→    initials: 'PL',
+   255→  },
+   256→  {
+   257→    name: 'Miguel Ángel Torres',
+   258→    role: 'Chef Ejecutivo',
+   259→    company: 'Tech Solutions MX',
+   260→    text: 'La analítica avanzada del plan Pro me permitió entender mejor a mis clientes y duplicar mis ventas en línea.',
+   261→    rating: 5,
+   262→    initials: 'MT',
+   263→  },
+   264→  {
+   265→    name: 'Laura Sánchez',
+   266→    role: 'Gerente de Marketing',
+   267→    company: 'Agencia Creativa',
+   268→    text: 'Probamos varias plataformas y FTP Digital Plus es sin duda la más completa y fácil de usar. 100% recomendada.',
+   269→    rating: 5,
+   270→    initials: 'LS',
+   271→  },
+   272→];
+   273→
+   274→/* ------------------------------------------------------------------ */
+   275→/*  Motion helpers                                                     */
+   276→/* ------------------------------------------------------------------ */
+   277→
+   278→function fadeUpProps(delay = 0) {
+   279→  return {
+   280→    initial: { opacity: 0, y: 28 },
+   281→    whileInView: { opacity: 1, y: 0 },
+   282→    viewport: { once: true, margin: '-80px' },
+   283→    transition: { duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] as const },
+   284→  };
+   285→}
+   286→
+   287→/* ------------------------------------------------------------------ */
+   288→/*  Header                                                             */
+   289→/* ------------------------------------------------------------------ */
+   290→
+   291→function SiteHeader() {
+   292→  const navigate = useAppStore(s => s.navigate);
+   293→  const currentUser = useAppStore(s => s.currentUser);
+   294→  const [open, setOpen] = useState(false);
+   295→
+   296→  const scrollTo = (id: string) => {
+   297→    setOpen(false);
+   298→    const el = document.getElementById(id);
+   299→    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+   300→  };
+   301→
+   302→  return (
+   303→    <header className="sticky top-0 z-50 w-full border-b border-emerald-100/60 bg-white/85 backdrop-blur-xl">
+   304→      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+   305→        <button
+   306→          onClick={() => {
+   307→            navigate('landing');
+   308→            window.scrollTo({ top: 0, behavior: 'smooth' });
+   309→          }}
+   310→          className="flex items-center gap-2 transition-opacity hover:opacity-90"
+   311→          aria-label="Ir al inicio de FTP Digital Plus"
+   312→        >
+   313→          <FTPLogo variant="full" className="h-9 w-auto" />
+   314→        </button>
+   315→
+   316→        {/* Desktop nav */}
+   317→        <nav className="hidden items-center gap-1 md:flex" aria-label="Navegación principal">
+   318→          {NAV_LINKS.map(link => (
+   319→            <button
+   320→              key={link.target}
+   321→              onClick={() => scrollTo(link.target)}
+   322→              className="rounded-md px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
+   323→            >
+   324→              {link.label}
+   325→            </button>
+   326→          ))}
+   327→        </nav>
+   328→
+   329→        <div className="hidden items-center gap-1.5 md:flex">
+   330→          <ThemeToggle className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700" />
+   331→          {currentUser && <NotificationsPanel />}
+   332→          <Button
+   333→            variant="ghost"
+   334→            onClick={() => navigate('pricing')}
+   335→            className="text-slate-700 hover:bg-emerald-50 hover:text-emerald-700"
+   336→          >
+   337→            Ver Planes
+   338→          </Button>
+   339→          <Button
+   340→            onClick={() => navigate('login')}
+   341→            className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm hover:from-emerald-700 hover:to-emerald-600"
+   342→          >
+   343→            Iniciar Sesión
+   344→            <ArrowRight className="ml-1 size-4" />
+   345→          </Button>
+   346→        </div>
+   347→
+   348→        {/* Mobile controls: theme toggle + notifications + menu toggle */}
+   349→        <div className="flex items-center gap-0.5 md:hidden">
+   350→          <ThemeToggle className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700" />
+   351→          {currentUser && <NotificationsPanel />}
+   352→          <button
+   353→            onClick={() => setOpen(v => !v)}
+   354→            className="inline-flex size-10 items-center justify-center rounded-md text-slate-700 hover:bg-emerald-50"
+   355→            aria-label="Abrir menú"
+   356→            aria-expanded={open}
+   357→          >
+   358→            {open ? <X className="size-6" /> : <Menu className="size-6" />}
+   359→          </button>
+   360→        </div>
+   361→      </div>
+   362→
+   363→      {/* Mobile menu */}
+   364→      {open && (
+   365→        <motion.div
+   366→          initial={{ opacity: 0, height: 0 }}
+   367→          animate={{ opacity: 1, height: 'auto' }}
+   368→          className="border-t border-emerald-100 bg-white md:hidden"
+   369→        >
+   370→          <nav className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-3" aria-label="Navegación móvil">
+   371→            {NAV_LINKS.map(link => (
+   372→              <button
+   373→                key={link.target}
+   374→                onClick={() => scrollTo(link.target)}
+   375→                className="rounded-md px-3 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700"
+   376→              >
+   377→                {link.label}
+   378→              </button>
+   379→            ))}
+   380→            <div className="mt-2 flex flex-col gap-2">
+   381→              <Button
+   382→                variant="outline"
+   383→                onClick={() => {
+   384→                  setOpen(false);
+   385→                  navigate('pricing');
+   386→                }}
+   387→                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+   388→              >
+   389→                Ver Planes
+   390→              </Button>
+   391→              <Button
+   392→                onClick={() => {
+   393→                  setOpen(false);
+   394→                  navigate('login');
+   395→                }}
+   396→                className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-700 hover:to-emerald-600"
+   397→              >
+   398→                Iniciar Sesión
+   399→              </Button>
+   400→            </div>
+   401→          </nav>
+   402→        </motion.div>
+   403→      )}
+   404→    </header>
+   405→  );
+   406→}
+   407→
+   408→/* ------------------------------------------------------------------ */
+   409→/*  Hero                                                               */
+   410→/* ------------------------------------------------------------------ */
+   411→
+   412→function Hero() {
+   413→  const navigate = useAppStore(s => s.navigate);
+   414→  const fade = fadeUpProps();
+   415→
+   416→  const scrollToNext = () => {
+   417→    const el = document.getElementById('caracteristicas');
+   418→    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+   419→  };
+   420→
+   421→  return (
+   422→    <section
+   423→      id="inicio"
+   424→      className="relative overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-800 text-white"
+   425→    >
+   426→      {/* Animated gradient overlay */}
+   427→      <div className="pointer-events-none absolute inset-0 animate-gradient bg-gradient-to-br from-emerald-600 via-emerald-700 to-amber-600/40 opacity-30" />
+   428→
+   429→      {/* Decorative blobs */}
+   430→      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+   431→        <div className="absolute -left-24 -top-24 size-96 rounded-full bg-amber-400/20 blur-3xl" />
+   432→        <div className="absolute -bottom-32 right-0 size-[28rem] rounded-full bg-emerald-400/30 blur-3xl" />
+   433→        <div className="absolute left-1/2 top-1/3 size-72 -translate-x-1/2 rounded-full bg-teal-300/10 blur-3xl" />
+   434→        <div
+   435→          className="absolute inset-0 opacity-[0.07]"
+   436→          style={{
+   437→            backgroundImage:
+   438→              'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
+   439→            backgroundSize: '32px 32px',
+   440→          }}
+   441→        />
+   442→      </div>
+   443→
+   444→      {/* Floating decorative shapes */}
+   445→      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+   446→        <motion.div
+   447→          animate={{ y: [0, -20, 0], rotate: [0, 180, 360] }}
+   448→          transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
+   449→          className="absolute right-[8%] top-[18%] hidden size-12 rounded-2xl border border-amber-300/30 bg-amber-400/10 backdrop-blur-sm lg:block"
+   450→        />
+   451→        <motion.div
+   452→          animate={{ y: [0, 18, 0], x: [0, 8, 0] }}
+   453→          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+   454→          className="absolute left-[5%] top-[40%] hidden size-3 rounded-full bg-amber-300/60 lg:block"
+   455→        />
+   456→        <motion.div
+   457→          animate={{ y: [0, -14, 0] }}
+   458→          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+   459→          className="absolute right-[15%] bottom-[20%] hidden size-4 rounded-full bg-emerald-200/50 lg:block"
+   460→        />
+   461→        <motion.div
+   462→          animate={{ y: [0, 16, 0], rotate: [0, -90, 0] }}
+   463→          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 0.8 }}
+   464→          className="absolute left-[12%] bottom-[15%] hidden size-8 rounded-lg border border-emerald-200/30 bg-emerald-300/10 backdrop-blur-sm lg:block"
+   465→        />
+   466→        <motion.div
+   467→          animate={{ y: [0, -10, 0], opacity: [0.4, 1, 0.4] }}
+   468→          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 0.3 }}
+   469→          className="absolute right-[40%] top-[12%] hidden size-2 rounded-full bg-amber-200/70 lg:block"
+   470→        />
+   471→      </div>
+   472→
+   473→      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:gap-8 lg:px-8 lg:py-28">
+   474→        {/* Left: copy */}
+   475→        <motion.div {...fade} className="flex flex-col items-start gap-6">
+   476→          <Badge className="border-amber-300/40 bg-amber-400/15 text-amber-100 backdrop-blur-sm">
+   477→            <Sparkles className="mr-1 size-3.5" />
+   478→            Plataforma #1 en tarjetas digitales
+   479→          </Badge>
+   480→
+   481→          <h1 className="text-balance text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+   482→            Tarjetas de Presentación Digitales que{' '}
+   483→            <span className="bg-gradient-to-r from-amber-300 to-amber-400 bg-clip-text text-transparent">
+   484→              Impresionan
+   485→            </span>
+   486→          </h1>
+   487→
+   488→          <p className="max-w-xl text-pretty text-lg text-emerald-50/90">
+   489→            Crea tu tarjeta digital profesional con QR, NFC, portafolio, catálogo
+   490→            de productos, sistema de citas y mucho más. Todo en una sola
+   491→            plataforma, lista para compartir.
+   492→          </p>
+   493→
+   494→          <div className="flex flex-col gap-3 sm:flex-row">
+   495→            <Button
+   496→              size="lg"
+   497→              onClick={() => navigate('login')}
+   498→              className="bg-amber-400 text-amber-950 shadow-lg shadow-amber-500/25 hover:bg-amber-300"
+   499→            >
+   500→              Crear mi Tarjeta Gratis
+   501→              <ArrowRight className="ml-1 size-4" />
+   502→            </Button>
+   503→            <Button
+   504→              size="lg"
+   505→              variant="outline"
+   506→              onClick={() => navigate('pricing')}
+   507→              className="border-white/40 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
+   508→            >
+   509→              Ver Planes
+   510→            </Button>
+   511→          </div>
+   512→
+   513→          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2 text-sm text-emerald-50/80">
+   514→            <span className="inline-flex items-center gap-1.5">
+   515→              <CheckCircle2 className="size-4 text-amber-300" /> Sin tarjeta de crédito
+   516→            </span>
+   517→            <span className="inline-flex items-center gap-1.5">
+   518→              <CheckCircle2 className="size-4 text-amber-300" /> Listo en 5 minutos
+   519→            </span>
+   520→            <span className="inline-flex items-center gap-1.5">
+   521→              <CheckCircle2 className="size-4 text-amber-300" /> 100% en español
+   522→            </span>
+   523→          </div>
+   524→
+   525→          {/* Trusted by row */}
+   526→          <div className="flex flex-col gap-3 pt-6">
+   527→            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-100/70">
+   528→              Empresas que confían en nosotros
+   529→            </p>
+   530→            <div className="flex flex-wrap items-center gap-3">
+   531→              {TRUSTED_COMPANIES.map((company, idx) => (
+   532→                <motion.div
+   533→                  key={company.name}
+   534→                  initial={{ opacity: 0, y: 8 }}
+   535→                  animate={{ opacity: 1, y: 0 }}
+   536→                  transition={{ delay: 0.6 + idx * 0.1, duration: 0.4 }}
+   537→                  className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 backdrop-blur-sm"
+   538→                >
+   539→                  <span className="flex size-6 items-center justify-center rounded-md bg-gradient-to-br from-amber-300 to-amber-400 text-[10px] font-bold text-amber-950">
+   540→                    {company.initials}
+   541→                  </span>
+   542→                  <span className="text-xs font-medium text-emerald-50/90">
+   543→                    {company.name}
+   544→                  </span>
+   545→                </motion.div>
+   546→              ))}
+   547→            </div>
+   548→          </div>
+   549→        </motion.div>
+   550→
+   551→        {/* Right: floating card mockup */}
+   552→        <motion.div
+   553→          initial={{ opacity: 0, scale: 0.92, y: 24 }}
+   554→          animate={{ opacity: 1, scale: 1, y: 0 }}
+   555→          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+   556→          className="relative mx-auto w-full max-w-md"
+   557→        >
+   558→          <FloatingCardPreview />
+   559→        </motion.div>
+   560→      </div>
+   561→
+   562→      {/* Scroll indicator */}
+   563→      <button
+   564→        onClick={scrollToNext}
+   565→        aria-label="Desplazarse hacia abajo"
+   566→        className="absolute bottom-4 left-1/2 z-10 hidden -translate-x-1/2 flex-col items-center gap-1 text-emerald-50/70 transition-colors hover:text-white lg:flex"
+   567→      >
+   568→        <span className="text-[10px] font-medium uppercase tracking-widest">
+   569→          Explora más
+   570→        </span>
+   571→        <motion.div
+   572→          animate={{ y: [0, 6, 0] }}
+   573→          transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+   574→        >
+   575→          <ChevronDown className="size-5" />
+   576→        </motion.div>
+   577→      </button>
+   578→
+   579→      {/* Bottom wave */}
+   580→      <div className="relative">
+   581→        <svg
+   582→          viewBox="0 0 1440 80"
+   583→          className="block h-12 w-full sm:h-16"
+   584→          preserveAspectRatio="none"
+   585→          aria-hidden="true"
+   586→        >
+   587→          <path
+   588→            d="M0,32 C360,80 1080,80 1440,32 L1440,80 L0,80 Z"
+   589→            fill="white"
+   590→          />
+   591→        </svg>
+   592→      </div>
+   593→    </section>
+   594→  );
+   595→}
+   596→
+   597→function FloatingCardPreview() {
+   598→  return (
+   599→    <div className="relative">
+   600→      {/* Glow */}
+   601→      <div className="absolute -inset-4 rounded-3xl bg-amber-300/20 blur-2xl" />
+   602→
+   603→      {/* Main card */}
+   604→      <motion.div
+   605→        animate={{ y: [0, -10, 0] }}
+   606→        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+   607→        className="relative rounded-2xl border border-white/60 bg-white p-6 shadow-2xl shadow-emerald-900/30"
+   608→      >
+   609→        {/* Top bar */}
+   610→        <div className="flex items-center justify-between">
+   611→          <div className="flex items-center gap-3">
+   612→            <div className="flex size-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-base font-bold text-white shadow-md">
+   613→              MG
+   614→            </div>
+   615→            <div>
+   616→              <p className="text-sm font-bold text-slate-900">Dra. María González</p>
+   617→              <p className="text-xs text-slate-500">Médico Internista</p>
+   618→            </div>
+   619→          </div>
+   620→          <div className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+   621→            BÁSICO
+   622→          </div>
+   623→        </div>
+   624→
+   625→        <p className="mt-4 text-xs leading-relaxed text-slate-600">
+   626→          Médico cirujano especialista en medicina interna. Cédula profesional
+   627→          1234567. Atención con cita previa.
+   628→        </p>
+   629→
+   630→        {/* Quick actions */}
+   631→        <div className="mt-4 grid grid-cols-3 gap-2">
+   632→          {[
+   633→            { icon: MessageCircle, label: 'WhatsApp', color: 'text-emerald-600 bg-emerald-50' },
+   634→            { icon: Phone, label: 'Llamar', color: 'text-amber-600 bg-amber-50' },
+   635→            { icon: CalendarDays, label: 'Cita', color: 'text-emerald-600 bg-emerald-50' },
+   636→          ].map(item => (
+   637→            <div
+   638→              key={item.label}
+   639→              className={cn(
+   640→                'flex flex-col items-center gap-1 rounded-lg py-2 text-[10px] font-medium',
+   641→                item.color,
+   642→              )}
+   643→            >
+   644→              <item.icon className="size-4" />
+   645→              {item.label}
+   646→            </div>
+   647→          ))}
+   648→        </div>
+   649→
+   650→        {/* QR */}
+   651→        <div className="mt-4 flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
+   652→          <div className="grid size-14 shrink-0 grid-cols-5 grid-rows-5 gap-px rounded-md bg-white p-1">
+   653→            {Array.from({ length: 25 }).map((_, i) => (
+   654→              <div
+   655→                key={i}
+   656→                className={cn(
+   657→                  'rounded-[1px]',
+   658→                  [0, 1, 2, 5, 7, 10, 12, 14, 17, 19, 22, 24, 3, 9, 11, 15, 21, 23, 6, 18].includes(i)
+   659→                    ? 'bg-emerald-700'
+   660→                    : 'bg-transparent',
+   661→                )}
+   662→              />
+   663→            ))}
+   664→          </div>
+   665→          <div className="flex-1">
+   666→            <p className="text-xs font-semibold text-slate-900">Escanea mi QR</p>
+   667→            <p className="text-[10px] text-slate-500">Permanente · Sin vencimiento</p>
+   668→          </div>
+   669→        </div>
+   670→      </motion.div>
+   671→
+   672→      {/* Floating badges */}
+   673→      <motion.div
+   674→        animate={{ y: [0, 8, 0] }}
+   675→        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+   676→        className="absolute -left-6 top-8 hidden rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-xl sm:block"
+   677→      >
+   678→        <div className="flex items-center gap-2">
+   679→          <div className="flex size-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+   680→            <BarChart3 className="size-4" />
+   681→          </div>
+   682→          <div>
+   683→            <p className="text-[10px] text-slate-500">Vistas este mes</p>
+   684→            <p className="text-sm font-bold text-slate-900">+342</p>
+   685→          </div>
+   686→        </div>
+   687→      </motion.div>
+   688→
+   689→      <motion.div
+   690→        animate={{ y: [0, -8, 0] }}
+   691→        transition={{ duration: 5.5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+   692→        className="absolute -right-4 bottom-8 hidden rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-xl sm:block"
+   693→      >
+   694→        <div className="flex items-center gap-2">
+   695→          <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+   696→            <QrCode className="size-4" />
+   697→          </div>
+   698→          <div>
+   699→            <p className="text-[10px] text-slate-500">Escaneos QR</p>
+   700→            <p className="text-sm font-bold text-slate-900">156</p>
+   701→          </div>
+   702→        </div>
+   703→      </motion.div>
+   704→    </div>
+   705→  );
+   706→}
+   707→
+   708→/* ------------------------------------------------------------------ */
+   709→/*  Features                                                           */
+   710→/* ------------------------------------------------------------------ */
+   711→
+   712→function Features() {
+   713→  const [showMore, setShowMore] = useState(false);
+   714→
+   715→  return (
+   716→    <section id="caracteristicas" className="relative bg-white py-20 sm:py-28">
+   717→      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+   718→        <motion.div {...fadeUpProps()} className="mx-auto max-w-2xl text-center">
+   719→          <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">
+   720→            <Sparkles className="mr-1 size-3.5" />
+   721→            24 funciones incluidas
+   722→          </Badge>
+   723→          <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+   724→            Todo lo que necesitas para destacar
+   725→          </h2>
+   726→          <p className="mt-4 text-lg text-slate-600">
+   727→            Una plataforma completa para profesionales, negocios y emprendedores
+   728→            que quieren proyectar una imagen digital impecable.
+   729→          </p>
+   730→        </motion.div>
+   731→
+   732→        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+   733→          {FEATURES.map((feature, idx) => (
+   734→            <motion.div key={feature.title} {...fadeUpProps(idx * 0.08)}>
+   735→              <Card className="card-hover group relative h-full overflow-hidden border-slate-200/70 hover:border-emerald-200">
+   736→                {/* Glow accent */}
+   737→                <div
+   738→                  className={cn(
+   739→                    'pointer-events-none absolute -right-12 -top-12 size-32 rounded-full bg-gradient-to-br opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-20',
+   740→                    feature.accent,
+   741→                  )}
+   742→                />
+   743→                <CardContent className="relative flex h-full flex-col gap-4">
+   744→                  <div className="flex items-center justify-between">
+   745→                    <div
+   746→                      className={cn(
+   747→                        'flex size-12 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md transition-transform duration-300 group-hover:scale-110',
+   748→                        feature.accent,
+   749→                      )}
+   750→                    >
+   751→                      <feature.icon className="size-6" />
+   752→                    </div>
+   753→                    <span className="font-mono text-3xl font-bold text-slate-100 transition-colors group-hover:text-emerald-100">
+   754→                      {String(idx + 1).padStart(2, '0')}
+   755→                    </span>
+   756→                  </div>
+   757→                  <div className="flex flex-col gap-2">
+   758→                    <h3 className="text-lg font-semibold text-slate-900">
+   759→                      {feature.title}
+   760→                    </h3>
+   761→                    <p className="text-sm leading-relaxed text-slate-600">
+   762→                      {feature.description}
+   763→                    </p>
+   764→                  </div>
+   765→                </CardContent>
+   766→              </Card>
+   767→            </motion.div>
+   768→          ))}
+   769→        </div>
+   770→
+   771→        {/* Expandable additional features */}
+   772→        <AnimatePresence initial={false}>
+   773→          {showMore && (
+   774→            <motion.div
+   775→              initial={{ height: 0, opacity: 0 }}
+   776→              animate={{ height: 'auto', opacity: 1 }}
+   777→              exit={{ height: 0, opacity: 0 }}
+   778→              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+   779→              className="overflow-hidden"
+   780→            >
+   781→              <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+   782→                {ADDITIONAL_FEATURES.map((feature, idx) => (
+   783→                  <motion.div
+   784→                    key={feature.title}
+   785→                    initial={{ opacity: 0, y: 12 }}
+   786→                    animate={{ opacity: 1, y: 0 }}
+   787→                    transition={{ delay: idx * 0.05, duration: 0.4 }}
+   788→                  >
+   789→                    <Card className="card-hover group relative h-full overflow-hidden border-slate-200/70 hover:border-emerald-200">
+   790→                      <div
+   791→                        className={cn(
+   792→                          'pointer-events-none absolute -right-12 -top-12 size-32 rounded-full bg-gradient-to-br opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-20',
+   793→                          feature.accent,
+   794→                        )}
+   795→                      />
+   796→                      <CardContent className="relative flex h-full flex-col gap-4">
+   797→                        <div className="flex items-center justify-between">
+   798→                          <div
+   799→                            className={cn(
+   800→                              'flex size-12 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md transition-transform duration-300 group-hover:scale-110',
+   801→                              feature.accent,
+   802→                            )}
+   803→                          >
+   804→                            <feature.icon className="size-6" />
+   805→                          </div>
+   806→                          <span className="font-mono text-3xl font-bold text-slate-100 transition-colors group-hover:text-emerald-100">
+   807→                            {String(FEATURES.length + idx + 1).padStart(2, '0')}
+   808→                          </span>
+   809→                        </div>
+   810→                        <div className="flex flex-col gap-2">
+   811→                          <h3 className="text-lg font-semibold text-slate-900">
+   812→                            {feature.title}
+   813→                          </h3>
+   814→                          <p className="text-sm leading-relaxed text-slate-600">
+   815→                            {feature.description}
+   816→                          </p>
+   817→                        </div>
+   818→                      </CardContent>
+   819→                    </Card>
+   820→                  </motion.div>
+   821→                ))}
+   822→              </div>
+   823→            </motion.div>
+   824→          )}
+   825→        </AnimatePresence>
+   826→
+   827→        <motion.div {...fadeUpProps(0.15)} className="mt-10 text-center">
+   828→          <Button
+   829→            variant="outline"
+   830→            size="lg"
+   831→            onClick={() => setShowMore(v => !v)}
+   832→            className="gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+   833→          >
+   834→            {showMore ? (
+   835→              <>
+   836→                Ver menos funciones
+   837→                <ChevronDown className="size-4 rotate-180" />
+   838→              </>
+   839→            ) : (
+   840→              <>
+   841→                Ver más funciones
+   842→                <ChevronDown className="size-4" />
+   843→              </>
+   844→            )}
+   845→          </Button>
+   846→          {!showMore && (
+   847→            <p className="mt-3 text-xs text-slate-500">
+   848→              Descubre {ADDITIONAL_FEATURES.length} funciones adicionales que
+   849→              hacen de FTP Digital Plus la plataforma más completa.
+   850→            </p>
+   851→          )}
+   852→        </motion.div>
+   853→      </div>
+   854→    </section>
+   855→  );
+   856→}
+   857→
+   858→/* ------------------------------------------------------------------ */
+   859→/*  How it works                                                       */
+   860→/* ------------------------------------------------------------------ */
+   861→
+   862→function HowItWorks() {
+   863→  return (
+   864→    <section className="relative overflow-hidden bg-gradient-to-b from-slate-50 to-white py-20 sm:py-28">
+   865→      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+   866→        <motion.div {...fadeUpProps()} className="mx-auto max-w-2xl text-center">
+   867→          <Badge className="border-amber-200 bg-amber-50 text-amber-700">
+   868→            <Zap className="mr-1 size-3.5" />
+   869→            Súper fácil
+   870→          </Badge>
+   871→          <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+   872→            Empieza en 3 simples pasos
+   873→          </h2>
+   874→          <p className="mt-4 text-lg text-slate-600">
+   875→            No necesitas experiencia técnica. En minutos tendrás tu tarjeta
+   876→            digital lista para compartir.
+   877→          </p>
+   878→        </motion.div>
+   879→
+   880→        <div className="relative mt-16">
+   881→          {/* Connector line */}
+   882→          <div className="absolute left-0 right-0 top-8 hidden h-0.5 bg-gradient-to-r from-emerald-200 via-amber-200 to-emerald-200 lg:block" />
+   883→
+   884→          <div className="grid gap-10 lg:grid-cols-3">
+   885→            {STEPS.map((step, idx) => (
+   886→              <motion.div
+   887→                key={step.number}
+   888→                {...fadeUpProps(idx * 0.15)}
+   889→                className="relative flex flex-col items-center text-center"
+   890→              >
+   891→                <div className="relative z-10 flex size-16 items-center justify-center rounded-full border-4 border-white bg-gradient-to-br from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-200">
+   892→                  <step.icon className="size-7" />
+   893→                  <span className="absolute -right-1 -top-1 flex size-7 items-center justify-center rounded-full bg-amber-400 text-xs font-bold text-amber-950 shadow">
+   894→                    {step.number}
+   895→                  </span>
+   896→                </div>
+   897→                <h3 className="mt-5 text-xl font-semibold text-slate-900">
+   898→                  {step.title}
+   899→                </h3>
+   900→                <p className="mt-2 max-w-xs text-sm text-slate-600">
+   901→                  {step.description}
+   902→                </p>
+   903→              </motion.div>
+   904→            ))}
+   905→          </div>
+   906→        </div>
+   907→      </div>
+   908→    </section>
+   909→  );
+   910→}
+   911→
+   912→/* ------------------------------------------------------------------ */
+   913→/*  Stats                                                              */
+   914→/* ------------------------------------------------------------------ */
+   915→
+   916→function Stats() {
+   917→  return (
+   918→    <section className="relative overflow-hidden bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-700 py-16 text-white">
+   919→      <div className="pointer-events-none absolute inset-0">
+   920→        <div className="absolute -left-20 top-0 size-72 rounded-full bg-amber-400/15 blur-3xl" />
+   921→        <div className="absolute -right-20 bottom-0 size-72 rounded-full bg-teal-300/15 blur-3xl" />
+   922→      </div>
+   923→      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+   924→        <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
+   925→          {STATS.map((stat, idx) => (
+   926→            <motion.div
+   927→              key={stat.label}
+   928→              {...fadeUpProps(idx * 0.1)}
+   929→              className="text-center"
+   930→            >
+   931→              <p className="bg-gradient-to-r from-amber-300 to-amber-200 bg-clip-text text-4xl font-extrabold text-transparent sm:text-5xl">
+   932→                {stat.value}
+   933→              </p>
+   934→              <p className="mt-2 text-sm font-medium text-emerald-50/90">
+   935→                {stat.label}
+   936→              </p>
+   937→            </motion.div>
+   938→          ))}
+   939→        </div>
+   940→      </div>
+   941→    </section>
+   942→  );
+   943→}
+   944→
+   945→/* ------------------------------------------------------------------ */
+   946→/*  Comparison section                                                 */
+   947→/* ------------------------------------------------------------------ */
+   948→
+   949→function Comparison() {
+   950→  return (
+   951→    <section className="relative overflow-hidden bg-gradient-to-b from-slate-50 to-white py-20 sm:py-28">
+   952→      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+   953→        <motion.div {...fadeUpProps()} className="mx-auto max-w-2xl text-center">
+   954→          <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">
+   955→            <Award className="mr-1 size-3.5" />
+   956→            Comparativa
+   957→          </Badge>
+   958→          <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+   959→            FTP Digital Plus vs. la competencia
+   960→          </h2>
+   961→          <p className="mt-4 text-lg text-slate-600">
+   962→            Compara nuestras funciones con otras plataformas digitales y las
+   963→            tarjetas tradicionales de papel.
+   964→          </p>
+   965→        </motion.div>
+   966→
+   967→        {/* Mobile: stacked cards */}
+   968→        <motion.div {...fadeUpProps(0.1)} className="mt-12 lg:hidden">
+   969→          {COMPARISON_ROWS.map((row, idx) => (
+   970→            <Card key={row.label} className="mb-3 overflow-hidden border-slate-200">
+   971→              <CardContent className="p-0">
+   972→                <div className="border-b border-slate-100 bg-slate-50 px-4 py-2.5">
+   973→                  <p className="text-sm font-semibold text-slate-900">{row.label}</p>
+   974→                </div>
+   975→                <div className="grid grid-cols-3 divide-x divide-slate-100">
+   976→                  <div className="bg-emerald-50/50 p-3 text-center">
+   977→                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+   978→                      FTP
+   979→                    </p>
+   980→                    <p className="text-xs font-medium text-slate-800">{row.ftp}</p>
+   981→                  </div>
+   982→                  <div className="p-3 text-center">
+   983→                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+   984→                      Otras
+   985→                    </p>
+   986→                    <p className="text-xs text-slate-600">{row.others}</p>
+   987→                  </div>
+   988→                  <div className="p-3 text-center">
+   989→                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+   990→                      Papel
+   991→                    </p>
+   992→                    <p className="text-xs text-slate-600">{row.traditional}</p>
+   993→                  </div>
+   994→                </div>
+   995→              </CardContent>
+   996→            </Card>
+   997→          ))}
+   998→        </motion.div>
+   999→
+  1000→        {/* Desktop: table */}
+  1001→        <motion.div {...fadeUpProps(0.1)} className="mt-12 hidden lg:block">
+  1002→          <Card className="overflow-hidden border-slate-200 shadow-lg">
+  1003→            <CardContent className="p-0">
+  1004→              {/* Header row */}
+  1005→              <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] border-b border-slate-200">
+  1006→                <div className="bg-slate-50 px-6 py-5">
+  1007→                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+  1008→                    Característica
+  1009→                  </span>
+  1010→                </div>
+  1011→                <div className="relative bg-gradient-to-b from-emerald-600 to-emerald-700 px-6 py-5 text-center">
+  1012→                  <div className="absolute inset-x-0 -top-3 mx-auto w-fit">
+  1013→                    <Badge className="border-0 bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-amber-950 shadow">
+  1014→                      RECOMENDADO
+  1015→                    </Badge>
+  1016→                  </div>
+  1017→                  <p className="mt-1 text-sm font-bold text-white">FTP Digital Plus</p>
+  1018→                </div>
+  1019→                <div className="bg-slate-50 px-6 py-5 text-center">
+  1020→                  <p className="text-sm font-semibold text-slate-700">Otras plataformas</p>
+  1021→                </div>
+  1022→                <div className="bg-slate-50 px-6 py-5 text-center">
+  1023→                  <p className="text-sm font-semibold text-slate-700">Tarjetas tradicionales</p>
+  1024→                </div>
+  1025→              </div>
+  1026→
+  1027→              {/* Data rows */}
+  1028→              {COMPARISON_ROWS.map((row, idx) => (
+  1029→                <div
+  1030→                  key={row.label}
+  1031→                  className={cn(
+  1032→                    'grid grid-cols-[1.5fr_1fr_1fr_1fr] border-b border-slate-100 last:border-b-0',
+  1033→                    idx % 2 === 1 && 'bg-slate-50/40',
+  1034→                  )}
+  1035→                >
+  1036→                  <div className="px-6 py-4">
+  1037→                    <p className="text-sm font-medium text-slate-900">{row.label}</p>
+  1038→                  </div>
+  1039→                  <div className="bg-emerald-50/40 px-6 py-4 text-center">
+  1040→                    <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-800">
+  1041→                      <CheckCircle2 className="size-4 text-emerald-600" />
+  1042→                      {row.ftp}
+  1043→                    </p>
+  1044→                  </div>
+  1045→                  <div className="px-6 py-4 text-center">
+  1046→                    <p className="text-sm text-slate-600">{row.others}</p>
+  1047→                  </div>
+  1048→                  <div className="px-6 py-4 text-center">
+  1049→                    <p className="text-sm text-slate-500">{row.traditional}</p>
+  1050→                  </div>
+  1051→                </div>
+  1052→              ))}
+  1053→            </CardContent>
+  1054→          </Card>
+  1055→        </motion.div>
+  1056→
+  1057→        <motion.div {...fadeUpProps(0.2)} className="mt-8 text-center">
+  1058→          <p className="text-sm text-slate-600">
+  1059→            <Sparkles className="mr-1 inline size-4 text-amber-500" />
+  1060→            FTP Digital Plus ofrece la mejor relación precio-funcionalidades del
+  1061→            mercado mexicano.
+  1062→          </p>
+  1063→        </motion.div>
+  1064→      </div>
+  1065→    </section>
+  1066→  );
+  1067→}
+  1068→
+  1069→/* ------------------------------------------------------------------ */
+  1070→/*  Pricing preview                                                    */
+  1071→/* ------------------------------------------------------------------ */
+  1072→
+  1073→function PricingPreview() {
+  1074→  const navigate = useAppStore(s => s.navigate);
+  1075→
+  1076→  return (
+  1077→    <section id="planes" className="bg-white py-20 sm:py-28">
+  1078→      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+  1079→        <motion.div {...fadeUpProps()} className="mx-auto max-w-2xl text-center">
+  1080→          <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">
+  1081→            <Star className="mr-1 size-3.5" />
+  1082→            Planes para cada necesidad
+  1083→          </Badge>
+  1084→          <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+  1085→            Elige el plan ideal para ti
+  1086→          </h2>
+  1087→          <p className="mt-4 text-lg text-slate-600">
+  1088→            Desde gratis hasta Pro. Sin costos ocultos. Cancela cuando quieras.
+  1089→          </p>
+  1090→        </motion.div>
+  1091→
+  1092→        <div className="mt-14 grid gap-6 lg:grid-cols-3">
+  1093→          {PLAN_ORDER.map((planId, idx) => {
+  1094→            const plan = PLANS[planId];
+  1095→            const isHighlight = plan.highlight;
+  1096→            return (
+  1097→              <motion.div key={planId} {...fadeUpProps(idx * 0.1)}>
+  1098→                <Card
+  1099→                  className={cn(
+  1100→                    'relative h-full transition-all duration-300 hover:-translate-y-1',
+  1101→                    isHighlight
+  1102→                      ? 'border-emerald-400 shadow-xl shadow-emerald-100 ring-2 ring-emerald-500/20 lg:scale-105'
+  1103→                      : 'border-slate-200 hover:shadow-lg hover:shadow-slate-100',
+  1104→                  )}
+  1105→                >
+  1106→                  {plan.badge && (
+  1107→                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+  1108→                      <Badge
+  1109→                        className={cn(
+  1110→                          'border-0 px-3 py-1 text-xs font-semibold shadow-md',
+  1111→                          isHighlight
+  1112→                            ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950'
+  1113→                            : 'bg-slate-800 text-white',
+  1114→                        )}
+  1115→                      >
+  1116→                        {plan.badge}
+  1117→                      </Badge>
+  1118→                    </div>
+  1119→                  )}
+  1120→                  <CardContent className="flex h-full flex-col gap-5 pt-4">
+  1121→                    <div className="flex flex-col gap-1">
+  1122→                      <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
+  1123→                      <p className="text-sm text-slate-500">{plan.description}</p>
+  1124→                    </div>
+  1125→
+  1126→                    <div className="flex items-baseline gap-1">
+  1127→                      <span className="text-4xl font-extrabold text-slate-900">
+  1128→                        ${plan.price}
+  1129→                      </span>
+  1130→                      <span className="text-sm text-slate-500">MXN {plan.period}</span>
+  1131→                    </div>
+  1132→
+  1133→                    <ul className="flex flex-col gap-2.5 text-sm">
+  1134→                      {plan.features.slice(0, 6).map(f => (
+  1135→                        <li key={f.name} className="flex items-start gap-2">
+  1136→                          <CheckCircle2
+  1137→                            className={cn(
+  1138→                              'mt-0.5 size-4 shrink-0',
+  1139→                              f.included ? 'text-emerald-600' : 'text-slate-300',
+  1140→                            )}
+  1141→                          />
+  1142→                          <span className={f.included ? 'text-slate-700' : 'text-slate-400 line-through'}>
+  1143→                            {f.name}
+  1144→                          </span>
+  1145→                        </li>
+  1146→                      ))}
+  1147→                    </ul>
+  1148→
+  1149→                    <Button
+  1150→                      className={cn(
+  1151→                        'mt-auto',
+  1152→                        isHighlight
+  1153→                          ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-700 hover:to-emerald-600'
+  1154→                          : 'bg-slate-900 text-white hover:bg-slate-800',
+  1155→                      )}
+  1156→                      onClick={() => navigate('pricing')}
+  1157→                    >
+  1158→                      Ver detalles
+  1159→                      <ArrowRight className="ml-1 size-4" />
+  1160→                    </Button>
+  1161→                  </CardContent>
+  1162→                </Card>
+  1163→              </motion.div>
+  1164→            );
+  1165→          })}
+  1166→        </div>
+  1167→
+  1168→        <motion.div {...fadeUpProps(0.2)} className="mt-10 text-center">
+  1169→          <Button
+  1170→            variant="link"
+  1171→            onClick={() => navigate('pricing')}
+  1172→            className="text-emerald-700 hover:text-emerald-800"
+  1173→          >
+  1174→            Comparar todos los planes
+  1175→            <ArrowRight className="ml-1 size-4" />
+  1176→          </Button>
+  1177→        </motion.div>
+  1178→      </div>
+  1179→    </section>
+  1180→  );
+  1181→}
+  1182→
+  1183→/* ------------------------------------------------------------------ */
+  1184→/*  Testimonials                                                       */
+  1185→/* ------------------------------------------------------------------ */
+  1186→
+  1187→function Testimonials() {
+  1188→  const [activeIndex, setActiveIndex] = useState(0);
+  1189→  const [isPaused, setIsPaused] = useState(false);
+  1190→
+  1191→  const next = useCallback(() => {
+  1192→    setActiveIndex(i => (i + 1) % TESTIMONIALS.length);
+  1193→  }, []);
+  1194→
+  1195→  const prev = useCallback(() => {
+  1196→    setActiveIndex(i => (i - 1 + TESTIMONIALS.length) % TESTIMONIALS.length);
+  1197→  }, []);
+  1198→
+  1199→  useEffect(() => {
+  1200→    if (isPaused) return;
+  1201→    const interval = setInterval(() => {
+  1202→      setActiveIndex(i => (i + 1) % TESTIMONIALS.length);
+  1203→    }, 5000);
+  1204→    return () => clearInterval(interval);
+  1205→  }, [isPaused]);
+  1206→
+  1207→  const active = TESTIMONIALS[activeIndex];
+  1208→
+  1209→  return (
+  1210→    <section
+  1211→      className="bg-gradient-to-b from-white to-slate-50 py-20 sm:py-28"
+  1212→      onMouseEnter={() => setIsPaused(true)}
+  1213→      onMouseLeave={() => setIsPaused(false)}
+  1214→    >
+  1215→      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+  1216→        <motion.div {...fadeUpProps()} className="mx-auto max-w-2xl text-center">
+  1217→          <Badge className="border-amber-200 bg-amber-50 text-amber-700">
+  1218→            <Star className="mr-1 size-3.5 fill-amber-400 text-amber-500" />
+  1219→            Testimonios
+  1220→          </Badge>
+  1221→          <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+  1222→            Lo que dicen nuestros clientes
+  1223→          </h2>
+  1224→          <p className="mt-4 text-lg text-slate-600">
+  1225→            Cientos de profesionales ya confían en FTP Digital Plus.
+  1226→          </p>
+  1227→        </motion.div>
+  1228→
+  1229→        {/* Main carousel */}
+  1230→        <motion.div {...fadeUpProps(0.1)} className="mx-auto mt-14 max-w-4xl">
+  1231→          <Card className="relative overflow-hidden border-emerald-100 shadow-lg">
+  1232→            <div className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-amber-200/20 blur-3xl" />
+  1233→            <div className="pointer-events-none absolute -bottom-16 -left-16 size-48 rounded-full bg-emerald-200/30 blur-3xl" />
+  1234→
+  1235→            <CardContent className="relative flex flex-col items-center gap-6 p-8 text-center sm:p-12">
+  1236→              <Quote className="size-10 text-emerald-200" />
+  1237→
+  1238→              <AnimatePresence mode="wait">
+  1239→                <motion.div
+  1240→                  key={activeIndex}
+  1241→                  initial={{ opacity: 0, y: 12 }}
+  1242→                  animate={{ opacity: 1, y: 0 }}
+  1243→                  exit={{ opacity: 0, y: -12 }}
+  1244→                  transition={{ duration: 0.35 }}
+  1245→                  className="flex w-full flex-col items-center gap-5"
+  1246→                >
+  1247→                  <div className="flex gap-1">
+  1248→                    {Array.from({ length: active.rating }).map((_, i) => (
+  1249→                      <Star
+  1250→                        key={i}
+  1251→                        className="size-5 fill-amber-400 text-amber-400"
+  1252→                      />
+  1253→                    ))}
+  1254→                  </div>
+  1255→
+  1256→                  <p className="max-w-2xl text-balance text-lg font-medium leading-relaxed text-slate-800 sm:text-xl">
+  1257→                    “{active.text}”
+  1258→                  </p>
+  1259→
+  1260→                  <div className="flex items-center gap-3">
+  1261→                    <div className="flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-base font-bold text-white shadow-md">
+  1262→                      {active.initials}
+  1263→                    </div>
+  1264→                    <div className="text-left">
+  1265→                      <p className="font-semibold text-slate-900">{active.name}</p>
+  1266→                      <p className="text-sm text-slate-500">{active.role}</p>
+  1267→                      <p className="flex items-center gap-1 text-xs text-emerald-700">
+  1268→                        <Building2 className="size-3" />
+  1269→                        {active.company}
+  1270→                      </p>
+  1271→                    </div>
+  1272→                  </div>
+  1273→                </motion.div>
+  1274→              </AnimatePresence>
+  1275→
+  1276→              {/* Controls */}
+  1277→              <div className="flex items-center gap-3">
+  1278→                <button
+  1279→                  onClick={prev}
+  1280→                  aria-label="Testimonio anterior"
+  1281→                  className="flex size-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+  1282→                >
+  1283→                  <ChevronLeft className="size-5" />
+  1284→                </button>
+  1285→                <div className="flex items-center gap-1.5">
+  1286→                  {TESTIMONIALS.map((_, i) => (
+  1287→                    <button
+  1288→                      key={i}
+  1289→                      onClick={() => setActiveIndex(i)}
+  1290→                      aria-label={`Ir al testimonio ${i + 1}`}
+  1291→                      className={cn(
+  1292→                        'h-2 rounded-full transition-all',
+  1293→                        i === activeIndex
+  1294→                          ? 'w-6 bg-emerald-600'
+  1295→                          : 'w-2 bg-slate-300 hover:bg-slate-400',
+  1296→                      )}
+  1297→                    />
+  1298→                  ))}
+  1299→                </div>
+  1300→                <button
+  1301→                  onClick={next}
+  1302→                  aria-label="Testimonio siguiente"
+  1303→                  className="flex size-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+  1304→                >
+  1305→                  <ChevronRight className="size-5" />
+  1306→                </button>
+  1307→              </div>
+  1308→            </CardContent>
+  1309→          </Card>
+  1310→        </motion.div>
+  1311→
+  1312→        {/* Company logos / names strip */}
+  1313→        <motion.div
+  1314→          {...fadeUpProps(0.2)}
+  1315→          className="mt-10 flex flex-wrap items-center justify-center gap-3"
+  1316→        >
+  1317→          {TESTIMONIALS.map((t, idx) => (
+  1318→            <button
+  1319→              key={t.name}
+  1320→              onClick={() => setActiveIndex(idx)}
+  1321→              className={cn(
+  1322→                'flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-all',
+  1323→                idx === activeIndex
+  1324→                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+  1325→                  : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:text-emerald-700',
+  1326→              )}
+  1327→            >
+  1328→              <span className="flex size-5 items-center justify-center rounded-md bg-gradient-to-br from-amber-300 to-amber-400 text-[9px] font-bold text-amber-950">
+  1329→                {t.initials}
+  1330→              </span>
+  1331→              {t.company}
+  1332→            </button>
+  1333→          ))}
+  1334→        </motion.div>
+  1335→      </div>
+  1336→    </section>
+  1337→  );
+  1338→}
+  1339→
+  1340→/* ------------------------------------------------------------------ */
+  1341→/*  Final CTA                                                          */
+  1342→/* ------------------------------------------------------------------ */
+  1343→
+  1344→function FinalCTA() {
+  1345→  const navigate = useAppStore(s => s.navigate);
+  1346→  return (
+  1347→    <section id="contacto" className="bg-white py-20 sm:py-28">
+  1348→      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+  1349→        <motion.div
+  1350→          {...fadeUpProps()}
+  1351→          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-800 px-6 py-16 text-center shadow-2xl shadow-emerald-200/50 sm:px-12"
+  1352→        >
+  1353→          <div className="pointer-events-none absolute inset-0">
+  1354→            <div className="absolute -left-16 -top-16 size-72 rounded-full bg-amber-400/20 blur-3xl" />
+  1355→            <div className="absolute -bottom-16 -right-16 size-72 rounded-full bg-teal-300/20 blur-3xl" />
+  1356→            <div
+  1357→              className="absolute inset-0 opacity-[0.08]"
+  1358→              style={{
+  1359→                backgroundImage:
+  1360→                  'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
+  1361→                backgroundSize: '24px 24px',
+  1362→              }}
+  1363→            />
+  1364→          </div>
+  1365→          <div className="relative flex flex-col items-center gap-6">
+  1366→            <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/40 bg-amber-400/15 px-4 py-1.5 text-sm font-medium text-amber-100 backdrop-blur-sm">
+  1367→              <Sparkles className="size-4" />
+  1368→              Empieza hoy mismo
+  1369→            </div>
+  1370→            <h2 className="max-w-2xl text-balance text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
+  1371→              Crea tu tarjeta digital y empieza a impresionar
+  1372→            </h2>
+  1373→            <p className="max-w-xl text-pretty text-emerald-50/90">
+  1374→              Únete a más de 1,000 profesionales que ya transformaron su
+  1375→              presencia digital. Sin compromisos, cancela cuando quieras.
+  1376→            </p>
+  1377→            <div className="flex flex-col gap-3 sm:flex-row">
+  1378→              <Button
+  1379→                size="lg"
+  1380→                onClick={() => navigate('login')}
+  1381→                className="bg-amber-400 text-amber-950 shadow-lg shadow-amber-500/30 hover:bg-amber-300"
+  1382→              >
+  1383→                Crear mi Tarjeta Gratis
+  1384→                <ArrowRight className="ml-1 size-4" />
+  1385→              </Button>
+  1386→              <Button
+  1387→                size="lg"
+  1388→                variant="outline"
+  1389→                onClick={() => navigate('pricing')}
+  1390→                className="border-white/40 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
+  1391→              >
+  1392→                Ver Planes
+  1393→              </Button>
+  1394→            </div>
+  1395→          </div>
+  1396→        </motion.div>
+  1397→      </div>
+  1398→    </section>
+  1399→  );
+  1400→}
+  1401→
+  1402→/* ------------------------------------------------------------------ */
+  1403→/*  Footer                                                             */
+  1404→/* ------------------------------------------------------------------ */
+  1405→
+  1406→function SiteFooter() {
+  1407→  const navigate = useAppStore(s => s.navigate);
+  1408→  const year = new Date().getFullYear();
+  1409→  const [email, setEmail] = useState('');
+  1410→
+  1411→  const handleNewsletter = (e: React.FormEvent) => {
+  1412→    e.preventDefault();
+  1413→    if (!email.trim()) {
+  1414→      toast.error('Por favor ingresa tu correo electrónico');
+  1415→      return;
+  1416→    }
+  1417→    toast.success('¡Gracias por suscribirte! Te mantendremos al tanto de nuestras novedades.');
+  1418→    setEmail('');
+  1419→  };
+  1420→
+  1421→  return (
+  1422→    <footer className="border-t border-slate-200 bg-slate-50">
+  1423→      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+  1424→        <div className="grid gap-10 lg:grid-cols-12">
+  1425→          {/* Brand + social */}
+  1426→          <div className="flex flex-col gap-4 lg:col-span-4">
+  1427→            <FTPLogo variant="full" className="h-9 w-auto" />
+  1428→            <p className="max-w-xs text-sm text-slate-600">
+  1429→              Agencia de Diseño Web y Marketing Digital. Creamos experiencias
+  1430→              digitales que conectan.
+  1431→            </p>
+  1432→            <div className="flex gap-2">
+  1433→              {[
+  1434→                { Icon: Facebook, label: 'Facebook', color: 'hover:bg-[#1877F2] hover:border-[#1877F2] hover:text-white' },
+  1435→                { Icon: Instagram, label: 'Instagram', color: 'hover:bg-gradient-to-br hover:from-[#E4405F] hover:to-[#F77737] hover:border-transparent hover:text-white' },
+  1436→                { Icon: Linkedin, label: 'LinkedIn', color: 'hover:bg-[#0A66C2] hover:border-[#0A66C2] hover:text-white' },
+  1437→                { Icon: Twitter, label: 'Twitter', color: 'hover:bg-black hover:border-black hover:text-white' },
+  1438→                { Icon: MessageCircle, label: 'WhatsApp', color: 'hover:bg-[#25D366] hover:border-[#25D366] hover:text-white' },
+  1439→              ].map(({ Icon, label, color }) => (
+  1440→                <a
+  1441→                  key={label}
+  1442→                  href="#"
+  1443→                  onClick={e => e.preventDefault()}
+  1444→                  aria-label={label}
+  1445→                  className={cn(
+  1446→                    'flex size-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md',
+  1447→                    color,
+  1448→                  )}
+  1449→                >
+  1450→                  <Icon className="size-4" />
+  1451→                </a>
+  1452→              ))}
+  1453→            </div>
+  1454→          </div>
+  1455→
+  1456→          {/* Product */}
+  1457→          <div className="lg:col-span-2">
+  1458→            <h3 className="text-sm font-semibold text-slate-900">Producto</h3>
+  1459→            <ul className="mt-4 flex flex-col gap-2.5 text-sm">
+  1460→              {[
+  1461→                { label: 'Características', action: () => document.getElementById('caracteristicas')?.scrollIntoView({ behavior: 'smooth' }) },
+  1462→                { label: 'Planes', action: () => navigate('pricing') },
+  1463→                { label: 'Plantillas', action: () => navigate('template-gallery') },
+  1464→                { label: 'Iniciar Sesión', action: () => navigate('login') },
+  1465→              ].map(item => (
+  1466→                <li key={item.label}>
+  1467→                  <button
+  1468→                    onClick={item.action}
+  1469→                    className="text-slate-600 transition-colors hover:text-emerald-700"
+  1470→                  >
+  1471→                    {item.label}
+  1472→                  </button>
+  1473→                </li>
+  1474→              ))}
+  1475→            </ul>
+  1476→          </div>
+  1477→
+  1478→          {/* Legal */}
+  1479→          <div className="lg:col-span-2">
+  1480→            <h3 className="text-sm font-semibold text-slate-900">Legal</h3>
+  1481→            <ul className="mt-4 flex flex-col gap-2.5 text-sm">
+  1482→              {[
+  1483→                { label: 'Términos y Condiciones', view: 'terms' as const, icon: FileText },
+  1484→                { label: 'Política de Privacidad', view: 'privacy' as const, icon: Shield },
+  1485→                { label: 'Política de Reembolsos', view: 'refunds' as const, icon: RefreshCw },
+  1486→              ].map(item => (
+  1487→                <li key={item.label}>
+  1488→                  <button
+  1489→                    onClick={() => {
+  1490→                      navigate(item.view);
+  1491→                      window.scrollTo({ top: 0, behavior: 'smooth' });
+  1492→                    }}
+  1493→                    className="flex items-center gap-1.5 text-slate-600 transition-colors hover:text-emerald-700"
+  1494→                  >
+  1495→                    <item.icon className="size-3.5 text-emerald-500" />
+  1496→                    {item.label}
+  1497→                  </button>
+  1498→                </li>
+  1499→              ))}
+  1500→            </ul>
+  1501→          </div>
+  1502→
+  1503→          {/* Newsletter + contact */}
+  1504→          <div className="lg:col-span-4">
+  1505→            <h3 className="text-sm font-semibold text-slate-900">
+  1506→              Mantente al día
+  1507→            </h3>
+  1508→            <p className="mt-4 text-sm text-slate-600">
+  1509→              Suscríbete a nuestro newsletter y recibe tips, novedades y promociones
+  1510→              exclusivas.
+  1511→            </p>
+  1512→            <form onSubmit={handleNewsletter} className="mt-4 flex gap-2">
+  1513→              <Input
+  1514→                type="email"
+  1515→                value={email}
+  1516→                onChange={e => setEmail(e.target.value)}
+  1517→                placeholder="tu@correo.com"
+  1518→                aria-label="Correo electrónico"
+  1519→                className="border-slate-200 bg-white focus-visible:ring-emerald-500"
+  1520→              />
+  1521→              <Button
+  1522→                type="submit"
+  1523→                className="gap-1.5 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm hover:from-emerald-700 hover:to-emerald-600"
+  1524→              >
+  1525→                <Send className="size-4" />
+  1526→                <span className="hidden sm:inline">Suscribirme</span>
+  1527→              </Button>
+  1528→            </form>
+  1529→
+  1530→            <ul className="mt-5 flex flex-col gap-2 text-xs text-slate-500">
+  1531→              <li className="flex items-center gap-2">
+  1532→                <Mail className="size-3.5 text-emerald-600" />
+  1533→                hola@ftpdigitalplus.com
+  1534→              </li>
+  1535→              <li className="flex items-center gap-2">
+  1536→                <Phone className="size-3.5 text-emerald-600" />
+  1537→                +52 55 1234 5678
+  1538→              </li>
+  1539→              <li className="flex items-center gap-2">
+  1540→                <Globe className="size-3.5 text-emerald-600" />
+  1541→                Ciudad de México, México
+  1542→              </li>
+  1543→            </ul>
+  1544→          </div>
+  1545→        </div>
+  1546→
+  1547→        <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-slate-200 pt-6 sm:flex-row">
+  1548→          <p className="text-sm text-slate-500">
+  1549→            © {year} FTP Digital Plus — Agencia de Diseño Web y Marketing Digital.
+  1550→          </p>
+  1551→          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-500">
+  1552→            <button
+  1553→              onClick={() => navigate('terms')}
+  1554→              className="transition-colors hover:text-emerald-700"
+  1555→            >
+  1556→              Términos
+  1557→            </button>
+  1558→            <span className="text-slate-300">·</span>
+  1559→            <button
+  1560→              onClick={() => navigate('privacy')}
+  1561→              className="transition-colors hover:text-emerald-700"
+  1562→            >
+  1563→              Privacidad
+  1564→            </button>
+  1565→            <span className="text-slate-300">·</span>
+  1566→            <button
+  1567→              onClick={() => navigate('refunds')}
+  1568→              className="transition-colors hover:text-emerald-700"
+  1569→            >
+  1570→              Reembolsos
+  1571→            </button>
+  1572→          </div>
+  1573→        </div>
+  1574→      </div>
+  1575→    </footer>
+  1576→  );
+  1577→}
+  1578→
+  1579→/* ------------------------------------------------------------------ */
+  1580→/*  Live Demo floating button                                          */
+  1581→/* ------------------------------------------------------------------ */
+  1582→
+  1583→function LiveDemoButton() {
+  1584→  const navigate = useAppStore(s => s.navigate);
+  1585→  const [visible, setVisible] = useState(false);
+  1586→
+  1587→  useEffect(() => {
+  1588→    const onScroll = () => {
+  1589→      setVisible(window.scrollY > 400);
+  1590→    };
+  1591→    window.addEventListener('scroll', onScroll, { passive: true });
+  1592→    onScroll();
+  1593→    return () => window.removeEventListener('scroll', onScroll);
+  1594→  }, []);
+  1595→
+  1596→  return (
+  1597→    <AnimatePresence>
+  1598→      {visible && (
+  1599→        <motion.button
+  1600→          initial={{ opacity: 0, scale: 0.5, y: 20 }}
+  1601→          animate={{ opacity: 1, scale: 1, y: 0 }}
+  1602→          exit={{ opacity: 0, scale: 0.5, y: 20 }}
+  1603→          transition={{ duration: 0.3, ease: 'easeOut' }}
+  1604→          onClick={() => navigate('login')}
+  1605→          aria-label="Ver demostración"
+  1606→          className="group fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/40 transition-transform hover:scale-105"
+  1607→        >
+  1608→          {/* Pulse rings */}
+  1609→          <span className="pointer-events-none absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-30" />
+  1610→          <span className="pointer-events-none absolute inset-0 animate-pulse rounded-full bg-emerald-300 opacity-20" />
+  1611→          <span className="relative flex size-5 items-center justify-center rounded-full bg-white/20">
+  1612→            <Sparkles className="size-3.5 text-amber-200" />
+  1613→          </span>
+  1614→          <span className="relative">Ver Demo</span>
+  1615→          <ArrowRight className="relative size-4 transition-transform group-hover:translate-x-0.5" />
+  1616→        </motion.button>
+  1617→      )}
+  1618→    </AnimatePresence>
+  1619→  );
+  1620→}
+  1621→
+  1622→/* ------------------------------------------------------------------ */
+  1623→/*  Page                                                               */
+  1624→/* ------------------------------------------------------------------ */
+  1625→
+  1626→export function LandingPage() {
+  1627→  return (
+  1628→    <div className="flex min-h-screen flex-col bg-white">
+  1629→      <SiteHeader />
+  1630→      <main className="flex-1">
+  1631→        <Hero />
+  1632→        <Features />
+  1633→        <HowItWorks />
+  1634→        <Stats />
+  1635→        <Comparison />
+  1636→        <PricingPreview />
+  1637→        <Testimonials />
+  1638→        <FinalCTA />
+  1639→      </main>
+  1640→      <SiteFooter />
+  1641→      <LiveDemoButton />
+  1642→    </div>
+  1643→  );
+  1644→}
+  1645→

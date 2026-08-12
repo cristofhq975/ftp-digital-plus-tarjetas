@@ -6,7 +6,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { toast } from 'sonner';
 import {
   Download, Share2, Copy, Calendar, Clock, AlertTriangle,
-  MessageCircle, Lock, X, Check, Home, Facebook, Twitter,
+  MessageCircle, Lock, X, Check, Home,
   Send, ChevronRight, Sparkles, Mail, User as UserIcon, Phone,
   ExternalLink, Heart,
 } from 'lucide-react';
@@ -20,6 +20,7 @@ import {
 import { generateCardImage, downloadDataUrl } from '@/lib/card-image';
 import { CardPreview } from '@/components/card-preview';
 import { FTPLogo } from '@/components/ftp-logo';
+import { ShareModal } from '@/components/share-modal';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -445,6 +446,7 @@ interface PaidPlanViewProps {
 function PaidPlanView({ card, userPlan, onAddMessage, onAddAppointment }: PaidPlanViewProps) {
   const { qrRef, handleDownload, downloading } = useCardDownload(card, userPlan);
   const qrValue = getQrValue(card, userPlan);
+  const [shareOpen, setShareOpen] = useState(false);
   const shareUrl = `https://ftpdigitalplus.com/t/${card.linkName}`;
 
   const handleCopyLink = async () => {
@@ -504,30 +506,16 @@ function PaidPlanView({ card, userPlan, onAddMessage, onAddAppointment }: PaidPl
         </Button>
       </div>
 
-      {/* Secondary share row */}
-      <div className="mt-2 flex items-center justify-center gap-2">
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Share2 className="h-3 w-3" /> Compartir:
-        </span>
-        <a
-          href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Compartir en Facebook"
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-100 text-muted-foreground transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
-        >
-          <Facebook className="h-4 w-4" />
-        </a>
-        <a
-          href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('Mira esta tarjeta digital')}&url=${encodeURIComponent(shareUrl)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Compartir en Twitter / X"
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-100 text-muted-foreground transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
-        >
-          <Twitter className="h-4 w-4" />
-        </a>
-      </div>
+      {/* Share button — opens full ShareModal */}
+      <Button
+        onClick={() => setShareOpen(true)}
+        variant="outline"
+        className="mt-2 w-full border-amber-300 bg-amber-50/50 text-amber-700 hover:bg-amber-100 hover:text-amber-800"
+      >
+        <Share2 className="h-4 w-4" /> Compartir tarjeta
+      </Button>
+
+      <ShareModal open={shareOpen} onOpenChange={setShareOpen} card={card} />
 
       {/* Contact form + Appointment booking */}
       <div className="mt-6 grid gap-4">

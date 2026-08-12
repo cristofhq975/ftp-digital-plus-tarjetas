@@ -1,0 +1,876 @@
+     1→'use client';
+     2→
+     3→import { useEffect, useRef, useState } from 'react';
+     4→import { motion, AnimatePresence } from 'framer-motion';
+     5→import { QRCodeCanvas } from 'qrcode.react';
+     6→import { toast } from 'sonner';
+     7→import {
+     8→  Download, Share2, Copy, Calendar, Clock, AlertTriangle,
+     9→  MessageCircle, Lock, X, Check, Home, Facebook, Twitter,
+    10→  Send, ChevronRight, Sparkles, Mail, User as UserIcon, Phone,
+    11→  ExternalLink, Heart,
+    12→} from 'lucide-react';
+    13→
+    14→import { useAppStore, useSelectedCard } from '@/lib/store';
+    15→import { PLANS } from '@/lib/plans';
+    16→import { BusinessCard, PlanType } from '@/lib/types';
+    17→import {
+    18→  buildWhatsappUrl, isQrExpired, getQrDaysRemaining, formatPhone,
+    19→} from '@/lib/card-utils';
+    20→import { generateCardImage, downloadDataUrl } from '@/lib/card-image';
+    21→import { CardPreview } from '@/components/card-preview';
+    22→import { FTPLogo } from '@/components/ftp-logo';
+    23→import { cn } from '@/lib/utils';
+    24→import { Button } from '@/components/ui/button';
+    25→import {
+    26→  Card, CardContent, CardHeader, CardTitle, CardDescription,
+    27→} from '@/components/ui/card';
+    28→import { Input } from '@/components/ui/input';
+    29→import { Label } from '@/components/ui/label';
+    30→import { Textarea } from '@/components/ui/textarea';
+    31→import { Badge } from '@/components/ui/badge';
+    32→import {
+    33→  Dialog, DialogContent, DialogHeader, DialogTitle,
+    34→  DialogDescription, DialogFooter,
+    35→} from '@/components/ui/dialog';
+    36→import {
+    37→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    38→} from '@/components/ui/select';
+    39→
+    40→/* ---------- helpers ---------- */
+    41→
+    42→function getQrValue(card: BusinessCard, plan: PlanType): string {
+    43→  const planConfig = PLANS[plan];
+    44→  const expired = planConfig.qrExpires && card.qrExpiresAt ? isQrExpired(card) : false;
+    45→  if (expired) return 'https://ftpdigitalplus.com/qr-expirado';
+    46→  if (card.whatsappNumber) {
+    47→    return buildWhatsappUrl(card.whatsappNumber, card.whatsappMessage || 'Hola, vi tu tarjeta digital');
+    48→  }
+    49→  return 'https://ftpdigitalplus.com';
+    50→}
+    51→
+    52→function useCardDownload(card: BusinessCard, userPlan: PlanType) {
+    53→  const qrRef = useRef<HTMLDivElement>(null);
+    54→  const [downloading, setDownloading] = useState(false);
+    55→
+    56→  const handleDownload = async () => {
+    57→    const qrCanvas = qrRef.current?.querySelector('canvas');
+    58→    if (!qrCanvas) {
+    59→      toast.error('No se pudo generar el código QR');
+    60→      return;
+    61→    }
+    62→    setDownloading(true);
+    63→    try {
+    64→      const qrDataUrl = (qrCanvas as HTMLCanvasElement).toDataURL('image/png');
+    65→      const imageDataUrl = await generateCardImage(card, userPlan, qrDataUrl);
+    66→      downloadDataUrl(imageDataUrl, `tarjeta-${card.linkName}.png`);
+    67→      toast.success('Tarjeta descargada correctamente');
+    68→    } catch {
+    69→      toast.error('Ocurrió un error al generar la imagen');
+    70→    } finally {
+    71→      setDownloading(false);
+    72→    }
+    73→  };
+    74→
+    75→  return { qrRef, handleDownload, downloading };
+    76→}
+    77→
+    78→/* ---------- main export ---------- */
+    79→
+    80→export function PublicCardSection() {
+    81→  const card = useSelectedCard();
+    82→  const users = useAppStore(s => s.users);
+    83→  const recordCardView = useAppStore(s => s.recordCardView);
+    84→  const navigate = useAppStore(s => s.navigate);
+    85→  const addMessage = useAppStore(s => s.addMessage);
+    86→  const addAppointment = useAppStore(s => s.addAppointment);
+    87→
+    88→  // Record a single view on mount (and when the card changes)
+    89→  useEffect(() => {
+    90→    if (card?.id) {
+    91→      recordCardView(card.id);
+    92→    }
+    93→  }, [card?.id, recordCardView]);
+    94→
+    95→  if (!card) {
+    96→    return <CardNotFound onHome={() => navigate('landing')} />;
+    97→  }
+    98→
+    99→  const userPlan = (users.find(u => u.id === card.userId)?.plan || 'gratis') as PlanType;
+   100→  const plan = PLANS[userPlan];
+   101→  const isPaidPlan = plan.hasWebCard && !plan.hasWatermark;
+   102→
+   103→  return (
+   104→    <PublicCardLayout card={card}>
+   105→      <PasswordGate card={card}>
+   106→        {isPaidPlan ? (
+   107→          <PaidPlanView
+   108→            card={card}
+   109→            userPlan={userPlan}
+   110→            onAddMessage={(data) => addMessage(card.id, data)}
+   111→            onAddAppointment={addAppointment}
+   112→          />
+   113→        ) : (
+   114→          <FreePlanView card={card} userPlan={userPlan} />
+   115→        )}
+   116→      </PasswordGate>
+   117→
+   118→      {/* Owner CTA */}
+   119→      <div className="mt-6 text-center">
+   120→        <button
+   121→          onClick={() => navigate('login')}
+   122→          className="text-xs text-muted-foreground underline-offset-4 transition hover:text-primary hover:underline"
+   123→        >
+   124→          ¿Eres el dueño de esta tarjeta? Inicia sesión
+   125→        </button>
+   126→      </div>
+   127→    </PublicCardLayout>
+   128→  );
+   129→}
+   130→
+   131→/* ---------- layout shell ---------- */
+   132→
+   133→function PublicCardLayout({ card, children }: { card: BusinessCard; children: React.ReactNode }) {
+   134→  const navigate = useAppStore(s => s.navigate);
+   135→  const showHeaderLogo = !card.hideBrand;
+   136→
+   137→  return (
+   138→    <div className="flex min-h-screen flex-col bg-gradient-to-br from-emerald-50 via-background to-amber-50/40">
+   139→      {/* Decorative background blobs */}
+   140→      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
+   141→        <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-emerald-200/20 blur-3xl" />
+   142→        <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-amber-200/20 blur-3xl" />
+   143→      </div>
+   144→
+   145→      {/* Header */}
+   146→      <header className="relative z-10 border-b border-emerald-100/50 bg-white/70 backdrop-blur-md">
+   147→        <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
+   148→          {showHeaderLogo ? (
+   149→            <button
+   150→              onClick={() => navigate('landing')}
+   151→              className="flex items-center gap-2 transition hover:opacity-80"
+   152→              aria-label="FTP Digital Plus"
+   153→            >
+   154→              <FTPLogo variant="icon" className="h-8 w-8" />
+   155→              <span className="text-sm font-bold tracking-tight">
+   156→                <span className="text-emerald-700">FTP Digital</span>{' '}
+   157→                <span className="bg-gradient-to-r from-amber-500 to-amber-400 bg-clip-text text-transparent">Plus</span>
+   158→              </span>
+   159→            </button>
+   160→          ) : (
+   161→            <span className="text-xs text-muted-foreground">Tarjeta digital</span>
+   162→          )}
+   163→          <Button
+   164→            variant="ghost"
+   165→            size="sm"
+   166→            onClick={() => navigate('landing')}
+   167→            className="text-muted-foreground hover:text-emerald-700"
+   168→          >
+   169→            <Home className="h-4 w-4" />
+   170→            <span className="hidden sm:inline">Inicio</span>
+   171→          </Button>
+   172→        </div>
+   173→      </header>
+   174→
+   175→      {/* Main content */}
+   176→      <main className="relative z-10 flex-1 px-4 py-6 sm:py-10">
+   177→        <div className="mx-auto max-w-[500px]">
+   178→          {children}
+   179→        </div>
+   180→      </main>
+   181→
+   182→      {/* Footer */}
+   183→      <footer className="relative z-10 mt-auto border-t border-emerald-100/50 bg-white/70 backdrop-blur-md">
+   184→        <div className="mx-auto max-w-2xl px-4 py-4 text-center">
+   185→          <p className="text-xs text-muted-foreground">
+   186→            © {new Date().getFullYear()} FTP Digital Plus · Tarjetas de Presentación Digitales
+   187→          </p>
+   188→          <p className="mt-1 flex items-center justify-center gap-1 text-xs text-muted-foreground">
+   189→            Hecho con <Heart className="h-3 w-3 fill-rose-500 text-rose-500" /> en México
+   190→          </p>
+   191→        </div>
+   192→      </footer>
+   193→    </div>
+   194→  );
+   195→}
+   196→
+   197→/* ---------- not found ---------- */
+   198→
+   199→function CardNotFound({ onHome }: { onHome: () => void }) {
+   200→  return (
+   201→    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-emerald-50 to-amber-50/40 px-4">
+   202→      <motion.div
+   203→        initial={{ opacity: 0, scale: 0.9 }}
+   204→        animate={{ opacity: 1, scale: 1 }}
+   205→        transition={{ duration: 0.4 }}
+   206→        className="w-full max-w-md text-center"
+   207→      >
+   208→        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-amber-100">
+   209→          <AlertTriangle className="h-10 w-10 text-amber-500" />
+   210→        </div>
+   211→        <h1 className="text-2xl font-bold text-foreground">Tarjeta no encontrada</h1>
+   212→        <p className="mt-2 text-sm text-muted-foreground">
+   213→          La tarjeta que buscas no existe o ha sido eliminada. Verifica el enlace e inténtalo de nuevo.
+   214→        </p>
+   215→        <Button onClick={onHome} className="mt-6 bg-emerald-600 text-white hover:bg-emerald-700">
+   216→          <Home className="h-4 w-4" />
+   217→          Ir al inicio
+   218→        </Button>
+   219→      </motion.div>
+   220→    </div>
+   221→  );
+   222→}
+   223→
+   224→/* ---------- password gate ---------- */
+   225→
+   226→function PasswordGate({ card, children }: { card: BusinessCard; children: React.ReactNode }) {
+   227→  const [unlocked, setUnlocked] = useState(!card.passwordProtected);
+   228→  const [password, setPassword] = useState('');
+   229→  const [error, setError] = useState(false);
+   230→
+   231→  if (unlocked) return <>{children}</>;
+   232→
+   233→  const handleSubmit = (e: React.FormEvent) => {
+   234→    e.preventDefault();
+   235→    if (password === card.cardPassword) {
+   236→      setUnlocked(true);
+   237→      toast.success('Acceso concedido');
+   238→    } else {
+   239→      setError(true);
+   240→      toast.error('Contraseña incorrecta');
+   241→    }
+   242→  };
+   243→
+   244→  return (
+   245→    <div className="flex min-h-[60vh] items-center justify-center">
+   246→      <motion.div
+   247→        initial={{ opacity: 0, y: 20 }}
+   248→        animate={{ opacity: 1, y: 0 }}
+   249→        transition={{ duration: 0.4 }}
+   250→        className="w-full max-w-sm"
+   251→      >
+   252→        <Card className="border-emerald-100 shadow-xl">
+   253→          <CardContent className="pt-6 text-center">
+   254→            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+   255→              <Lock className="h-8 w-8 text-emerald-600" />
+   256→            </div>
+   257→            <h2 className="text-lg font-bold text-foreground">Tarjeta protegida</h2>
+   258→            <p className="mt-1 text-sm text-muted-foreground">
+   259→              Esta tarjeta está protegida con contraseña. Ingrésala para continuar.
+   260→            </p>
+   261→            <form onSubmit={handleSubmit} className="mt-5 space-y-3 text-left">
+   262→              <div className="space-y-1.5">
+   263→                <Label htmlFor="card-password" className="text-xs">Contraseña</Label>
+   264→                <Input
+   265→                  id="card-password"
+   266→                  type="password"
+   267→                  value={password}
+   268→                  onChange={(e) => { setPassword(e.target.value); setError(false); }}
+   269→                  placeholder="••••••••"
+   270→                  autoFocus
+   271→                  className={cn(error && 'border-destructive focus-visible:ring-destructive/20')}
+   272→                />
+   273→                {error && <p className="text-xs text-destructive">Contraseña incorrecta. Inténtalo de nuevo.</p>}
+   274→              </div>
+   275→              <Button type="submit" className="w-full bg-emerald-600 text-white hover:bg-emerald-700">
+   276→                <Lock className="h-4 w-4" />
+   277→                Desbloquear tarjeta
+   278→              </Button>
+   279→            </form>
+   280→          </CardContent>
+   281→        </Card>
+   282→      </motion.div>
+   283→    </div>
+   284→  );
+   285→}
+   286→
+   287→/* ---------- floating banner ---------- */
+   288→
+   289→function FloatingBanner({ card }: { card: BusinessCard }) {
+   290→  const [dismissed, setDismissed] = useState(false);
+   291→
+   292→  if (!card.banner.enabled || !card.banner.title || dismissed) return null;
+   293→
+   294→  return (
+   295→    <AnimatePresence>
+   296→      <motion.div
+   297→        initial={{ opacity: 0, y: -16, height: 0 }}
+   298→        animate={{ opacity: 1, y: 0, height: 'auto' }}
+   299→        exit={{ opacity: 0, y: -16, height: 0 }}
+   300→        transition={{ duration: 0.3 }}
+   301→        className="mb-4 overflow-hidden"
+   302→      >
+   303→        <div className="relative overflow-hidden rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-amber-100/70 p-4 shadow-sm">
+   304→          <div className="flex items-start gap-3 pr-8">
+   305→            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-400 text-white shadow-sm">
+   306→              <Sparkles className="h-5 w-5" />
+   307→            </div>
+   308→            <div className="min-w-0 flex-1">
+   309→              <p className="text-sm font-bold text-amber-900">{card.banner.title}</p>
+   310→              {card.banner.text && (
+   311→                <p className="mt-0.5 text-xs text-amber-800/80">{card.banner.text}</p>
+   312→              )}
+   313→              {card.banner.linkUrl && (
+   314→                <a
+   315→                  href={card.banner.linkUrl}
+   316→                  target="_blank"
+   317→                  rel="noopener noreferrer"
+   318→                  className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-amber-900 underline-offset-2 hover:underline"
+   319→                >
+   320→                  Ver más <ExternalLink className="h-3 w-3" />
+   321→                </a>
+   322→              )}
+   323→            </div>
+   324→          </div>
+   325→          <button
+   326→            onClick={() => setDismissed(true)}
+   327→            className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full text-amber-700 transition hover:bg-amber-200/60"
+   328→            aria-label="Cerrar anuncio"
+   329→          >
+   330→            <X className="h-4 w-4" />
+   331→          </button>
+   332→        </div>
+   333→      </motion.div>
+   334→    </AnimatePresence>
+   335→  );
+   336→}
+   337→
+   338→/* ---------- hidden QR (for image generation) ---------- */
+   339→
+   340→function HiddenQrCanvas({ qrRef, value }: { qrRef: React.RefObject<HTMLDivElement | null>; value: string }) {
+   341→  return (
+   342→    <div
+   343→      ref={qrRef}
+   344→      aria-hidden="true"
+   345→      style={{ position: 'absolute', left: '-9999px', top: 0, opacity: 0, pointerEvents: 'none' }}
+   346→    >
+   347→      <QRCodeCanvas value={value} size={256} level="H" />
+   348→    </div>
+   349→  );
+   350→}
+   351→
+   352→/* ---------- free plan view ---------- */
+   353→
+   354→function FreePlanView({ card, userPlan }: { card: BusinessCard; userPlan: PlanType }) {
+   355→  const plan = PLANS[userPlan];
+   356→  const { qrRef, handleDownload, downloading } = useCardDownload(card, userPlan);
+   357→  const qrValue = getQrValue(card, userPlan);
+   358→  const qrExpired = plan.qrExpires && card.qrExpiresAt ? isQrExpired(card) : false;
+   359→  const daysLeft = plan.qrExpires && card.qrExpiresAt ? getQrDaysRemaining(card) : 0;
+   360→
+   361→  return (
+   362→    <motion.div
+   363→      initial={{ opacity: 0, y: 20 }}
+   364→      animate={{ opacity: 1, y: 0 }}
+   365→      transition={{ duration: 0.5, ease: 'easeOut' }}
+   366→    >
+   367→      <HiddenQrCanvas qrRef={qrRef} value={qrValue} />
+   368→
+   369→      {/* Status badges */}
+   370→      <div className="mb-4 flex flex-wrap items-center justify-center gap-2">
+   371→        <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
+   372→          <Sparkles className="h-3 w-3" /> Plan Gratis
+   373→        </Badge>
+   374→        {qrExpired ? (
+   375→          <Badge variant="destructive" className="bg-red-100 text-red-700 hover:bg-red-100">
+   376→            <AlertTriangle className="h-3 w-3" /> QR Expirado
+   377→          </Badge>
+   378→        ) : daysLeft > 0 ? (
+   379→          <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">
+   380→            <Clock className="h-3 w-3" /> Expira en {daysLeft}d
+   381→          </Badge>
+   382→        ) : null}
+   383→      </div>
+   384→
+   385→      {/* The card itself (FreeCardPreview) */}
+   386→      <CardPreview card={card} userPlan={userPlan} />
+   387→
+   388→      {/* Prominent download button */}
+   389→      <motion.div
+   390→        initial={{ opacity: 0, y: 10 }}
+   391→        animate={{ opacity: 1, y: 0 }}
+   392→        transition={{ duration: 0.4, delay: 0.2 }}
+   393→        className="mt-5"
+   394→      >
+   395→        <Button
+   396→          onClick={handleDownload}
+   397→          disabled={downloading}
+   398→          size="lg"
+   399→          className="w-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700"
+   400→        >
+   401→          {downloading ? (
+   402→            <>
+   403→              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+   404→              Generando imagen…
+   405→            </>
+   406→          ) : (
+   407→            <>
+   408→              <Download className="h-5 w-5" />
+   409→              Descargar Tarjeta
+   410→            </>
+   411→          )}
+   412→        </Button>
+   413→        <p className="mt-2 text-center text-xs text-muted-foreground">
+   414→          Descarga tu tarjeta con código QR para compartir donde quieras
+   415→        </p>
+   416→      </motion.div>
+   417→
+   418→      {/* Upgrade hint */}
+   419→      <div className="mt-6 rounded-xl border border-emerald-100 bg-white/70 p-4 text-center shadow-sm">
+   420→        <p className="text-sm font-semibold text-foreground">¿Quieres una tarjeta web interactiva?</p>
+   421→        <p className="mt-1 text-xs text-muted-foreground">
+   422→          Mejora al plan Básico y obtén tarjeta web compartible, QR permanente, servicios, galería y mucho más.
+   423→        </p>
+   424→      </div>
+   425→    </motion.div>
+   426→  );
+   427→}
+   428→
+   429→/* ---------- paid plan view ---------- */
+   430→
+   431→interface PaidPlanViewProps {
+   432→  card: BusinessCard;
+   433→  userPlan: PlanType;
+   434→  onAddMessage: (data: { name: string; email: string; phone: string; message: string }) => void;
+   435→  onAddAppointment: (appt: {
+   436→    teamMemberId: string;
+   437→    clientName: string;
+   438→    clientEmail: string;
+   439→    date: string;
+   440→    time: string;
+   441→    status: 'pending' | 'confirmed' | 'cancelled';
+   442→  }) => void;
+   443→}
+   444→
+   445→function PaidPlanView({ card, userPlan, onAddMessage, onAddAppointment }: PaidPlanViewProps) {
+   446→  const { qrRef, handleDownload, downloading } = useCardDownload(card, userPlan);
+   447→  const qrValue = getQrValue(card, userPlan);
+   448→  const shareUrl = `https://ftpdigitalplus.com/t/${card.linkName}`;
+   449→
+   450→  const handleCopyLink = async () => {
+   451→    try {
+   452→      await navigator.clipboard.writeText(shareUrl);
+   453→      toast.success('Enlace copiado al portapapeles');
+   454→    } catch {
+   455→      toast.error('No se pudo copiar el enlace');
+   456→    }
+   457→  };
+   458→
+   459→  return (
+   460→    <motion.div
+   461→      initial={{ opacity: 0, y: 20 }}
+   462→      animate={{ opacity: 1, y: 0 }}
+   463→      transition={{ duration: 0.5, ease: 'easeOut' }}
+   464→    >
+   465→      <HiddenQrCanvas qrRef={qrRef} value={qrValue} />
+   466→
+   467→      {/* Floating banner */}
+   468→      <FloatingBanner card={card} />
+   469→
+   470→      {/* The web card */}
+   471→      <CardPreview card={card} userPlan={userPlan} />
+   472→
+   473→      {/* Action toolbar */}
+   474→      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+   475→        <Button
+   476→          onClick={handleDownload}
+   477→          disabled={downloading}
+   478→          className="col-span-2 bg-emerald-600 text-white shadow-md hover:bg-emerald-700 sm:col-span-1"
+   479→        >
+   480→          {downloading ? (
+   481→            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+   482→          ) : (
+   483→            <Download className="h-4 w-4" />
+   484→          )}
+   485→          {downloading ? 'Generando…' : 'Descargar imagen'}
+   486→        </Button>
+   487→
+   488→        <a
+   489→          href={`https://wa.me/?text=${encodeURIComponent(`Mira esta tarjeta digital: ${shareUrl}`)}`}
+   490→          target="_blank"
+   491→          rel="noopener noreferrer"
+   492→        >
+   493→          <Button variant="outline" className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800">
+   494→            <MessageCircle className="h-4 w-4" /> WhatsApp
+   495→          </Button>
+   496→        </a>
+   497→
+   498→        <Button
+   499→          onClick={handleCopyLink}
+   500→          variant="outline"
+   501→          className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+   502→        >
+   503→          <Copy className="h-4 w-4" /> Copiar
+   504→        </Button>
+   505→      </div>
+   506→
+   507→      {/* Secondary share row */}
+   508→      <div className="mt-2 flex items-center justify-center gap-2">
+   509→        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+   510→          <Share2 className="h-3 w-3" /> Compartir:
+   511→        </span>
+   512→        <a
+   513→          href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
+   514→          target="_blank"
+   515→          rel="noopener noreferrer"
+   516→          aria-label="Compartir en Facebook"
+   517→          className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-100 text-muted-foreground transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+   518→        >
+   519→          <Facebook className="h-4 w-4" />
+   520→        </a>
+   521→        <a
+   522→          href={`https://twitter.com/intent/tweet?text=${encodeURIComponent('Mira esta tarjeta digital')}&url=${encodeURIComponent(shareUrl)}`}
+   523→          target="_blank"
+   524→          rel="noopener noreferrer"
+   525→          aria-label="Compartir en Twitter / X"
+   526→          className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-100 text-muted-foreground transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+   527→        >
+   528→          <Twitter className="h-4 w-4" />
+   529→        </a>
+   530→      </div>
+   531→
+   532→      {/* Contact form + Appointment booking */}
+   533→      <div className="mt-6 grid gap-4">
+   534→        <ContactFormCard onAddMessage={onAddMessage} primaryColor={card.primaryColor} />
+   535→        {card.team.length > 0 && (
+   536→          <AppointmentBookingCard card={card} onAddAppointment={onAddAppointment} primaryColor={card.primaryColor} />
+   537→        )}
+   538→      </div>
+   539→    </motion.div>
+   540→  );
+   541→}
+   542→
+   543→/* ---------- contact form ---------- */
+   544→
+   545→function ContactFormCard({
+   546→  onAddMessage,
+   547→  primaryColor,
+   548→}: {
+   549→  onAddMessage: (data: { name: string; email: string; phone: string; message: string }) => void;
+   550→  primaryColor: string;
+   551→}) {
+   552→  const [name, setName] = useState('');
+   553→  const [email, setEmail] = useState('');
+   554→  const [phone, setPhone] = useState('');
+   555→  const [message, setMessage] = useState('');
+   556→  const [submitting, setSubmitting] = useState(false);
+   557→
+   558→  const handleSubmit = (e: React.FormEvent) => {
+   559→    e.preventDefault();
+   560→    if (!name.trim() || !email.trim() || !message.trim()) {
+   561→      toast.error('Completa nombre, correo y mensaje');
+   562→      return;
+   563→    }
+   564→    setSubmitting(true);
+   565→    // Simulate async submit for nicer UX
+   566→    setTimeout(() => {
+   567→      onAddMessage({ name, email, phone, message });
+   568→      setName(''); setEmail(''); setPhone(''); setMessage('');
+   569→      setSubmitting(false);
+   570→      toast.success('¡Mensaje enviado! El dueño de la tarjeta te contactará pronto.');
+   571→    }, 400);
+   572→  };
+   573→
+   574→  return (
+   575→    <Card className="border-emerald-100 shadow-sm">
+   576→      <CardHeader className="pb-3">
+   577→        <CardTitle className="flex items-center gap-2 text-base">
+   578→          <span
+   579→            className="flex h-8 w-8 items-center justify-center rounded-lg text-white"
+   580→            style={{ background: primaryColor }}
+   581→          >
+   582→            <Mail className="h-4 w-4" />
+   583→          </span>
+   584→          Envía un mensaje
+   585→        </CardTitle>
+   586→        <CardDescription className="text-xs">
+   587→          Completa el formulario y el dueño de la tarjeta recibirá tu mensaje.
+   588→        </CardDescription>
+   589→      </CardHeader>
+   590→      <CardContent>
+   591→        <form onSubmit={handleSubmit} className="space-y-3">
+   592→          <div className="grid gap-3 sm:grid-cols-2">
+   593→            <div className="space-y-1.5">
+   594→              <Label htmlFor="c-name" className="text-xs">Nombre *</Label>
+   595→              <Input
+   596→                id="c-name"
+   597→                value={name}
+   598→                onChange={(e) => setName(e.target.value)}
+   599→                placeholder="Tu nombre"
+   600→                className="h-9"
+   601→              />
+   602→            </div>
+   603→            <div className="space-y-1.5">
+   604→              <Label htmlFor="c-phone" className="text-xs">Teléfono</Label>
+   605→              <Input
+   606→                id="c-phone"
+   607→                value={phone}
+   608→                onChange={(e) => setPhone(e.target.value)}
+   609→                placeholder="55 1234 5678"
+   610→                className="h-9"
+   611→              />
+   612→            </div>
+   613→          </div>
+   614→          <div className="space-y-1.5">
+   615→            <Label htmlFor="c-email" className="text-xs">Correo electrónico *</Label>
+   616→            <Input
+   617→              id="c-email"
+   618→              type="email"
+   619→              value={email}
+   620→              onChange={(e) => setEmail(e.target.value)}
+   621→              placeholder="tu@correo.com"
+   622→              className="h-9"
+   623→            />
+   624→          </div>
+   625→          <div className="space-y-1.5">
+   626→            <Label htmlFor="c-message" className="text-xs">Mensaje *</Label>
+   627→            <Textarea
+   628→              id="c-message"
+   629→              value={message}
+   630→              onChange={(e) => setMessage(e.target.value)}
+   631→              placeholder="Escribe tu mensaje aquí…"
+   632→              rows={3}
+   633→              className="resize-none"
+   634→            />
+   635→          </div>
+   636→          <Button
+   637→            type="submit"
+   638→            disabled={submitting}
+   639→            className="w-full text-white shadow-md"
+   640→            style={{ background: primaryColor }}
+   641→          >
+   642→            {submitting ? (
+   643→              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+   644→            ) : (
+   645→              <Send className="h-4 w-4" />
+   646→            )}
+   647→            {submitting ? 'Enviando…' : 'Enviar mensaje'}
+   648→          </Button>
+   649→        </form>
+   650→      </CardContent>
+   651→    </Card>
+   652→  );
+   653→}
+   654→
+   655→/* ---------- appointment booking ---------- */
+   656→
+   657→function AppointmentBookingCard({
+   658→  card,
+   659→  onAddAppointment,
+   660→  primaryColor,
+   661→}: {
+   662→  card: BusinessCard;
+   663→  onAddAppointment: (appt: {
+   664→    teamMemberId: string;
+   665→    clientName: string;
+   666→    clientEmail: string;
+   667→    date: string;
+   668→    time: string;
+   669→    status: 'pending' | 'confirmed' | 'cancelled';
+   670→  }) => void;
+   671→  primaryColor: string;
+   672→}) {
+   673→  const [open, setOpen] = useState(false);
+   674→  const [teamMemberId, setTeamMemberId] = useState(card.team[0]?.id || '');
+   675→  const [date, setDate] = useState('');
+   676→  const [time, setTime] = useState('');
+   677→  const [clientName, setClientName] = useState('');
+   678→  const [clientEmail, setClientEmail] = useState('');
+   679→  const [submitting, setSubmitting] = useState(false);
+   680→
+   681→  const selectedMember = card.team.find(m => m.id === teamMemberId);
+   682→  const today = new Date().toISOString().split('T')[0];
+   683→
+   684→  const handleSubmit = (e: React.FormEvent) => {
+   685→    e.preventDefault();
+   686→    if (!teamMemberId || !date || !time || !clientName.trim() || !clientEmail.trim()) {
+   687→      toast.error('Completa todos los campos para agendar');
+   688→      return;
+   689→    }
+   690→    setSubmitting(true);
+   691→    setTimeout(() => {
+   692→      onAddAppointment({
+   693→        teamMemberId,
+   694→        clientName,
+   695→        clientEmail,
+   696→        date: new Date(`${date}T${time}`).toISOString(),
+   697→        time,
+   698→        status: 'pending',
+   699→      });
+   700→      setSubmitting(false);
+   701→      setOpen(false);
+   702→      // reset
+   703→      setDate(''); setTime(''); setClientName(''); setClientEmail('');
+   704→      toast.success('¡Cita agendada! Recibirás confirmación por correo.');
+   705→    }, 400);
+   706→  };
+   707→
+   708→  return (
+   709→    <Card className="border-emerald-100 shadow-sm">
+   710→      <CardHeader className="pb-3">
+   711→        <CardTitle className="flex items-center gap-2 text-base">
+   712→          <span
+   713→            className="flex h-8 w-8 items-center justify-center rounded-lg text-white"
+   714→            style={{ background: primaryColor }}
+   715→          >
+   716→            <Calendar className="h-4 w-4" />
+   717→          </span>
+   718→          Agenda una cita
+   719→        </CardTitle>
+   720→        <CardDescription className="text-xs">
+   721→          Selecciona un miembro del equipo y elige fecha y hora disponibles.
+   722→        </CardDescription>
+   723→      </CardHeader>
+   724→      <CardContent>
+   725→        {/* Team preview */}
+   726→        <div className="mb-3 flex flex-wrap gap-2">
+   727→          {card.team.map((m) => (
+   728→            <div
+   729→              key={m.id}
+   730→              className={cn(
+   731→                'flex items-center gap-2 rounded-full border px-3 py-1 transition',
+   732→                m.id === teamMemberId
+   733→                  ? 'border-emerald-300 bg-emerald-50'
+   734→                  : 'border-muted bg-background'
+   735→              )}
+   736→            >
+   737→              {m.photo ? (
+   738→                <img src={m.photo} alt={m.name} className="h-6 w-6 rounded-full object-cover" />
+   739→              ) : (
+   740→                <div
+   741→                  className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white"
+   742→                  style={{ background: primaryColor }}
+   743→                >
+   744→                  {m.name.charAt(0)}
+   745→                </div>
+   746→              )}
+   747→              <span className="text-xs font-medium">{m.name}</span>
+   748→            </div>
+   749→          ))}
+   750→        </div>
+   751→
+   752→        <Button
+   753→          onClick={() => setOpen(true)}
+   754→          className="w-full text-white shadow-md"
+   755→          style={{ background: primaryColor }}
+   756→        >
+   757→          <Calendar className="h-4 w-4" />
+   758→          Agendar cita
+   759→          <ChevronRight className="h-4 w-4" />
+   760→        </Button>
+   761→      </CardContent>
+   762→
+   763→      <Dialog open={open} onOpenChange={setOpen}>
+   764→        <DialogContent className="max-w-md">
+   765→          <DialogHeader>
+   766→            <DialogTitle className="flex items-center gap-2">
+   767→              <Calendar className="h-5 w-5" style={{ color: primaryColor }} />
+   768→              Agendar cita
+   769→            </DialogTitle>
+   770→            <DialogDescription>
+   771→              Completa tus datos para agendar una cita. Recibirás confirmación por correo.
+   772→            </DialogDescription>
+   773→          </DialogHeader>
+   774→
+   775→          <form onSubmit={handleSubmit} className="space-y-3">
+   776→            <div className="space-y-1.5">
+   777→              <Label className="text-xs">Miembro del equipo</Label>
+   778→              <Select value={teamMemberId} onValueChange={setTeamMemberId}>
+   779→                <SelectTrigger className="w-full">
+   780→                  <SelectValue placeholder="Selecciona un miembro" />
+   781→                </SelectTrigger>
+   782→                <SelectContent>
+   783→                  {card.team.map((m) => (
+   784→                    <SelectItem key={m.id} value={m.id}>
+   785→                      {m.name} · {m.role}
+   786→                    </SelectItem>
+   787→                  ))}
+   788→                </SelectContent>
+   789→              </Select>
+   790→              {selectedMember && (
+   791→                <p className="text-xs text-muted-foreground">
+   792→                  Duración: {selectedMember.appointmentDuration} min
+   793→                  {selectedMember.isPaid && selectedMember.appointmentPrice > 0 && (
+   794→                    <span className="ml-2 font-semibold" style={{ color: primaryColor }}>
+   795→                      · ${selectedMember.appointmentPrice} MXN
+   796→                    </span>
+   797→                  )}
+   798→                </p>
+   799→              )}
+   800→            </div>
+   801→
+   802→            <div className="grid grid-cols-2 gap-3">
+   803→              <div className="space-y-1.5">
+   804→                <Label htmlFor="appt-date" className="text-xs">Fecha</Label>
+   805→                <Input
+   806→                  id="appt-date"
+   807→                  type="date"
+   808→                  min={today}
+   809→                  value={date}
+   810→                  onChange={(e) => setDate(e.target.value)}
+   811→                  className="h-9"
+   812→                />
+   813→              </div>
+   814→              <div className="space-y-1.5">
+   815→                <Label htmlFor="appt-time" className="text-xs">Hora</Label>
+   816→                <Input
+   817→                  id="appt-time"
+   818→                  type="time"
+   819→                  value={time}
+   820→                  onChange={(e) => setTime(e.target.value)}
+   821→                  className="h-9"
+   822→                />
+   823→              </div>
+   824→            </div>
+   825→
+   826→            <div className="space-y-1.5">
+   827→              <Label htmlFor="appt-name" className="text-xs flex items-center gap-1">
+   828→                <UserIcon className="h-3 w-3" /> Tu nombre
+   829→              </Label>
+   830→              <Input
+   831→                id="appt-name"
+   832→                value={clientName}
+   833→                onChange={(e) => setClientName(e.target.value)}
+   834→                placeholder="Nombre completo"
+   835→                className="h-9"
+   836→              />
+   837→            </div>
+   838→            <div className="space-y-1.5">
+   839→              <Label htmlFor="appt-email" className="text-xs flex items-center gap-1">
+   840→                <Mail className="h-3 w-3" /> Correo electrónico
+   841→              </Label>
+   842→              <Input
+   843→                id="appt-email"
+   844→                type="email"
+   845→                value={clientEmail}
+   846→                onChange={(e) => setClientEmail(e.target.value)}
+   847→                placeholder="tu@correo.com"
+   848→                className="h-9"
+   849→              />
+   850→            </div>
+   851→
+   852→            <DialogFooter>
+   853→              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+   854→                Cancelar
+   855→              </Button>
+   856→              <Button
+   857→                type="submit"
+   858→                disabled={submitting}
+   859→                className="text-white"
+   860→                style={{ background: primaryColor }}
+   861→              >
+   862→                {submitting ? (
+   863→                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+   864→                ) : (
+   865→                  <Check className="h-4 w-4" />
+   866→                )}
+   867→                Confirmar cita
+   868→              </Button>
+   869→            </DialogFooter>
+   870→          </form>
+   871→        </DialogContent>
+   872→      </Dialog>
+   873→    </Card>
+   874→  );
+   875→}
+   876→

@@ -7,6 +7,7 @@ import { FTPLogo } from '@/components/ftp-logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationsPanel } from '@/components/notifications-panel';
 import { PLANS, PLAN_ORDER } from '@/lib/plans';
+import type { PlanType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -351,7 +352,7 @@ function SiteHeader() {
           {currentUser && <NotificationsPanel />}
           <button
             onClick={() => setOpen(v => !v)}
-            className="inline-flex size-10 items-center justify-center rounded-md text-slate-700 hover:bg-emerald-50"
+            className="inline-flex size-11 items-center justify-center rounded-md text-slate-700 hover:bg-emerald-50"
             aria-label="Abrir menú"
             aria-expanded={open}
           >
@@ -372,7 +373,7 @@ function SiteHeader() {
               <button
                 key={link.target}
                 onClick={() => scrollTo(link.target)}
-                className="rounded-md px-3 py-2.5 text-left text-sm font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700"
+                className="min-h-[48px] rounded-md px-3 py-3 text-left text-sm font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700"
               >
                 {link.label}
               </button>
@@ -384,7 +385,7 @@ function SiteHeader() {
                   setOpen(false);
                   navigate('pricing');
                 }}
-                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                className="min-h-[48px] border-emerald-200 text-emerald-700 hover:bg-emerald-50"
               >
                 Ver Planes
               </Button>
@@ -393,7 +394,7 @@ function SiteHeader() {
                   setOpen(false);
                   navigate('login');
                 }}
-                className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-700 hover:to-emerald-600"
+                className="min-h-[48px] bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-700 hover:to-emerald-600"
               >
                 Iniciar Sesión
               </Button>
@@ -478,14 +479,14 @@ function Hero() {
             Plataforma #1 en tarjetas digitales
           </Badge>
 
-          <h1 className="text-balance text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+          <h1 className="text-balance text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl sm:leading-tight lg:text-6xl">
             Tarjetas de Presentación Digitales que{' '}
             <span className="bg-gradient-to-r from-amber-300 to-amber-400 bg-clip-text text-transparent">
               Impresionan
             </span>
           </h1>
 
-          <p className="max-w-xl text-pretty text-lg text-emerald-50/90">
+          <p className="max-w-xl text-pretty text-base text-emerald-50/90 sm:text-lg">
             Crea tu tarjeta digital profesional con QR, NFC, portafolio, catálogo
             de productos, sistema de citas y mucho más. Todo en una sola
             plataforma, lista para compartir.
@@ -495,7 +496,7 @@ function Hero() {
             <Button
               size="lg"
               onClick={() => navigate('login')}
-              className="bg-amber-400 text-amber-950 shadow-lg shadow-amber-500/25 hover:bg-amber-300"
+              className="min-h-[48px] bg-amber-400 text-amber-950 shadow-lg shadow-amber-500/25 hover:bg-amber-300"
             >
               Crear mi Tarjeta Gratis
               <ArrowRight className="ml-1 size-4" />
@@ -504,7 +505,7 @@ function Hero() {
               size="lg"
               variant="outline"
               onClick={() => navigate('pricing')}
-              className="border-white/40 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
+              className="min-h-[48px] border-white/40 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
             >
               Ver Planes
             </Button>
@@ -729,7 +730,7 @@ function Features() {
           </p>
         </motion.div>
 
-        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
           {FEATURES.map((feature, idx) => (
             <motion.div key={feature.title} {...fadeUpProps(idx * 0.08)}>
               <Card className="card-hover group relative h-full overflow-hidden border-slate-200/70 hover:border-emerald-200">
@@ -778,7 +779,7 @@ function Features() {
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
               className="overflow-hidden"
             >
-              <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
                 {ADDITIONAL_FEATURES.map((feature, idx) => (
                   <motion.div
                     key={feature.title}
@@ -966,35 +967,38 @@ function Comparison() {
 
         {/* Mobile: stacked cards */}
         <motion.div {...fadeUpProps(0.1)} className="mt-12 lg:hidden">
-          {COMPARISON_ROWS.map((row, idx) => (
-            <Card key={row.label} className="mb-3 overflow-hidden border-slate-200">
-              <CardContent className="p-0">
-                <div className="border-b border-slate-100 bg-slate-50 px-4 py-2.5">
-                  <p className="text-sm font-semibold text-slate-900">{row.label}</p>
-                </div>
-                <div className="grid grid-cols-3 divide-x divide-slate-100">
-                  <div className="bg-emerald-50/50 p-3 text-center">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                      FTP
-                    </p>
-                    <p className="text-xs font-medium text-slate-800">{row.ftp}</p>
-                  </div>
-                  <div className="p-3 text-center">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                      Otras
-                    </p>
-                    <p className="text-xs text-slate-600">{row.others}</p>
-                  </div>
-                  <div className="p-3 text-center">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                      Papel
-                    </p>
-                    <p className="text-xs text-slate-600">{row.traditional}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {/* Hint for horizontal scroll */}
+          <p className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <ArrowRight className="size-3 text-emerald-600" />
+            Desliza horizontalmente para comparar todas las opciones
+          </p>
+          <div className="-mx-4 overflow-x-auto px-4 pb-2 ftp-comparison-scroll">
+            <div className="flex gap-3" style={{ minWidth: 'min-content' }}>
+              {COMPARISON_ROWS.map(row => (
+                <Card key={row.label} className="w-64 shrink-0 overflow-hidden border-slate-200">
+                  <CardContent className="p-0">
+                    <div className="border-b border-slate-100 bg-slate-50 px-4 py-2.5">
+                      <p className="text-sm font-semibold text-slate-900">{row.label}</p>
+                    </div>
+                    <div className="grid grid-cols-1 divide-y divide-slate-100">
+                      <div className="bg-emerald-50/50 p-3">
+                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">FTP Digital Plus</p>
+                        <p className="text-xs font-medium text-slate-800">{row.ftp}</p>
+                      </div>
+                      <div className="p-3">
+                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Otras plataformas</p>
+                        <p className="text-xs text-slate-600">{row.others}</p>
+                      </div>
+                      <div className="p-3">
+                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Tarjetas de papel</p>
+                        <p className="text-xs text-slate-600">{row.traditional}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
         </motion.div>
 
         {/* Desktop: table */}
@@ -1072,6 +1076,21 @@ function Comparison() {
 
 function PricingPreview() {
   const navigate = useAppStore(s => s.navigate);
+  const currentUser = useAppStore(s => s.currentUser);
+  const setSelectedPlanForCheckout = useAppStore(s => s.setSelectedPlanForCheckout);
+
+  const handleChoose = (planId: PlanType) => {
+    if (planId === 'gratis') {
+      navigate('login');
+      return;
+    }
+    setSelectedPlanForCheckout(planId);
+    if (currentUser) {
+      navigate('checkout');
+    } else {
+      navigate('login');
+    }
+  };
 
   return (
     <section id="planes" className="bg-white py-20 sm:py-28">
@@ -1153,9 +1172,9 @@ function PricingPreview() {
                           ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-700 hover:to-emerald-600'
                           : 'bg-slate-900 text-white hover:bg-slate-800',
                       )}
-                      onClick={() => navigate('pricing')}
+                      onClick={() => handleChoose(planId)}
                     >
-                      Ver detalles
+                      Elegir Plan
                       <ArrowRight className="ml-1 size-4" />
                     </Button>
                   </CardContent>
@@ -1421,9 +1440,9 @@ function SiteFooter() {
   return (
     <footer className="border-t border-slate-200 bg-slate-50">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid gap-10 lg:grid-cols-12">
+        <div className="grid gap-8 sm:gap-10 lg:grid-cols-12">
           {/* Brand + social */}
-          <div className="flex flex-col gap-4 lg:col-span-4">
+          <div className="flex flex-col gap-4 sm:col-span-2 lg:col-span-4">
             <FTPLogo variant="full" className="h-9 w-auto" />
             <p className="max-w-xs text-sm text-slate-600">
               Agencia de Diseño Web y Marketing Digital. Creamos experiencias
@@ -1443,20 +1462,20 @@ function SiteFooter() {
                   onClick={e => e.preventDefault()}
                   aria-label={label}
                   className={cn(
-                    'flex size-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md',
+                    'flex size-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md',
                     color,
                   )}
                 >
-                  <Icon className="size-4" />
+                  <Icon className="size-5" />
                 </a>
               ))}
             </div>
           </div>
 
           {/* Product */}
-          <div className="lg:col-span-2">
+          <div className="sm:col-span-1 lg:col-span-2">
             <h3 className="text-sm font-semibold text-slate-900">Producto</h3>
-            <ul className="mt-4 flex flex-col gap-2.5 text-sm">
+            <ul className="mt-4 flex flex-col gap-3 text-sm sm:gap-2.5">
               {[
                 { label: 'Características', action: () => document.getElementById('caracteristicas')?.scrollIntoView({ behavior: 'smooth' }) },
                 { label: 'Planes', action: () => navigate('pricing') },
@@ -1476,9 +1495,9 @@ function SiteFooter() {
           </div>
 
           {/* Legal */}
-          <div className="lg:col-span-2">
+          <div className="sm:col-span-1 lg:col-span-2">
             <h3 className="text-sm font-semibold text-slate-900">Legal</h3>
-            <ul className="mt-4 flex flex-col gap-2.5 text-sm">
+            <ul className="mt-4 flex flex-col gap-3 text-sm sm:gap-2.5">
               {[
                 { label: 'Términos y Condiciones', view: 'terms' as const, icon: FileText },
                 { label: 'Política de Privacidad', view: 'privacy' as const, icon: Shield },
@@ -1501,7 +1520,7 @@ function SiteFooter() {
           </div>
 
           {/* Newsletter + contact */}
-          <div className="lg:col-span-4">
+          <div className="sm:col-span-2 lg:col-span-4">
             <h3 className="text-sm font-semibold text-slate-900">
               Mantente al día
             </h3>
@@ -1509,21 +1528,21 @@ function SiteFooter() {
               Suscríbete a nuestro newsletter y recibe tips, novedades y promociones
               exclusivas.
             </p>
-            <form onSubmit={handleNewsletter} className="mt-4 flex gap-2">
+            <form onSubmit={handleNewsletter} className="mt-4 flex flex-col gap-2 sm:flex-row">
               <Input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="tu@correo.com"
                 aria-label="Correo electrónico"
-                className="border-slate-200 bg-white focus-visible:ring-emerald-500"
+                className="min-h-[44px] border-slate-200 bg-white focus-visible:ring-emerald-500"
               />
               <Button
                 type="submit"
-                className="gap-1.5 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm hover:from-emerald-700 hover:to-emerald-600"
+                className="min-h-[44px] gap-1.5 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm hover:from-emerald-700 hover:to-emerald-600"
               >
                 <Send className="size-4" />
-                <span className="hidden sm:inline">Suscribirme</span>
+                <span>Suscribirme</span>
               </Button>
             </form>
 
@@ -1603,7 +1622,7 @@ function LiveDemoButton() {
           transition={{ duration: 0.3, ease: 'easeOut' }}
           onClick={() => navigate('login')}
           aria-label="Ver demostración"
-          className="group fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/40 transition-transform hover:scale-105"
+          className="group fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/40 transition-transform hover:scale-105 sm:bottom-6 sm:right-6"
         >
           {/* Pulse rings */}
           <span className="pointer-events-none absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-30" />

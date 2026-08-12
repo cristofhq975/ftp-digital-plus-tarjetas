@@ -98,12 +98,12 @@ interface SectionProps {
 /** Encabezado estándar de cada sección de edición. */
 function SectionHeader({ icon, title, description }: { icon: string; title: string; description: string }) {
   return (
-    <div className="mb-6 flex items-start gap-3">
+    <div className="mb-6 flex items-start gap-3 sm:mb-8">
       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md">
         <DynamicIcon name={icon} className="h-5 w-5" />
       </div>
-      <div>
-        <h2 className="text-xl font-bold tracking-tight text-foreground">{title}</h2>
+      <div className="min-w-0 flex-1">
+        <h2 className="text-lg font-bold tracking-tight text-foreground sm:text-xl">{title}</h2>
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
     </div>
@@ -2712,7 +2712,7 @@ function FloatingPreviewPanel({ card, plan }: { card: BusinessCard; plan: string
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         onClick={() => setVisible(true)}
-        className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 transition-transform hover:scale-110"
+        className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 transition-transform hover:scale-110 sm:bottom-6 sm:right-6"
         aria-label="Mostrar vista previa"
       >
         <Eye className="h-5 w-5" />
@@ -2720,24 +2720,27 @@ function FloatingPreviewPanel({ card, plan }: { card: BusinessCard; plan: string
     );
   }
 
-  const widthClass = expanded ? 'w-[420px]' : minimized ? 'w-72' : 'w-80';
-  const heightClass = minimized ? 'h-12' : expanded ? 'h-[600px]' : 'h-[420px]';
+  // Mobile (< sm): full-screen; Tablet/Desktop (>= sm): draggable card
+  const widthClass = 'inset-0 w-full sm:inset-auto sm:w-auto ' + (expanded ? 'sm:w-[420px]' : minimized ? 'sm:w-72' : 'sm:w-80');
+  const heightClass = 'h-full sm:h-auto ' + (minimized ? 'sm:h-12' : expanded ? 'sm:h-[600px]' : 'sm:h-[420px]');
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
 
   return (
     <motion.div
-      drag
+      drag={!isMobile}
       dragMomentum={false}
       dragElastic={0.12}
       initial={{ x: 0, y: 0, opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.25 }}
       className={cn(
-        'fixed bottom-6 right-6 z-40 flex flex-col overflow-hidden rounded-xl border border-emerald-200/60 bg-white shadow-2xl shadow-emerald-900/10 ring-1 ring-emerald-900/5',
+        'fixed z-40 flex flex-col overflow-hidden bg-white shadow-2xl shadow-emerald-900/10 ring-1 ring-emerald-900/5',
+        'inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:rounded-xl sm:border sm:border-emerald-200/60',
         widthClass,
         heightClass,
         minimized && 'overflow-hidden'
       )}
-      style={{ maxWidth: 'calc(100vw - 3rem)' }}
+      style={{ maxWidth: isMobile ? '100vw' : 'calc(100vw - 3rem)' }}
     >
       {/* Drag handle / header */}
       <div
@@ -3049,7 +3052,7 @@ export function CardEditor() {
 
       {/* Sidebar - mobile (Sheet) */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-72 p-0">
+        <SheetContent side="left" className="w-[85vw] max-w-[320px] p-0">
           <SheetHeader className="sr-only">
             <SheetTitle>Secciones del editor</SheetTitle>
           </SheetHeader>
@@ -3060,16 +3063,16 @@ export function CardEditor() {
       {/* Centro: formulario */}
       <main className="flex-1 overflow-y-auto">
         {/* Topbar móvil */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
-          <Button variant="outline" size="sm" onClick={() => setSidebarOpen(true)}>
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
+          <Button variant="outline" size="sm" onClick={() => setSidebarOpen(true)} className="min-h-[40px]">
             <Menu className="h-4 w-4" /> Secciones
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)}>
+          <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)} className="min-h-[40px]">
             <Eye className="h-4 w-4" /> Preview
           </Button>
         </div>
 
-        <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <SectionEditor
             card={card}
             updateCard={updateCard}

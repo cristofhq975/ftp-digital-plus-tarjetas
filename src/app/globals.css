@@ -146,6 +146,22 @@
   background: oklch(0.55 0.15 160 / 0.5);
 }
 
+/* Comparison horizontal scroll (mobile) */
+.ftp-comparison-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+.ftp-comparison-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ftp-comparison-scroll::-webkit-scrollbar-thumb {
+  background: oklch(0.55 0.15 160 / 0.35);
+  border-radius: 2px;
+}
+.ftp-comparison-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.55 0.15 160 / 0.35) transparent;
+}
+
 /* Gradient text */
 .gradient-text {
   background: linear-gradient(135deg, oklch(0.55 0.15 160), oklch(0.75 0.18 85));

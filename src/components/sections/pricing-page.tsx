@@ -176,8 +176,22 @@ function PricingHero() {
 
 function PlanCards() {
   const navigate = useAppStore(s => s.navigate);
+  const currentUser = useAppStore(s => s.currentUser);
+  const setSelectedPlanForCheckout = useAppStore(s => s.setSelectedPlanForCheckout);
 
-  const handleChoose = () => navigate('login');
+  const handleChoose = (planId: PlanType) => {
+    // Gratis = registro directo (no requiere checkout)
+    if (planId === 'gratis') {
+      navigate('login');
+      return;
+    }
+    setSelectedPlanForCheckout(planId);
+    if (currentUser) {
+      navigate('checkout');
+    } else {
+      navigate('login');
+    }
+  };
 
   return (
     <section className="bg-white py-16 sm:py-20">
@@ -244,7 +258,7 @@ function PlanCards() {
                           ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-700 hover:to-emerald-600'
                           : 'bg-slate-900 text-white hover:bg-slate-800',
                       )}
-                      onClick={handleChoose}
+                      onClick={() => handleChoose(planId)}
                     >
                       Elegir Plan
                       <ArrowRight className="ml-1 size-4" />

@@ -1,0 +1,640 @@
+     1→'use client';
+     2→
+     3→import { motion } from 'framer-motion';
+     4→import { useAppStore } from '@/lib/store';
+     5→import { FTPLogo } from '@/components/ftp-logo';
+     6→import { PLANS, PLAN_ORDER } from '@/lib/plans';
+     7→import type { PlanType } from '@/lib/types';
+     8→import { cn } from '@/lib/utils';
+     9→import { Button } from '@/components/ui/button';
+    10→import { Card, CardContent } from '@/components/ui/card';
+    11→import { Badge } from '@/components/ui/badge';
+    12→import {
+    13→  Table,
+    14→  TableBody,
+    15→  TableCell,
+    16→  TableHead,
+    17→  TableHeader,
+    18→  TableRow,
+    19→} from '@/components/ui/table';
+    20→import {
+    21→  Accordion,
+    22→  AccordionContent,
+    23→  AccordionItem,
+    24→  AccordionTrigger,
+    25→} from '@/components/ui/accordion';
+    26→import {
+    27→  ArrowRight,
+    28→  ArrowLeft,
+    29→  Check,
+    30→  X,
+    31→  Sparkles,
+    32→  Star,
+    33→  HelpCircle,
+    34→  Menu,
+    35→  Phone,
+    36→  Mail,
+    37→  Globe,
+    38→  Facebook,
+    39→  Instagram,
+    40→  Linkedin,
+    41→  Twitter,
+    42→} from 'lucide-react';
+    43→
+    44→/* ------------------------------------------------------------------ */
+    45→/*  FAQ                                                                */
+    46→/* ------------------------------------------------------------------ */
+    47→
+    48→const FAQS = [
+    49→  {
+    50→    question: '¿Puedo cambiar de plan en cualquier momento?',
+    51→    answer:
+    52→      'Sí. Puedes actualizar o cambiar tu plan cuando lo desees. Al mejorar de plan, se aplican las nuevas funciones de inmediato. Si cambias a un plan inferior, los cambios surten efecto al final del periodo contratado.',
+    53→  },
+    54→  {
+    55→    question: '¿El código QR del plan gratis realmente expira?',
+    56→    answer:
+    57→      'Sí. En el plan Gratis el código QR tiene una vigencia de 7 días a partir de su generación, después de los cuales necesitarás regenerarlo. En los planes Básico y Pro el QR es permanente y nunca expira.',
+    58→  },
+    59→  {
+    60→    question: '¿Puedo tener múltiples tarjetas digitales?',
+    61→    answer:
+    62→      'El plan Gratis incluye 1 tarjeta, el plan Básico hasta 2 tarjetas y el plan Pro hasta 5 tarjetas. Cada tarjeta puede tener su propia plantilla, colores, servicios y configuración independiente.',
+    63→  },
+    64→  {
+    65→    question: '¿Hay algún costo oculto o cobro adicional?',
+    66→    answer:
+    67→      'No. El precio que ves es el precio que pagas. El plan Básico es un pago único de $199 MXN sin renovaciones. El plan Pro es $500 MXN por año. No hay comisiones por transacción ni cargos sorpresa.',
+    68→  },
+    69→  {
+    70→    question: '¿Puedo cancelar mi suscripción cuando quiera?',
+    71→    answer:
+    72→      'Por supuesto. El plan Gratis no requiere cancelación. El plan Básico es pago único, así que no hay nada que cancelar. El plan Pro puede cancelarse en cualquier momento y seguirás teniendo acceso hasta el final del periodo anual pagado.',
+    73→  },
+    74→];
+    75→
+    76→/* ------------------------------------------------------------------ */
+    77→/*  Motion helper                                                      */
+    78→/* ------------------------------------------------------------------ */
+    79→
+    80→function fadeUpProps(delay = 0) {
+    81→  return {
+    82→    initial: { opacity: 0, y: 24 },
+    83→    whileInView: { opacity: 1, y: 0 },
+    84→    viewport: { once: true, margin: '-80px' },
+    85→    transition: { duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] as const },
+    86→  };
+    87→}
+    88→
+    89→/* ------------------------------------------------------------------ */
+    90→/*  Header (simplified)                                                */
+    91→/* ------------------------------------------------------------------ */
+    92→
+    93→function PricingHeader() {
+    94→  const navigate = useAppStore(s => s.navigate);
+    95→  return (
+    96→    <header className="sticky top-0 z-50 w-full border-b border-emerald-100/60 bg-white/85 backdrop-blur-xl">
+    97→      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+    98→        <button
+    99→          onClick={() => navigate('landing')}
+   100→          className="flex items-center gap-2 transition-opacity hover:opacity-90"
+   101→          aria-label="Volver al inicio"
+   102→        >
+   103→          <FTPLogo variant="full" className="h-9 w-auto" />
+   104→        </button>
+   105→
+   106→        <div className="hidden items-center gap-2 md:flex">
+   107→          <Button
+   108→            variant="ghost"
+   109→            onClick={() => navigate('landing')}
+   110→            className="text-slate-700 hover:bg-emerald-50 hover:text-emerald-700"
+   111→          >
+   112→            <ArrowLeft className="mr-1 size-4" />
+   113→            Inicio
+   114→          </Button>
+   115→          <Button
+   116→            onClick={() => navigate('login')}
+   117→            className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm hover:from-emerald-700 hover:to-emerald-600"
+   118→          >
+   119→            Iniciar Sesión
+   120→            <ArrowRight className="ml-1 size-4" />
+   121→          </Button>
+   122→        </div>
+   123→
+   124→        <Button
+   125→          variant="ghost"
+   126→          size="icon"
+   127→          onClick={() => navigate('landing')}
+   128→          className="md:hidden"
+   129→          aria-label="Volver al inicio"
+   130→        >
+   131→          <Menu className="size-5" />
+   132→        </Button>
+   133→      </div>
+   134→    </header>
+   135→  );
+   136→}
+   137→
+   138→/* ------------------------------------------------------------------ */
+   139→/*  Page hero                                                          */
+   140→/* ------------------------------------------------------------------ */
+   141→
+   142→function PricingHero() {
+   143→  return (
+   144→    <section className="relative overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-800 text-white">
+   145→      <div className="pointer-events-none absolute inset-0">
+   146→        <div className="absolute -left-24 -top-24 size-96 rounded-full bg-amber-400/20 blur-3xl" />
+   147→        <div className="absolute -bottom-32 right-0 size-[28rem] rounded-full bg-emerald-400/30 blur-3xl" />
+   148→      </div>
+   149→      <div className="relative mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 sm:py-20 lg:px-8">
+   150→        <motion.div {...fadeUpProps()} className="mx-auto flex max-w-2xl flex-col items-center gap-4">
+   151→          <Badge className="border-amber-300/40 bg-amber-400/15 text-amber-100 backdrop-blur-sm">
+   152→            <Sparkles className="mr-1 size-3.5" />
+   153→            Planes transparentes
+   154→          </Badge>
+   155→          <h1 className="text-balance text-4xl font-extrabold tracking-tight sm:text-5xl">
+   156→            Planes que se adaptan a ti
+   157→          </h1>
+   158→          <p className="max-w-xl text-pretty text-lg text-emerald-50/90">
+   159→            Sin costos ocultos. Sin sorpresas. Empieza gratis y mejora cuando lo
+   160→            necesites. Diseñado para profesionales, negocios y emprendedores en México.
+   161→          </p>
+   162→          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-emerald-50/80">
+   163→            <span>✓ Pago seguro</span>
+   164→            <span>✓ Cancela cuando quieras</span>
+   165→            <span>✓ Soporte en español</span>
+   166→          </div>
+   167→        </motion.div>
+   168→      </div>
+   169→    </section>
+   170→  );
+   171→}
+   172→
+   173→/* ------------------------------------------------------------------ */
+   174→/*  Plan cards                                                         */
+   175→/* ------------------------------------------------------------------ */
+   176→
+   177→function PlanCards() {
+   178→  const navigate = useAppStore(s => s.navigate);
+   179→
+   180→  const handleChoose = () => navigate('login');
+   181→
+   182→  return (
+   183→    <section className="bg-white py-16 sm:py-20">
+   184→      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+   185→        <div className="grid gap-6 lg:grid-cols-3">
+   186→          {PLAN_ORDER.map((planId: PlanType, idx) => {
+   187→            const plan = PLANS[planId];
+   188→            const isHighlight = plan.highlight;
+   189→            return (
+   190→              <motion.div key={planId} {...fadeUpProps(idx * 0.1)}>
+   191→                <Card
+   192→                  className={cn(
+   193→                    'relative h-full transition-all duration-300 hover:-translate-y-1',
+   194→                    isHighlight
+   195→                      ? 'border-emerald-400 shadow-xl shadow-emerald-100 ring-2 ring-emerald-500/20 lg:scale-105'
+   196→                      : 'border-slate-200 hover:shadow-lg hover:shadow-slate-100',
+   197→                  )}
+   198→                >
+   199→                  {plan.badge && (
+   200→                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+   201→                      <Badge
+   202→                        className={cn(
+   203→                          'border-0 px-3 py-1 text-xs font-semibold shadow-md',
+   204→                          isHighlight
+   205→                            ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950'
+   206→                            : 'bg-slate-800 text-white',
+   207→                        )}
+   208→                      >
+   209→                        {plan.badge}
+   210→                      </Badge>
+   211→                    </div>
+   212→                  )}
+   213→
+   214→                  <CardContent className="flex h-full flex-col gap-5 pt-4">
+   215→                    <div className="flex flex-col gap-1">
+   216→                      <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
+   217→                      <p className="text-sm text-slate-500">{plan.description}</p>
+   218→                    </div>
+   219→
+   220→                    <div className="flex items-baseline gap-1.5">
+   221→                      <span className="text-4xl font-extrabold text-slate-900">
+   222→                        ${plan.price}
+   223→                      </span>
+   224→                      <span className="text-sm text-slate-500">
+   225→                        MXN / {plan.period}
+   226→                      </span>
+   227→                    </div>
+   228→
+   229→                    <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+   230→                      <p className="flex items-center gap-2">
+   231→                        <Star className="size-4 text-amber-500" />
+   232→                        {plan.maxCards} {plan.maxCards === 1 ? 'tarjeta' : 'tarjetas'} virtual{plan.maxCards === 1 ? '' : 'es'}
+   233→                      </p>
+   234→                      <p className="mt-1 flex items-center gap-2">
+   235→                        <Star className="size-4 text-amber-500" />
+   236→                        {plan.storage} MB de almacenamiento
+   237→                      </p>
+   238→                    </div>
+   239→
+   240→                    <Button
+   241→                      className={cn(
+   242→                        'mt-auto w-full',
+   243→                        isHighlight
+   244→                          ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-700 hover:to-emerald-600'
+   245→                          : 'bg-slate-900 text-white hover:bg-slate-800',
+   246→                      )}
+   247→                      onClick={handleChoose}
+   248→                    >
+   249→                      Elegir Plan
+   250→                      <ArrowRight className="ml-1 size-4" />
+   251→                    </Button>
+   252→
+   253→                    <ul className="flex flex-col gap-2 border-t border-slate-100 pt-4 text-sm">
+   254→                      {plan.features.slice(0, 7).map(f => (
+   255→                        <li key={f.name} className="flex items-start gap-2">
+   256→                          {f.included ? (
+   257→                            <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+   258→                          ) : (
+   259→                            <X className="mt-0.5 size-4 shrink-0 text-slate-300" />
+   260→                          )}
+   261→                          <span className={f.included ? 'text-slate-700' : 'text-slate-400'}>
+   262→                            {f.name}
+   263→                          </span>
+   264→                        </li>
+   265→                      ))}
+   266→                      <li className="pt-1 text-xs font-medium text-emerald-700">
+   267→                        + {Math.max(0, plan.features.length - 7)} funciones más en la tabla de comparación
+   268→                      </li>
+   269→                    </ul>
+   270→                  </CardContent>
+   271→                </Card>
+   272→              </motion.div>
+   273→            );
+   274→          })}
+   275→        </div>
+   276→      </div>
+   277→    </section>
+   278→  );
+   279→}
+   280→
+   281→/* ------------------------------------------------------------------ */
+   282→/*  Comparison table                                                   */
+   283→/* ------------------------------------------------------------------ */
+   284→
+   285→function ComparisonTable() {
+   286→  // All plans share the same feature index order in plans.ts
+   287→  const featureNames = PLANS.gratis.features.map(f => f.name);
+   288→
+   289→  return (
+   290→    <section className="bg-gradient-to-b from-slate-50 to-white py-20 sm:py-24">
+   291→      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+   292→        <motion.div {...fadeUpProps()} className="mx-auto max-w-2xl text-center">
+   293→          <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">
+   294→            <Sparkles className="mr-1 size-3.5" />
+   295→            Comparativa completa
+   296→          </Badge>
+   297→          <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+   298→            Compara todas las funciones
+   299→          </h2>
+   300→          <p className="mt-4 text-lg text-slate-600">
+   301→            Revisa en detalle todo lo que incluye cada plan antes de decidir.
+   302→          </p>
+   303→        </motion.div>
+   304→
+   305→        <motion.div {...fadeUpProps(0.1)} className="mt-12">
+   306→          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+   307→            <div className="ftp-comparison-scroll max-h-[640px] overflow-y-auto">
+   308→              <Table className="w-full">
+   309→                <TableHeader className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_#e2e8f0]">
+   310→                  <TableRow className="border-b border-slate-200 hover:bg-transparent">
+   311→                    <TableHead className="min-w-[220px] py-4 pl-5 pr-2 text-left text-sm font-semibold text-slate-900">
+   312→                      Función
+   313→                    </TableHead>
+   314→                    {PLAN_ORDER.map(planId => {
+   315→                      const plan = PLANS[planId];
+   316→                      const isHighlight = plan.highlight;
+   317→                      return (
+   318→                        <TableHead
+   319→                          key={planId}
+   320→                          className={cn(
+   321→                            'min-w-[140px] py-4 text-center',
+   322→                            isHighlight && 'bg-emerald-50/70',
+   323→                          )}
+   324→                        >
+   325→                          <div className="flex flex-col items-center gap-1">
+   326→                            <span className="text-sm font-bold text-slate-900">
+   327→                              {plan.name}
+   328→                            </span>
+   329→                            <span className="text-xs font-normal text-slate-500">
+   330→                              ${plan.price} MXN
+   331→                            </span>
+   332→                            {isHighlight && (
+   333→                              <span className="mt-0.5 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-semibold text-amber-950">
+   334→                                Más popular
+   335→                              </span>
+   336→                            )}
+   337→                          </div>
+   338→                        </TableHead>
+   339→                      );
+   340→                    })}
+   341→                  </TableRow>
+   342→                </TableHeader>
+   343→                <TableBody>
+   344→                  {featureNames.map((featureName, idx) => (
+   345→                    <TableRow
+   346→                      key={featureName}
+   347→                      className={cn(
+   348→                        'border-b border-slate-100',
+   349→                        idx % 2 === 1 && 'bg-slate-50/40',
+   350→                      )}
+   351→                    >
+   352→                      <TableCell className="py-3 pl-5 pr-2 text-left text-sm font-medium text-slate-700">
+   353→                        {featureName}
+   354→                      </TableCell>
+   355→                      {PLAN_ORDER.map(planId => {
+   356→                        const plan = PLANS[planId];
+   357→                        // Match by index since all plans share the same order
+   358→                        const f = plan.features[idx];
+   359→                        const included = f?.included ?? false;
+   360→                        const isHighlight = plan.highlight;
+   361→                        return (
+   362→                          <TableCell
+   363→                            key={planId}
+   364→                            className={cn(
+   365→                              'py-3 text-center',
+   366→                              isHighlight && 'bg-emerald-50/40',
+   367→                            )}
+   368→                          >
+   369→                            {included ? (
+   370→                              <span className="inline-flex size-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+   371→                                <Check className="size-4" />
+   372→                              </span>
+   373→                            ) : (
+   374→                              <span className="inline-flex size-6 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+   375→                                <X className="size-3.5" />
+   376→                              </span>
+   377→                            )}
+   378→                            <span className="sr-only">
+   379→                              {included ? 'Incluido' : 'No incluido'}
+   380→                            </span>
+   381→                          </TableCell>
+   382→                        );
+   383→                      })}
+   384→                    </TableRow>
+   385→                  ))}
+   386→                </TableBody>
+   387→              </Table>
+   388→            </div>
+   389→          </div>
+   390→
+   391→          {/* Custom scrollbar styling for the comparison table */}
+   392→          <style>{`
+   393→            .ftp-comparison-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+   394→            .ftp-comparison-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+   395→            .ftp-comparison-scroll::-webkit-scrollbar-track { background: transparent; }
+   396→            .ftp-comparison-scroll { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+   397→          `}</style>
+   398→        </motion.div>
+   399→      </div>
+   400→    </section>
+   401→  );
+   402→}
+   403→
+   404→/* ------------------------------------------------------------------ */
+   405→/*  FAQ                                                                */
+   406→/* ------------------------------------------------------------------ */
+   407→
+   408→function FAQ() {
+   409→  return (
+   410→    <section className="bg-white py-20 sm:py-24">
+   411→      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+   412→        <motion.div {...fadeUpProps()} className="text-center">
+   413→          <Badge className="border-amber-200 bg-amber-50 text-amber-700">
+   414→            <HelpCircle className="mr-1 size-3.5" />
+   415→            Preguntas frecuentes
+   416→          </Badge>
+   417→          <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+   418→            Resolvemos tus dudas
+   419→          </h2>
+   420→          <p className="mt-4 text-lg text-slate-600">
+   421→            ¿No encuentras tu respuesta? Escríbenos a hola@ftpdigitalplus.com
+   422→          </p>
+   423→        </motion.div>
+   424→
+   425→        <motion.div {...fadeUpProps(0.1)} className="mt-10">
+   426→          <Card className="border-slate-200 shadow-sm">
+   427→            <CardContent>
+   428→              <Accordion type="single" collapsible className="w-full">
+   429→                {FAQS.map((faq, idx) => (
+   430→                  <AccordionItem key={idx} value={`item-${idx}`}>
+   431→                    <AccordionTrigger className="text-left text-base font-semibold text-slate-900 hover:text-emerald-700">
+   432→                      {faq.question}
+   433→                    </AccordionTrigger>
+   434→                    <AccordionContent className="text-sm leading-relaxed text-slate-600">
+   435→                      {faq.answer}
+   436→                    </AccordionContent>
+   437→                  </AccordionItem>
+   438→                ))}
+   439→              </Accordion>
+   440→            </CardContent>
+   441→          </Card>
+   442→        </motion.div>
+   443→      </div>
+   444→    </section>
+   445→  );
+   446→}
+   447→
+   448→/* ------------------------------------------------------------------ */
+   449→/*  Final CTA                                                          */
+   450→/* ------------------------------------------------------------------ */
+   451→
+   452→function FinalCTA() {
+   453→  const navigate = useAppStore(s => s.navigate);
+   454→  return (
+   455→    <section className="bg-gradient-to-b from-white to-slate-50 py-16 sm:py-20">
+   456→      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+   457→        <motion.div
+   458→          {...fadeUpProps()}
+   459→          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-800 px-6 py-12 text-center shadow-xl shadow-emerald-100/50 sm:px-12"
+   460→        >
+   461→          <div className="pointer-events-none absolute inset-0">
+   462→            <div className="absolute -left-16 -top-16 size-72 rounded-full bg-amber-400/20 blur-3xl" />
+   463→            <div className="absolute -bottom-16 -right-16 size-72 rounded-full bg-teal-300/20 blur-3xl" />
+   464→          </div>
+   465→          <div className="relative flex flex-col items-center gap-5">
+   466→            <h2 className="max-w-xl text-balance text-3xl font-bold text-white sm:text-4xl">
+   467→              ¿Listo para crear tu tarjeta digital?
+   468→            </h2>
+   469→            <p className="max-w-lg text-pretty text-emerald-50/90">
+   470→              Empieza gratis hoy mismo. Sin tarjeta de crédito, sin
+   471→              compromisos.
+   472→            </p>
+   473→            <div className="flex flex-col gap-3 sm:flex-row">
+   474→              <Button
+   475→                size="lg"
+   476→                onClick={() => navigate('login')}
+   477→                className="bg-amber-400 text-amber-950 shadow-lg shadow-amber-500/30 hover:bg-amber-300"
+   478→              >
+   479→                Crear mi Tarjeta Gratis
+   480→                <ArrowRight className="ml-1 size-4" />
+   481→              </Button>
+   482→              <Button
+   483→                size="lg"
+   484→                variant="outline"
+   485→                onClick={() => navigate('landing')}
+   486→                className="border-white/40 bg-white/10 text-white backdrop-blur-sm hover:bg-white/20"
+   487→              >
+   488→                <ArrowLeft className="mr-1 size-4" />
+   489→                Volver al inicio
+   490→              </Button>
+   491→            </div>
+   492→          </div>
+   493→        </motion.div>
+   494→      </div>
+   495→    </section>
+   496→  );
+   497→}
+   498→
+   499→/* ------------------------------------------------------------------ */
+   500→/*  Footer                                                             */
+   501→/* ------------------------------------------------------------------ */
+   502→
+   503→function SiteFooter() {
+   504→  const navigate = useAppStore(s => s.navigate);
+   505→  const year = new Date().getFullYear();
+   506→
+   507→  return (
+   508→    <footer className="border-t border-slate-200 bg-slate-50">
+   509→      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+   510→        <div className="grid gap-10 lg:grid-cols-4">
+   511→          <div className="flex flex-col gap-4">
+   512→            <FTPLogo variant="full" className="h-9 w-auto" />
+   513→            <p className="max-w-xs text-sm text-slate-600">
+   514→              Agencia de Diseño Web y Marketing Digital. Creamos experiencias
+   515→              digitales que conectan.
+   516→            </p>
+   517→            <div className="flex gap-2">
+   518→              {[
+   519→                { Icon: Facebook, label: 'Facebook' },
+   520→                { Icon: Instagram, label: 'Instagram' },
+   521→                { Icon: Linkedin, label: 'LinkedIn' },
+   522→                { Icon: Twitter, label: 'Twitter' },
+   523→              ].map(({ Icon, label }) => (
+   524→                <a
+   525→                  key={label}
+   526→                  href="#"
+   527→                  onClick={e => e.preventDefault()}
+   528→                  aria-label={label}
+   529→                  className="flex size-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+   530→                >
+   531→                  <Icon className="size-4" />
+   532→                </a>
+   533→              ))}
+   534→            </div>
+   535→          </div>
+   536→
+   537→          <div>
+   538→            <h3 className="text-sm font-semibold text-slate-900">Producto</h3>
+   539→            <ul className="mt-4 flex flex-col gap-2.5 text-sm">
+   540→              <li>
+   541→                <button
+   542→                  onClick={() => navigate('landing')}
+   543→                  className="text-slate-600 transition-colors hover:text-emerald-700"
+   544→                >
+   545→                  Inicio
+   546→                </button>
+   547→              </li>
+   548→              <li>
+   549→                <button
+   550→                  onClick={() => navigate('pricing')}
+   551→                  className="text-slate-600 transition-colors hover:text-emerald-700"
+   552→                >
+   553→                  Planes
+   554→                </button>
+   555→              </li>
+   556→              <li>
+   557→                <button
+   558→                  onClick={() => navigate('login')}
+   559→                  className="text-slate-600 transition-colors hover:text-emerald-700"
+   560→                >
+   561→                  Iniciar Sesión
+   562→                </button>
+   563→              </li>
+   564→            </ul>
+   565→          </div>
+   566→
+   567→          <div>
+   568→            <h3 className="text-sm font-semibold text-slate-900">Empresa</h3>
+   569→            <ul className="mt-4 flex flex-col gap-2.5 text-sm">
+   570→              {['Sobre nosotros', 'Blog', 'Contacto', 'Soporte'].map(label => (
+   571→                <li key={label}>
+   572→                  <a
+   573→                    href="#"
+   574→                    onClick={e => e.preventDefault()}
+   575→                    className="text-slate-600 transition-colors hover:text-emerald-700"
+   576→                  >
+   577→                    {label}
+   578→                  </a>
+   579→                </li>
+   580→              ))}
+   581→            </ul>
+   582→          </div>
+   583→
+   584→          <div>
+   585→            <h3 className="text-sm font-semibold text-slate-900">Contacto</h3>
+   586→            <ul className="mt-4 flex flex-col gap-2.5 text-sm text-slate-600">
+   587→              <li className="flex items-center gap-2">
+   588→                <Mail className="size-4 text-emerald-600" />
+   589→                hola@ftpdigitalplus.com
+   590→              </li>
+   591→              <li className="flex items-center gap-2">
+   592→                <Phone className="size-4 text-emerald-600" />
+   593→                +52 55 1234 5678
+   594→              </li>
+   595→              <li className="flex items-center gap-2">
+   596→                <Globe className="size-4 text-emerald-600" />
+   597→                Ciudad de México, México
+   598→              </li>
+   599→            </ul>
+   600→          </div>
+   601→        </div>
+   602→
+   603→        <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-slate-200 pt-6 sm:flex-row">
+   604→          <p className="text-sm text-slate-500">
+   605→            © {year} FTP Digital Plus — Agencia de Diseño Web y Marketing Digital.
+   606→          </p>
+   607→          <div className="flex gap-6 text-sm text-slate-500">
+   608→            <a href="#" onClick={e => e.preventDefault()} className="hover:text-emerald-700">
+   609→              Privacidad
+   610→            </a>
+   611→            <a href="#" onClick={e => e.preventDefault()} className="hover:text-emerald-700">
+   612→              Términos
+   613→            </a>
+   614→          </div>
+   615→        </div>
+   616→      </div>
+   617→    </footer>
+   618→  );
+   619→}
+   620→
+   621→/* ------------------------------------------------------------------ */
+   622→/*  Page                                                               */
+   623→/* ------------------------------------------------------------------ */
+   624→
+   625→export function PricingPage() {
+   626→  return (
+   627→    <div className="flex min-h-screen flex-col bg-white">
+   628→      <PricingHeader />
+   629→      <main className="flex-1">
+   630→        <PricingHero />
+   631→        <PlanCards />
+   632→        <ComparisonTable />
+   633→        <FAQ />
+   634→        <FinalCTA />
+   635→      </main>
+   636→      <SiteFooter />
+   637→    </div>
+   638→  );
+   639→}
+   640→

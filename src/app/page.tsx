@@ -3,6 +3,7 @@
 import { useAppStore } from '@/lib/store';
 import { LandingPage } from '@/components/sections/landing-page';
 import { PricingPage } from '@/components/sections/pricing-page';
+import { CheckoutPage } from '@/components/sections/checkout-page';
 import { LoginPage } from '@/components/sections/login-page';
 import { Dashboard } from '@/components/sections/dashboard';
 import { CardEditor } from '@/components/sections/card-editor';
@@ -13,6 +14,7 @@ import { TemplateGallery } from '@/components/sections/template-gallery';
 import { HelpCenter } from '@/components/sections/help-center';
 import { SupportPage } from '@/components/sections/support-page';
 import { TermsPage, PrivacyPage, RefundsPage } from '@/components/sections/legal-pages';
+import { ProfilePage } from '@/components/sections/profile-page';
 
 export default function Home() {
   const currentView = useAppStore(s => s.currentView);
@@ -22,6 +24,8 @@ export default function Home() {
       return <LandingPage />;
     case 'pricing':
       return <PricingPage />;
+    case 'checkout':
+      return <CheckoutPage />;
     case 'login':
     case 'register':
       return <LoginPage />;
@@ -54,6 +58,8 @@ export default function Home() {
       return <PrivacyPage />;
     case 'refunds':
       return <RefundsPage />;
+    case 'profile':
+      return <ProfilePage />;
     default:
       return <LandingPage />;
   }
