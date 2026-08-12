@@ -18,7 +18,8 @@ export type ViewType =
   | 'affiliations'
   | 'storage'
   | 'settings'
-  | 'stats';
+  | 'stats'
+  | 'template-gallery';
 
 export interface User {
   id: string;

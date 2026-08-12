@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAppStore } from '@/lib/store';
 import { FTPLogo } from '@/components/ftp-logo';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { NotificationsPanel } from '@/components/notifications-panel';
 import { PLANS, PLAN_ORDER } from '@/lib/plans';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -163,6 +165,7 @@ function fadeUpProps(delay = 0) {
 
 function SiteHeader() {
   const navigate = useAppStore(s => s.navigate);
+  const currentUser = useAppStore(s => s.currentUser);
   const [open, setOpen] = useState(false);
 
   const scrollTo = (id: string) => {
@@ -198,7 +201,9 @@ function SiteHeader() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-1.5 md:flex">
+          <ThemeToggle className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700" />
+          {currentUser && <NotificationsPanel />}
           <Button
             variant="ghost"
             onClick={() => navigate('pricing')}
@@ -215,15 +220,19 @@ function SiteHeader() {
           </Button>
         </div>
 
-        {/* Mobile toggle */}
-        <button
-          onClick={() => setOpen(v => !v)}
-          className="inline-flex size-10 items-center justify-center rounded-md text-slate-700 hover:bg-emerald-50 md:hidden"
-          aria-label="Abrir menú"
-          aria-expanded={open}
-        >
-          {open ? <X className="size-6" /> : <Menu className="size-6" />}
-        </button>
+        {/* Mobile controls: theme toggle + notifications + menu toggle */}
+        <div className="flex items-center gap-0.5 md:hidden">
+          <ThemeToggle className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700" />
+          {currentUser && <NotificationsPanel />}
+          <button
+            onClick={() => setOpen(v => !v)}
+            className="inline-flex size-10 items-center justify-center rounded-md text-slate-700 hover:bg-emerald-50"
+            aria-label="Abrir menú"
+            aria-expanded={open}
+          >
+            {open ? <X className="size-6" /> : <Menu className="size-6" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile menu */}

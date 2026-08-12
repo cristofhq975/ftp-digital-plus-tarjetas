@@ -8,6 +8,8 @@ import { Dashboard } from '@/components/sections/dashboard';
 import { CardEditor } from '@/components/sections/card-editor';
 import { PublicCardSection } from '@/components/sections/public-card';
 import { QrExpiredSection } from '@/components/sections/qr-expired';
+import { AnalyticsPage } from '@/components/sections/analytics-page';
+import { TemplateGallery } from '@/components/sections/template-gallery';
 
 export default function Home() {
   const currentView = useAppStore(s => s.currentView);
@@ -28,8 +30,11 @@ export default function Home() {
     case 'affiliations':
     case 'storage':
     case 'settings':
-    case 'stats':
       return <Dashboard />;
+    case 'stats':
+      return <AnalyticsPage />;
+    case 'template-gallery':
+      return <TemplateGallery />;
     case 'editor':
       return <CardEditor />;
     case 'public-card':

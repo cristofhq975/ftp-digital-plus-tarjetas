@@ -198,3 +198,136 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ============================================
+   FTP Digital Plus - Enhanced Styling (Task 5-c)
+   ============================================ */
+
+/* Enhanced animations */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 6s ease infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px oklch(0.55 0.15 160 / 0.3); }
+  50% { box-shadow: 0 0 40px oklch(0.55 0.15 160 / 0.5); }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.4s ease-out;
+}
+
+@keyframes scale-in {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out;
+}
+
+@keyframes bounce-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.animate-bounce-subtle {
+  animation: bounce-subtle 2s ease-in-out infinite;
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -10px oklch(0.55 0.15 160 / 0.2);
+}
+
+/* Gradient borders */
+.gradient-border {
+  position: relative;
+  background: white;
+  border-radius: 12px;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 14px;
+  padding: 2px;
+  background: linear-gradient(135deg, oklch(0.55 0.15 160), oklch(0.75 0.18 85));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Mesh gradient background */
+.mesh-gradient {
+  background-color: oklch(0.99 0.005 150);
+  background-image: 
+    radial-gradient(at 0% 0%, oklch(0.55 0.15 160 / 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, oklch(0.75 0.18 85 / 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, oklch(0.55 0.15 160 / 0.06) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, oklch(0.75 0.18 85 / 0.06) 0px, transparent 50%);
+}
+
+/* Glassmorphism enhanced */
+.glass-card {
+  background: oklch(1 0 0 / 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid oklch(1 0 0 / 0.3);
+}
+.dark .glass-card {
+  background: oklch(0.18 0.02 160 / 0.7);
+  border: 1px solid oklch(1 0 0 / 0.1);
+}
+
+/* Text balance for headings */
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Shimmer loading */
+.shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    oklch(0.96 0.01 150) 0%,
+    oklch(0.92 0.01 150) 50%,
+    oklch(0.96 0.01 150) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Scroll snap for carousels */
+.scroll-snap-x {
+  scroll-snap-type: x mandatory;
+}
+.scroll-snap-start {
+  scroll-snap-align: start;
+}
+
+/* Premium badge effect */
+.premium-badge {
+  background: linear-gradient(135deg, oklch(0.75 0.18 85), oklch(0.82 0.15 75));
+  color: oklch(0.2 0.02 85);
+  box-shadow: 0 2px 8px oklch(0.75 0.18 85 / 0.4);
+}
+
+/* Focus ring enhanced */
+.focus-ring:focus-visible {
+  outline: 2px solid oklch(0.55 0.15 160);
+  outline-offset: 2px;
+}

@@ -36,6 +36,9 @@ import {
 } from '@/components/ui/sheet';
 import { FTPLogo } from '@/components/ftp-logo';
 import { DynamicIcon } from '@/components/dynamic-icon';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { NotificationsPanel } from '@/components/notifications-panel';
+import { OnboardingWizard } from '@/components/onboarding-wizard';
 import { useAppStore, useCurrentUserCards } from '@/lib/store';
 import { PLANS, DASHBOARD_SECTIONS } from '@/lib/plans';
 import { BusinessCard, PlanType, ContactMessage, Appointment } from '@/lib/types';
@@ -82,6 +85,17 @@ export function Dashboard() {
   const unreadCount = messages.filter(m => !m.read).length;
 
   const handleNavigate = (id: SectionId) => {
+    // 'stats' and 'template-gallery' are full-page navigations
+    if (id === 'stats' as any) {
+      navigate('stats');
+      setMobileOpen(false);
+      return;
+    }
+    if (id === 'template-gallery' as any) {
+      navigate('template-gallery');
+      setMobileOpen(false);
+      return;
+    }
     setActiveSection(id);
     setMobileOpen(false);
   };
@@ -118,13 +132,9 @@ export function Dashboard() {
           <FTPLogo variant="icon" className="h-7 w-7" />
           <span className="text-sm font-bold text-slate-800">FTP Digital Plus</span>
         </div>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" aria-label="Notificaciones" className="relative">
-            <Bell className="h-5 w-5" />
-            {unreadCount > 0 && (
-              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-amber-500" />
-            )}
-          </Button>
+        <div className="flex items-center gap-0.5">
+          <ThemeToggle className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700" />
+          <NotificationsPanel />
         </div>
       </header>
 
@@ -181,6 +191,9 @@ export function Dashboard() {
 
       {/* Create Card Dialog */}
       <CreateCardDialog open={createOpen} onOpenChange={setCreateOpen} />
+
+      {/* First-time onboarding wizard */}
+      <OnboardingWizard />
     </div>
   );
 }
@@ -201,9 +214,10 @@ function SidebarContent({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Logo */}
-      <div className="border-b px-5 py-4">
+      {/* Logo + theme toggle */}
+      <div className="flex items-center justify-between border-b px-5 py-4">
         <FTPLogo className="h-9 w-auto" />
+        <ThemeToggle className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700" />
       </div>
 
       {/* User info */}
