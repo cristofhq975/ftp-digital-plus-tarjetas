@@ -571,9 +571,7 @@ export const useAppStore = create<AppState>()(
           u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
         );
         if (user) {
-          // No incluir el password en el estado del usuario actual
-          const { password: _pwd, ...userWithoutPassword } = user;
-          set({ currentUser: userWithoutPassword, currentView: 'dashboard' });
+          set({ currentUser: user, currentView: 'dashboard' });
           return true;
         }
         return false;
@@ -808,8 +806,7 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: 'ftp-digital-plus-store-v2',
-      version: 2,
+      name: 'ftp-digital-plus-store',
       storage: createJSONStorage(() => {
         if (typeof window !== 'undefined') {
           return window.localStorage;
@@ -831,78 +828,6 @@ export const useAppStore = create<AppState>()(
         selectedPlanForCheckout: state.selectedPlanForCheckout,
         notifications: state.notifications,
       }),
-      // Migración: descartar cualquier estado de versión anterior
-      // para evitar estados inconsistentes. Los datos demo se regeneran.
-      migrate: (_persistedState, version) => {
-        if (version < 2) {
-          // Retornar undefined hace que zustand use el estado inicial
-          return undefined as unknown as Partial<AppState>;
-        }
-        return _persistedState as Partial<AppState>;
-      },
-      // Sanitizar datos cargados desde localStorage para evitar estados
-      // inconsistentes (p.ej. currentUser que referencia un usuario eliminado).
-      merge: (persistedState, currentState) => {
-        const ps = (persistedState || {}) as Partial<AppState>;
-
-        // 1. Siempre usar los usuarios demo actuales
-        const users = DEMO_USERS;
-
-        // 2. Validar currentUser
-        let currentUser = ps.currentUser ?? null;
-        if (currentUser && !users.find(u => u.id === currentUser!.id)) {
-          currentUser = null;
-        }
-
-        // 3. Validar tarjetas - si no hay o están vacías, usar demo
-        let cards = Array.isArray(ps.cards) ? ps.cards : currentState.cards;
-        if (!cards || cards.length === 0) {
-          cards = createDemoCards();
-        }
-
-        // 4. Validar mensajes y citas
-        const messages = Array.isArray(ps.messages) && ps.messages.length > 0
-          ? ps.messages
-          : DEMO_MESSAGES;
-        const appointments = Array.isArray(ps.appointments)
-          ? ps.appointments
-          : DEMO_APPOINTMENTS;
-
-        // 5. Validar supportTickets
-        const supportTickets = Array.isArray(ps.supportTickets)
-          ? ps.supportTickets
-          : DEMO_SUPPORT_TICKETS;
-
-        // 6. Validar notifications
-        const notifications = Array.isArray(ps.notifications)
-          ? ps.notifications
-          : DEMO_NOTIFICATIONS;
-
-        // 7. Validar favoriteCardIds
-        const validCardIds = new Set(cards.map(c => c.id));
-        const favoriteCardIds = Array.isArray(ps.favoriteCardIds)
-          ? ps.favoriteCardIds.filter(id => validCardIds.has(id))
-          : [];
-
-        return {
-          ...currentState,
-          ...ps,
-          users,
-          currentUser,
-          cards,
-          messages,
-          appointments,
-          supportTickets,
-          notifications,
-          favoriteCardIds,
-          currentView: currentUser ? 'dashboard' : 'landing',
-          selectedCardId: null,
-          selectedEditorSection: 'detalles',
-          tourActive: false,
-          selectedBlogPost: null,
-          compareCardIds: [],
-        };
-      },
     }
   )
 );

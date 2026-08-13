@@ -62,7 +62,7 @@ export interface SupportTicket {
 export interface User {
   id: string;
   email: string;
-  password?: string;
+  password: string;
   name: string;
   plan: PlanType;
   createdAt: string;
