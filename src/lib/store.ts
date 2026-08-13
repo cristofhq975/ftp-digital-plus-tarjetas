@@ -384,6 +384,8 @@ interface AppState {
   supportTickets: SupportTicket[];
   // Tour (Task 8-b) — session-only, not persisted
   tourActive: boolean;
+  // Blog (Task 9-a) — session-only, not persisted
+  selectedBlogPost: string | null;
   // Actions
   login: (email: string, password: string) => boolean;
   logout: () => void;
@@ -407,6 +409,7 @@ interface AppState {
   addTicket: (ticket: Omit<SupportTicket, 'id' | 'status' | 'createdAt' | 'responses'>) => string;
   addTicketResponse: (ticketId: string, response: SupportTicketResponse, status?: SupportTicket['status']) => void;
   setTourActive: (active: boolean) => void;
+  setSelectedBlogPost: (postId: string | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -424,6 +427,7 @@ export const useAppStore = create<AppState>()(
       favoriteCardIds: [],
       supportTickets: DEMO_SUPPORT_TICKETS,
       tourActive: false,
+      selectedBlogPost: null,
 
       login: (email, password) => {
         const user = get().users.find(
@@ -589,6 +593,8 @@ export const useAppStore = create<AppState>()(
       },
 
       setTourActive: (active) => set({ tourActive: active }),
+
+      setSelectedBlogPost: (postId) => set({ selectedBlogPost: postId }),
     }),
     {
       name: 'ftp-digital-plus-store',

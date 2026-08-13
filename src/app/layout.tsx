@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { CommandPalette } from "@/components/command-palette";
+import { GlobalSearch } from "@/components/global-search";
 import { PlatformTour } from "@/components/platform-tour";
 import { TourTrigger } from "@/components/tour-trigger";
 import { SkipLink } from "@/components/accessibility/skip-link";
@@ -93,6 +94,7 @@ export default function RootLayout({
           <Toaster />
           <SonnerToaster position="top-right" richColors />
           <CommandPalette />
+          <GlobalSearch />
           <PlatformTour />
           <TourTrigger />
           <InstallPrompt />

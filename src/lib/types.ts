@@ -26,7 +26,9 @@ export type ViewType =
   | 'terms'
   | 'privacy'
   | 'refunds'
-  | 'profile';
+  | 'profile'
+  | 'blog'
+  | 'blog-post';
 
 // Ticket de soporte
 export type SupportTicketCategory = 'cuenta' | 'facturacion' | 'tecnico' | 'tarjeta' | 'otro';

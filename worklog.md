@@ -1362,3 +1362,234 @@ Unresolved Issues:
   6. Multi-idioma (inglés/portugués)
   7. Testing E2E con Playwright
   8. Optimización SEO (sitemap, robots.txt, structured data)
+
+---
+Task ID: 9-a
+Agent: Subagent (Blog Builder)
+Task: Blog/Resources page (BlogPage) + individual blog post page (BlogPostPage) + supporting data + store integration
+
+Work Log:
+- Leído worklog.md completo (Tasks 1, 3-a/b/c/d, 5-a/b/c, 6-a/b/c, 7-a/b/c, 8 cron). Revisados types.ts, store.ts, page.tsx, landing-page.tsx (header + footer), ftp-logo.tsx, theme-toggle.tsx, support-page.tsx (estilo de referencia), avatar.tsx, badge.tsx, card.tsx, tabs.tsx, separator.tsx, dev.log.
+
+### 1. Tipos (`src/lib/types.ts`)
+- Añadidos `'blog'` y `'blog-post'` al union type `ViewType` (después de `'profile'`). Edit quirúrgico, sin otros cambios.
+
+### 2. Store (`src/lib/store.ts`)
+- Añadido `selectedBlogPost: string | null` al `AppState` (session-only, no persistido).
+- Añadida acción `setSelectedBlogPost: (postId: string | null) => void`.
+- Inicializado en `null` y verificado que NO está en `partialize` (no se persiste a localStorage).
+
+### 3. Datos del blog (`src/lib/blog-data.ts`) — NUEVO
+- Creado `BlogCategory` type + interfaz `BlogPost` con todos los campos solicitados.
+- Exportados `CATEGORY_GRADIENTS` y `CATEGORY_LABELS` para uso en UI.
+- 12 artículos completos en español con contenido sustancial (3-5+ párrafos cada uno):
+  1. "10 razones para usar tarjetas de presentación digitales en 2024" (marketing, featured)
+  2. "Cómo crear una tarjeta NFC: Guía completa" (tutoriales, featured)
+  3. "Diseño de tarjetas: errores comunes a evitar" (diseno)
+  4. "Marketing digital para pequeños negocios" (marketing)
+  5. "QR vs NFC: ¿Cuál es mejor para tu negocio?" (tecnologia, featured)
+  6. "Cómo optimizar tu tarjeta para SEO local" (marketing)
+  7. "Tendencias en diseño de tarjetas 2024" (diseno)
+  8. "Automatiza tu negocio con tarjetas digitales" (negocios)
+  9. "Guía: Configurar WhatsApp Business con tu tarjeta" (tutoriales)
+  10. "El futuro de las tarjetas de presentación" (tecnologia)
+  11. "Cómo medir el ROI de tus tarjetas digitales" (negocios)
+  12. "Plantillas de tarjetas: Cómo elegir la correcta" (diseno)
+- Contenido con encabezados `## Heading`, separadores `\n\n` y markdown inline (`**bold**`, `` `code` ``).
+- Helpers exportados: `getRelatedPosts`, `getPostBySlug`, `getPostById`.
+- Gradientes por categoría: marketing=esmeralda, tecnologia=cyan/teal, diseno=rose/pink, negocios=amber/orange, tutoriales=violet/fuchsia. UI chrome 100% esmeralda+oro.
+
+### 4. BlogPage (`src/components/sections/blog-page.tsx`) — NUEVO (~750 líneas, 'use client')
+- `BlogHeader`: header sticky con back button, FTPLogo, ThemeToggle, CTAs (responsive mobile/desktop).
+- `BlogHero`: hero gradiente esmeralda con blobs decorativos, badge "Recursos FTP Digital Plus", título grande "Blog y Recursos" con gradiente ámbar, subtítulo, barra de búsqueda grande (con icono Search), stats row (Artículos/Categorías/Actualización).
+- `FeaturedPosts`: 3 posts destacados en grid 3-col. Cada card: banner gradiente (color de categoría) + icono Sparkles + overlay dotted, badge de categoría, título (line-clamp-2), excerpt (line-clamp-3), tags (top 3) con icono Tag, avatar con fallback gradiente + iniciales, nombre autor, fecha, tiempo de lectura con Clock. Animación hover (translate-y + shadow + border). Click → setSelectedBlogPost + navigate('blog-post').
+- `PostsSection`: filter bar con Tabs por categoría (Todos/Marketing/Tecnología/Diseño/Negocios/Tutoriales) + Tabs de orden (Recientes/Populares/A-Z) + contador de resultados con TrendingUp. Grid responsive (1/2/3 cols) con AnimatePresence + layout animations en cambio de filtro. Empty state con CTA "Limpiar filtros".
+- `NewsletterCTA`: card gradiente esmeralda con input email + botón "Suscribirme". Valida regex de email, toast de sonner en éxito/error.
+- `BlogFooter`: sticky footer con FTPLogo, brand text, nav links, copyright. Usa `mt-auto`.
+- Búsqueda filtra por título, excerpt y tags (case-insensitive).
+- Sort: recent (date desc), popular (featured primero + readTime), A-Z (locale es-MX).
+
+### 5. BlogPostPage (`src/components/sections/blog-post-page.tsx`) — NUEVO (~700 líneas, 'use client')
+- `PostHeader`: header sticky con "Volver al blog", FTPLogo, ThemeToggle, CTA.
+- `PostHero`: breadcrumb (Blog > Categoría), badge gradiente de categoría, título XL, excerpt, info de autor (avatar+nombre+rol), fecha + tiempo de lectura, fila de share.
+- `FeaturedImageBanner`: banner gradiente grande (h-48→h-64) con icono Tag + label de categoría.
+- `TableOfContents` (sidebar sticky desktop, oculto en móvil):
+  - Parsea encabezados `## Heading` del content.
+  - IntersectionObserver con rootMargin `-100px 0px -65% 0px` para trackear heading activo.
+  - Heading activo resaltado con border-left esmeralda + bg.
+  - Click → smooth scroll + URL hash update.
+  - Sticky `top-24` con max-h + overflow-y-auto.
+- `ArticleContent`: parsea content en bloques (headings + paragraphs). Headings render como `<h2 id="...">` con scroll-mt-24. Párrafos con soporte markdown inline (`**bold**`, `` `code` ``) via renderer regex.
+- `TagsSection`: tags como badges (outline esmeralda) con icono Tag.
+- `ShareSection`: card post-content con botones WhatsApp/Facebook/Twitter/LinkedIn + Copy link + Bookmark. WhatsApp/Facebook/Twitter/LinkedIn abren share intents via window.open. Copy link usa navigator.clipboard con fallback + Check icon 2s. Bookmark toast.
+- `ShareBar` reutilizable (variantes sm/md). Hover branded por red social (WhatsApp green, Facebook blue, Twitter black, LinkedIn blue).
+- `AuthorBio`: card con avatar grande, nombre, rol, bio, botón "Ver más artículos".
+- `RelatedPosts`: 3 posts relacionados (misma categoría, excluyendo actual) en grid responsive. Click → setSelectedBlogPost + navigate.
+- `NewsletterCTA`: "Suscríbete para más contenido" con input + botón.
+- `PostFooter`: sticky footer con FTPLogo icon, copyright, nav links.
+- `PostNotFound`: fallback cuando no hay post seleccionado/encontrado.
+- Auto scroll-to-top en cambio de post via useEffect con `'instant'` behavior (cast a ScrollBehavior).
+- Fallback defensivo a primer post publicado si no hay `selectedBlogPost`.
+
+### 6. Router SPA (`src/app/page.tsx`)
+- Imports para `BlogPage` y `BlogPostPage`.
+- Cases `'blog' → <BlogPage />` y `'blog-post' → <BlogPostPage />` en switch de `CurrentView`.
+
+### 7. Landing page (`src/components/sections/landing-page.tsx`)
+- Desktop nav: botón "Blog" (icon FileText ámbar) después de NAV_LINKS, navega a `blog`.
+- Mobile menu: botón "Blog y Recursos" (icon FileText) después de NAV_LINKS.
+- Footer "Producto": añadido "Blog y Recursos" entre "Plantillas" e "Iniciar Sesión".
+
+### 8. Quality checks
+- `bun run lint`: 0 errores en los 7 archivos nuevos/modificados. Único error pre-existente en `global-search.tsx` (no tocado).
+- `npx tsc --noEmit`: 0 errores en `src/`. Errores restantes solo en `examples/websocket/*` y `skills/*` (pre-existentes, no relacionados).
+- Dev log: última compilación exitosa (200 OK). Servidor dev intermitente en sandbox — problema conocido del entorno.
+
+Stage Summary:
+- 7 archivos creados/modificados: types.ts, store.ts, blog-data.ts (nuevo), blog-page.tsx (nuevo), blog-post-page.tsx (nuevo), app/page.tsx, landing-page.tsx.
+- 12 artículos en español con contenido sustancial (categorías marketing/tutoriales/diseno/negocios/tecnologia).
+- BlogPage: hero con búsqueda, 3 featured posts, filter+sort bar, grid responsive, newsletter CTA, footer sticky.
+- BlogPostPage: hero con author meta, gradient banner, TOC sticky (desktop), artículo completo con markdown inline, tags, share section (5 redes + copiar + bookmark), author bio, 3 relacionados, newsletter CTA, footer sticky.
+- Integración store: `selectedBlogPost` (session-only) + `setSelectedBlogPost`.
+- Navegación: landing page header (desktop+mobile) y footer enlazan al blog.
+- 100% español, paleta esmeralda+oro en chrome UI, colores categoría solo en cards del blog.
+- Lint: 0 errores en archivos modificados. TypeScript: 0 errores en src/.
+
+---
+Task ID: 9-b
+Agent: Subagent (Z.ai Code) — Visual & Global Search
+Task: Buscador global + mejoras visuales (fondos animados, glass cards, divisores)
+
+Work Log:
+- Leído worklog previo y archivos base (store, types, command-palette, landing, dashboard, globals.css) para integración no rompedora.
+- Creado `src/components/visual/improved-backgrounds.tsx` con 4 fondos animados CSS puros:
+  * `MeshGradientBackground`: gradiente mesh animado (esmeralda + oro) con resplandores radiales y patrón de puntos.
+  * `ParticleBackground`: 12 partículas flotantes (esmeralda/oro/teal) con animación `particle-float`.
+  * `GridPatternBackground`: cuadrícula sutil con overlay de gradiente y máscara radial.
+  * `AuroraBackground`: aurora animada con dos blobs cónicos + estrellas + viñeta.
+- Creado `src/components/visual/glass-card.tsx` (GlassCard) con 4 variantes (light/dark/emerald/gold), props `hover` (elevación) y `glow` (resplandor), rol button cuando es clicable.
+- Creado `src/components/visual/section-divider.tsx` con 4 divisores SVG:
+  * `WaveDivider`: onda con gradiente esmeralda→oro + capa secundaria.
+  * `CurveDivider`: curva suave con línea de gradiente.
+  * `TriangleDivider`: 24 triángulos equiláteros + línea de gradiente.
+  * `DotsDivider`: patrón de 96 puntos con máscara SVG y gradiente.
+  * `SectionDivider`: wrapper genérico con `variant`.
+- Añadidos ~140 líneas a `globals.css` (Task 9-b):
+  * `.mesh-gradient-animated` + `@keyframes mesh-shift`
+  * `@keyframes particle-float`
+  * `.glass-emerald` y `.glass-gold` (con variantes dark)
+  * `@keyframes aurora`
+  * `.text-gradient-animated` + `@keyframes text-gradient-shift`
+  * `.card-3d`, `.text-stroke-gradient`
+  * `.shimmer-border` + `@keyframes shimmer-border`
+  * `.noise-overlay`
+- Creado `src/components/global-search.tsx` (~830 líneas):
+  * Busca en 6 categorías: tarjetas, mensajes, citas, secciones del editor (24), páginas (21), acciones rápidas (6).
+  * Atajo `/` para abrir (cuando no se está escribiendo en un input).
+  * Evento `ftp:open-global-search` para apertura programática (usado por el dashboard).
+  * Debounce 200ms con `requestAnimationFrame` + `setTimeout` (cumple regla `react-hooks/set-state-in-effect`).
+  * Búsqueda difusa case-insensitive por tokens parciales.
+  * Resultados agrupados por tipo con badges diferenciados (esmeralda/oro/teal/slate).
+  * Resaltado de coincidencias con `<mark>` y regex segura.
+  * Búsquedas recientes en localStorage (últimas 10, con botón "Borrar historial").
+  * Estado de carga con skeleton shimmer (4 placeholders animados).
+  * Estado vacío: "No se encontraron resultados para '{query}'".
+  * Estado inicial sin query: recientes o mensaje "Escribe para buscar".
+  * Navegación por teclado vía cmdk (↑/↓/Enter/ESC).
+  * Footer con atajos + contador de resultados.
+  * Animación de entrada con framer-motion.
+- Integrado `<GlobalSearch />` en `src/app/layout.tsx` (a nivel raíz junto a CommandPalette).
+- Integrado componentes visuales en `src/components/sections/landing-page.tsx`:
+  * Hero: añadido `<MeshGradientBackground className="opacity-30 mix-blend-overlay" />` como capa animada sobre el fondo esmeralda existente.
+  * Features: convertidas 12 cards (FEATURES + ADDITIONAL_FEATURES) de `<Card>` a `<GlassCard variant="light" hover glow>` manteniendo toda la estructura interna (icono, número, título, descripción, glow accent).
+  * Heading Features: añadido `<span className="text-gradient-animated">destacar</span>`.
+  * Heading HowItWorks: añadido `<span className="text-gradient-animated">3 simples pasos</span>`.
+  * Cómo funciona: añadido `<WaveDivider fillTop="#047857" />` al final (transición a Stats esmeralda).
+  * Stats: añadido `<ParticleBackground className="opacity-70" />` (partículas flotando sobre el gradiente esmeralda).
+  * Stats: añadido `<WaveDivider fillTop="#f8fafc" />` al final (transición a Comparison slate-50).
+  * PricingPreview: añadido `<DotsDivider />` al final (separador visual hacia Testimonios).
+- Integrado componentes en `src/components/sections/dashboard.tsx`:
+  * Añadido botón de búsqueda en el top bar móvil (sticky header) que dispara `ftp:open-global-search`.
+  * Welcome banner: reemplazado `bg-gradient-to-br from-emerald-600...` + blobs decorativos por `<AuroraBackground />` (fondo aurora animado).
+  * Botón "Buscar…" del banner: ahora dispara `ftp:open-global-search` (antes abría command palette). kbd cambiado de ⌘K a `/`.
+  * Stat cards: convertidas de `<Card><CardContent>` a `<GlassCard variant="light" hover>` (mantiene icono, badge Máx, count-up, sparkline).
+
+Stage Summary:
+- 5 archivos nuevos: 3 visuales + global-search + (sin assets binarios).
+- 4 archivos modificados: layout.tsx, globals.css, landing-page.tsx, dashboard.tsx.
+- ~1,100 líneas de código nuevo (componentes + estilos + integraciones).
+- Paleta respetada: 100% esmeralda + oro, cero azul/índigo.
+- 100% español: labels, descriptions, toasts, vacíos, recientes, acciones.
+- Accesibilidad: aria-labels, roles button en cards clicables, focus-visible rings, sr-only titles.
+- Performance: animaciones CSS puras (sin JS) en fondos; debounce 200ms en búsqueda; useMemo para resultados filtrados y agrupados.
+- Lint: 0 errores tras iteración (resuelto react-hooks/set-state-in-effect con requestAnimationFrame).
+- Compatibilidad: GlobalSearch coexiste con CommandPalette existente (Cmd+K sigue abriendo command palette; "/" abre GlobalSearch).
+
+---
+Task ID: 9 (Cron Review - Ronda 5)
+Agent: Main (Z.ai Code)
+Task: QA, Blog/Recursos, Búsqueda Global, Mejoras visuales
+
+Work Log:
+- Revisado worklog.md: proyecto muy maduro con 20+ componentes, PWA, tour, accesibilidad, micro-animaciones
+- QA con agent-browser: landing, login, dashboard, editor, command palette verificados sin errores
+- ESLint: 0 errores, TypeScript: 0 errores
+- Despachados 2 subagentes en paralelo:
+
+  Task 9-a (Blog/Recursos):
+  - Creado blog-data.ts: 12 artículos completos en español sobre marketing, tecnología, diseño, negocios, tutoriales
+  - Creado blog-page.tsx (~750 líneas): hero con búsqueda, 3 artículos destacados, filtros por categoría, grid responsive, newsletter
+  - Creado blog-post-page.tsx (~700 líneas): artículo con TOC sticky (IntersectionObserver), markdown rendering, share buttons, autor bio, posts relacionados
+  - Actualizado store con selectedBlogPost
+  - Actualizado landing con enlaces "Blog" en header y footer
+  - ViewType 'blog' y 'blog-post' añadidos
+  - Colores por categoría: marketing=esmeralda, tecnologia=cyan, diseno=rose, negocios=amber, tutoriales=violet
+
+  Task 9-b (Búsqueda Global + Mejoras Visuales):
+  - Creado global-search.tsx (~830 líneas): búsqueda en 6 categorías (tarjetas, mensajes, citas, 24 secciones editor, 21 páginas, 6 acciones)
+    * Debounce 200ms, fuzzy matching, navegación keyboard
+    * Búsquedas recientes persistidas en localStorage
+    * Atajo "/" para abrir
+  - Creado improved-backgrounds.tsx: 4 fondos animados CSS puros (MeshGradient, Particle, GridPattern, Aurora)
+  - Creado glass-card.tsx: GlassCard con 4 variantes (light/dark/emerald/gold), hover y glow
+  - Creado section-divider.tsx: 4 divisores SVG (Wave, Curve, Triangle, Dots)
+  - Actualizado globals.css con ~140 líneas: mesh-gradient-animated, glass-emerald, glass-gold, text-gradient-animated, card-3d, shimmer-border, noise-overlay
+  - Integrado en landing (MeshGradientBackground, GlassCard, WaveDivider, ParticleBackground, text-gradient-animated)
+  - Integrado en dashboard (AuroraBackground en welcome banner, GlassCard en stat cards, botón búsqueda)
+
+- QA con agent-browser verificado:
+  * Landing: enlace "Blog" en navegación ✓
+  * Blog Page: "Blog y Recursos" con búsqueda, 3 artículos destacados, filtros por categoría ✓
+  * Búsqueda Global: abre con tecla "/", muestra "Búsqueda global" con combobox ✓
+  * Sin errores de consola ✓
+  * ESLint: 0 errores ✓
+  * TypeScript: 0 errores ✓
+
+Stage Summary:
+- 2 nuevas funciones principales: Blog/Recursos (12 artículos), Búsqueda Global (6 categorías)
+- Mejoras visuales: 4 fondos animados, GlassCard, 4 divisores SVG, 140 líneas CSS nuevas
+- 2 nuevos ViewTypes: blog, blog-post
+- Store extendido con selectedBlogPost
+- Todas las funciones verificadas con agent-browser
+
+Current Project Status:
+- 25+ componentes totales
+- 14 ViewTypes en el router SPA
+- PWA installable con offline support
+- Accesibilidad WCAG mejorada
+- Blog con 12 artículos completos
+- Búsqueda global integrada
+- Mejoras visuales: glassmorphism, mesh gradients, animated backgrounds
+- Sin errores de lint ni TypeScript
+
+Unresolved Issues:
+- Servidor dev inestable en sandbox - problema del entorno
+- Recomendaciones próximas fase:
+  1. Integrar pago real con Stripe/PayPal
+  2. Añadir persistencia con Prisma/SQLite
+  3. Implementar chat en vivo con WebSocket
+  4. Multi-idioma (inglés/portugués)
+  5. Testing E2E con Playwright
+  6. Optimización SEO (sitemap, robots.txt, structured data)
+  7. Más plantillas de tarjeta (10+ diseños)
+  8. API de WhatsApp Business real

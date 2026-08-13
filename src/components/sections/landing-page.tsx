@@ -16,6 +16,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import { GlassCard } from '@/components/visual/glass-card';
+import {
+  MeshGradientBackground,
+  ParticleBackground,
+} from '@/components/visual/improved-backgrounds';
+import { WaveDivider, DotsDivider } from '@/components/visual/section-divider';
 import {
   QrCode,
   Briefcase,
@@ -327,6 +333,16 @@ function SiteHeader() {
               {link.label}
             </button>
           ))}
+          <button
+            onClick={() => {
+              navigate('blog');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800"
+          >
+            <FileText className="size-4 text-amber-500" />
+            Blog
+          </button>
         </nav>
 
         <div className="hidden items-center gap-1.5 md:flex">
@@ -380,6 +396,17 @@ function SiteHeader() {
                 {link.label}
               </button>
             ))}
+            <button
+              onClick={() => {
+                setOpen(false);
+                navigate('blog');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="flex min-h-[48px] items-center gap-2 rounded-md px-3 py-3 text-left text-sm font-medium text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+            >
+              <FileText className="size-4 text-amber-500" />
+              Blog y Recursos
+            </button>
             <div className="mt-2 flex flex-col gap-2">
               <Button
                 variant="outline"
@@ -426,6 +453,9 @@ function Hero() {
       id="inicio"
       className="relative overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-800 text-white"
     >
+      {/* Animated mesh gradient overlay — Task 9-b */}
+      <MeshGradientBackground className="opacity-30 mix-blend-overlay" />
+
       {/* Animated gradient overlay */}
       <div className="pointer-events-none absolute inset-0 animate-gradient bg-gradient-to-br from-emerald-600 via-emerald-700 to-amber-600/40 opacity-30" />
 
@@ -724,7 +754,8 @@ function Features() {
             24 funciones incluidas
           </Badge>
           <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            Todo lo que necesitas para destacar
+            Todo lo que necesitas para{' '}
+            <span className="text-gradient-animated">destacar</span>
           </h2>
           <p className="mt-4 text-lg text-slate-600">
             Una plataforma completa para profesionales, negocios y emprendedores
@@ -735,15 +766,20 @@ function Features() {
         <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 stagger-children">
           {FEATURES.map((feature, idx) => (
             <motion.div key={feature.title} {...fadeUpProps(idx * 0.08)}>
-              <Card className="card-hover card-lift group relative h-full overflow-hidden border-slate-200/70 hover:border-emerald-200">
+              <GlassCard
+                variant="light"
+                hover
+                glow
+                className="group relative h-full overflow-hidden p-6"
+              >
                 {/* Glow accent */}
                 <div
                   className={cn(
-                    'pointer-events-none absolute -right-12 -top-12 size-32 rounded-full bg-gradient-to-br opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-20',
+                    'pointer-events-none absolute -right-12 -top-12 size-32 rounded-full bg-gradient-to-br opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-30',
                     feature.accent,
                   )}
                 />
-                <CardContent className="relative flex h-full flex-col gap-4">
+                <div className="relative flex h-full flex-col gap-4">
                   <div className="flex items-center justify-between">
                     <div
                       className={cn(
@@ -765,8 +801,8 @@ function Features() {
                       {feature.description}
                     </p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </GlassCard>
             </motion.div>
           ))}
         </div>
@@ -789,14 +825,19 @@ function Features() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.05, duration: 0.4 }}
                   >
-                    <Card className="card-hover card-lift group relative h-full overflow-hidden border-slate-200/70 hover:border-emerald-200">
+                    <GlassCard
+                      variant="light"
+                      hover
+                      glow
+                      className="group relative h-full overflow-hidden p-6"
+                    >
                       <div
                         className={cn(
-                          'pointer-events-none absolute -right-12 -top-12 size-32 rounded-full bg-gradient-to-br opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-20',
+                          'pointer-events-none absolute -right-12 -top-12 size-32 rounded-full bg-gradient-to-br opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-30',
                           feature.accent,
                         )}
                       />
-                      <CardContent className="relative flex h-full flex-col gap-4">
+                      <div className="relative flex h-full flex-col gap-4">
                         <div className="flex items-center justify-between">
                           <div
                             className={cn(
@@ -818,8 +859,8 @@ function Features() {
                             {feature.description}
                           </p>
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </GlassCard>
                   </motion.div>
                 ))}
               </div>
@@ -872,7 +913,8 @@ function HowItWorks() {
             Súper fácil
           </Badge>
           <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-            Empieza en 3 simples pasos
+            Empieza en{' '}
+            <span className="text-gradient-animated">3 simples pasos</span>
           </h2>
           <p className="mt-4 text-lg text-slate-600">
             No necesitas experiencia técnica. En minutos tendrás tu tarjeta
@@ -908,6 +950,8 @@ function HowItWorks() {
           </div>
         </div>
       </div>
+      {/* Wave divider — transición suave hacia la sección Stats */}
+      <WaveDivider fillTop="#047857" />
     </section>
   );
 }
@@ -919,6 +963,8 @@ function HowItWorks() {
 function Stats() {
   return (
     <section className="relative overflow-hidden bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-700 py-16 text-white">
+      {/* Floating particles — Task 9-b */}
+      <ParticleBackground className="opacity-70" />
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -left-20 top-0 size-72 rounded-full bg-amber-400/15 blur-3xl" />
         <div className="absolute -right-20 bottom-0 size-72 rounded-full bg-teal-300/15 blur-3xl" />
@@ -941,6 +987,8 @@ function Stats() {
           ))}
         </div>
       </div>
+      {/* Wave divider — transición hacia la sección de Comparativa */}
+      <WaveDivider fillTop="#f8fafc" />
     </section>
   );
 }
@@ -1197,6 +1245,8 @@ function PricingPreview() {
           </Button>
         </motion.div>
       </div>
+      {/* Dots divider — separación visual hacia Testimonios */}
+      <DotsDivider />
     </section>
   );
 }
@@ -1482,6 +1532,7 @@ function SiteFooter() {
                 { label: 'Características', action: () => document.getElementById('caracteristicas')?.scrollIntoView({ behavior: 'smooth' }) },
                 { label: 'Planes', action: () => navigate('pricing') },
                 { label: 'Plantillas', action: () => navigate('template-gallery') },
+                { label: 'Blog y Recursos', action: () => { navigate('blog'); window.scrollTo({ top: 0, behavior: 'smooth' }); } },
                 { label: 'Iniciar Sesión', action: () => navigate('login') },
               ].map(item => (
                 <li key={item.label}>

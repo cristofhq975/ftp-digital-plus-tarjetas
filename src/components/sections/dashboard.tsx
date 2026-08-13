@@ -46,6 +46,8 @@ import { OnboardingWizard } from '@/components/onboarding-wizard';
 import { ShareModal } from '@/components/share-modal';
 import { CountUp } from '@/components/animations/count-up';
 import { FavoritesWidget } from '@/components/sections/favorites';
+import { GlassCard } from '@/components/visual/glass-card';
+import { AuroraBackground } from '@/components/visual/improved-backgrounds';
 import { useAppStore, useCurrentUserCards } from '@/lib/store';
 import { PLANS, DASHBOARD_SECTIONS } from '@/lib/plans';
 import { BusinessCard, PlanType, ContactMessage, Appointment } from '@/lib/types';
@@ -161,6 +163,15 @@ export function Dashboard() {
           <span className="text-sm font-bold text-slate-800">FTP Digital Plus</span>
         </div>
         <div className="flex items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Buscar"
+            onClick={() => window.dispatchEvent(new CustomEvent('ftp:open-global-search'))}
+            className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700"
+          >
+            <Search className="h-5 w-5" />
+          </Button>
           <ThemeToggle className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700" />
           <NotificationsPanel />
         </div>
@@ -750,11 +761,10 @@ function TableroSection({
 
   return (
     <div className="space-y-6">
-      {/* Welcome header with animated gradient + daily tip */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-800 p-6 text-white shadow-xl md:p-8 animate-gradient">
-        <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-amber-400/20 blur-3xl" />
-        <div className="absolute -bottom-12 -left-12 h-40 w-40 rounded-full bg-emerald-400/30 blur-2xl" />
-        <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/10 via-transparent to-emerald-300/10" />
+      {/* Welcome header with aurora background + daily tip */}
+      <div className="relative overflow-hidden rounded-2xl p-6 text-white shadow-xl md:p-8">
+        {/* Aurora background — Task 9-b */}
+        <AuroraBackground />
         <div className="relative">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -769,14 +779,14 @@ function TableroSection({
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => window.dispatchEvent(new CustomEvent('ftp:open-command-palette'))}
+                onClick={() => window.dispatchEvent(new CustomEvent('ftp:open-global-search'))}
                 className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-medium text-emerald-50 backdrop-blur transition hover:bg-white/25"
-                aria-label="Abrir paleta de comandos"
+                aria-label="Abrir búsqueda global"
               >
                 <Search className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Buscar…</span>
                 <kbd className="rounded border border-white/30 bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-emerald-50">
-                  ⌘K
+                  /
                 </kbd>
               </button>
               <button
@@ -836,7 +846,7 @@ function TableroSection({
         </div>
       </div>
 
-      {/* Stats cards with sparklines */}
+      {/* Stats cards with sparklines — glassmorphism (Task 9-b) */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map((stat, i) => (
           <motion.div
@@ -845,27 +855,29 @@ function TableroSection({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.07 }}
           >
-            <Card className="overflow-hidden border-slate-200/60 shadow-sm transition-all hover:shadow-md">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                  <div className={cn('flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md', stat.gradient)}>
-                    <stat.icon className="h-5 w-5" />
-                  </div>
-                  {i === 0 && !canCreateMore && (
-                    <Badge variant="secondary" className="bg-amber-100 text-amber-700">Máx</Badge>
-                  )}
+            <GlassCard
+              variant="light"
+              hover
+              className="h-full overflow-hidden p-5"
+            >
+              <div className="flex items-start justify-between">
+                <div className={cn('flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md', stat.gradient)}>
+                  <stat.icon className="h-5 w-5" />
                 </div>
-                <p className="mt-4 text-3xl font-bold text-slate-800">
-                  <CountUp value={stat.value} duration={1200} />
-                </p>
-                <p className="text-sm font-medium text-slate-600">{stat.label}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{stat.sub}</p>
-                {/* Sparkline mini chart */}
-                <div className="mt-3 -mb-1">
-                  <Sparkline data={stat.spark} color={stat.sparkColor} />
-                </div>
-              </CardContent>
-            </Card>
+                {i === 0 && !canCreateMore && (
+                  <Badge variant="secondary" className="bg-amber-100 text-amber-700">Máx</Badge>
+                )}
+              </div>
+              <p className="mt-4 text-3xl font-bold text-slate-800">
+                <CountUp value={stat.value} duration={1200} />
+              </p>
+              <p className="text-sm font-medium text-slate-600">{stat.label}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{stat.sub}</p>
+              {/* Sparkline mini chart */}
+              <div className="mt-3 -mb-1">
+                <Sparkline data={stat.spark} color={stat.sparkColor} />
+              </div>
+            </GlassCard>
           </motion.div>
         ))}
       </div>

@@ -16,6 +16,8 @@ import { HelpCenter } from '@/components/sections/help-center';
 import { SupportPage } from '@/components/sections/support-page';
 import { TermsPage, PrivacyPage, RefundsPage } from '@/components/sections/legal-pages';
 import { ProfilePage } from '@/components/sections/profile-page';
+import { BlogPage } from '@/components/sections/blog-page';
+import { BlogPostPage } from '@/components/sections/blog-post-page';
 
 function CurrentView() {
   const currentView = useAppStore(s => s.currentView);
@@ -61,6 +63,10 @@ function CurrentView() {
       return <RefundsPage />;
     case 'profile':
       return <ProfilePage />;
+    case 'blog':
+      return <BlogPage />;
+    case 'blog-post':
+      return <BlogPostPage />;
     default:
       return <LandingPage />;
   }
