@@ -15,6 +15,7 @@ import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { OfflineIndicator } from "@/components/pwa/offline-indicator";
 import { FeedbackBanner } from "@/components/feedback/feedback-banner";
 import { FabMenu } from "@/components/fab-menu";
+import { KeyboardShortcutsOverlay } from "@/components/keyboard-shortcuts-overlay";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -104,6 +105,8 @@ export default function RootLayout({
           <FeedbackBanner />
           {/* FAB global — solo se muestra cuando hay sesión activa (Task 13-a) */}
           <FabMenu />
+          {/* Overlay de atajos de teclado — disponible en toda la app (Task 14-a) */}
+          <KeyboardShortcutsOverlay />
         </ThemeProvider>
       </body>
     </html>

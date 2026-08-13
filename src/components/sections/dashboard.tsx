@@ -68,6 +68,7 @@ import { ActivityWidget } from '@/components/activity-widget';
 import { AgendaWidget } from '@/components/agenda-widget';
 import { MessagesPreviewWidget } from '@/components/messages-preview';
 import { FabMenu } from '@/components/fab-menu';
+import { KeyboardShortcutsButton } from '@/components/keyboard-shortcuts-overlay';
 
 type SectionId =
   | 'tablero' | 'messages' | 'appointments' | 'orders'
@@ -154,6 +155,12 @@ export function Dashboard() {
     if (id === 'help' as any) {
       navigate('help');
       setMobileOpen(false);
+      return;
+    }
+    if (id === 'integrations' as any) {
+      navigate('integrations');
+      setMobileOpen(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     setActiveSection(id);
@@ -389,10 +396,13 @@ function SidebarContent({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Logo + theme toggle */}
+      {/* Logo + theme toggle + shortcuts */}
       <div className="flex items-center justify-between border-b px-5 py-4">
         <FTPLogo className="h-9 w-auto" />
-        <ThemeToggle className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700" />
+        <div className="flex items-center gap-1">
+          <KeyboardShortcutsButton className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700" />
+          <ThemeToggle className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700" />
+        </div>
       </div>
 
       {/* User info + plan progress ring */}

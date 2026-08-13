@@ -2973,3 +2973,308 @@ Unresolved Issues:
   5. Testing E2E con Playwright
   6. Optimización SEO (sitemap, robots.txt, structured data)
   7. API de WhatsApp Business real
+
+---
+Task ID: 14-a
+Agent: Subagent (Z.ai Code)
+Task: Keyboard Shortcuts Overlay + Integrations Page (Task 14-a)
+
+Work Log:
+- Leído worklog.md, types.ts, plans.ts, page.tsx, layout.tsx, dynamic-icon.tsx, dashboard.tsx (estructura handleNavigate + sidebar), themes-page.tsx (patrón de full-page con header sticky + footer), dialog.tsx (verificado `showCloseButton` prop).
+- Actualizado `src/lib/types.ts`: añadido `'integrations'` a `ViewType`.
+- Actualizado `src/lib/plans.ts`: añadido `{ id: 'integrations', name: 'Integraciones', icon: 'Plug', description: 'Conecta tus herramientas' }` a DASHBOARD_SECTIONS.
+- Actualizado `src/components/dynamic-icon.tsx`: añadidos `Plug` y `Keyboard` a imports y al mapa ICONS.
+- Creado `src/components/keyboard-shortcuts-overlay.tsx`:
+  - `KeyboardShortcutsOverlay` (controlled/uncontrolled) con listener global para tecla `?` y custom event `ftp:open-keyboard-shortcuts`.
+  - 5 categorías (Navegación, Acciones, Editor, Vista, Tour) con 25 atajos en total.
+  - Componentes `Kbd` y `KeyIcon` con estilizado tipo tecla mecánica (gradiente + sombra).
+  - Búsqueda en español/inglés con autofocus, tabs de categoría, badge de resultados.
+  - Footer CTA "¿Necesitas más ayuda?" → navigate('help').
+  - Cerrar con ESC, botón X o clic fuera.
+  - `KeyboardShortcutsButton` (botón visible `?`) que dispatcha el custom event.
+  - Exportado `OPEN_KEYBOARD_SHORTCUTS_EVENT` constante.
+  - Limpieza de state al cerrar vía wrapper `handleSetOpen` (cumple regla `react-hooks/set-state-in-effect`).
+- Creado `src/lib/integrations-data.ts`:
+  - Interfaz `Integration` (id, name, description, category, icon, color, status, features, setupSteps, docsUrl, popular).
+  - 12 integraciones: WhatsApp Business, Stripe, PayPal, Google Calendar, Google Analytics, Meta Pixel, Instagram, Mailchimp (coming_soon), Zapier (coming_soon), Slack (coming_soon), Mercado Pago, Hotjar (premium).
+  - 4 marcadas como populares.
+  - `INTEGRATION_CATEGORIES` con 8 tabs (Todas + 7 categorías).
+- Creado `src/components/sections/integrations-page.tsx`:
+  - Hero con gradiente esmeralda→ámbar + 3 stats inline (disponibles/próximamente/premium).
+  - Tabs por categoría (8) + búsqueda por nombre con X para limpiar.
+  - Grid responsive 1/2/3 columnas de IntegrationCard:
+    - IntegrationIcon con gradient del color de marca.
+    - Badge de categoría (color tailwind por tipo: pago=emerald, comunicacion=cyan, calendario=amber, analytics=violet, social=rose, productividad=amber, marketing=emerald).
+    - Badge "Popular" si aplica (ámbar con Sparkles).
+    - StatusBadge con icono (Check/Clock/Crown) y colores específicos por estado.
+    - Lista de features (4 máx) con checks.
+    - Botón Conectar (deshabilitado si no disponible) + Documentación (abre docsUrl en nueva pestaña).
+  - SetupDialog con header colorido (gradient del color de marca), grid de features, lista numerada animada de pasos (stagger), nota de seguridad ShieldCheck, footer con Cancelar/Conectar.
+  - CTA final "Solicitar integración" con toast + navigate('support').
+  - Header sticky con back to dashboard + ThemeToggle + botón Atajos.
+  - Footer sticky con links legales.
+- Actualizado `src/app/page.tsx`: añadido `case 'integrations' → <IntegrationsPage />` e import.
+- Actualizado `src/app/layout.tsx`: añadido `<KeyboardShortcutsOverlay />` al root (después de FabMenu), disponible en toda la app.
+- Actualizado `src/components/sections/dashboard.tsx`:
+  - Importado `KeyboardShortcutsButton`.
+  - handleNavigate: añadido branch para `id === 'integrations'` (navigate + scroll top + close mobile).
+  - Sidebar header: añadido `<KeyboardShortcutsButton />` junto a ThemeToggle.
+- Lint: `bun run lint` → 0 errores, 0 warnings.
+- Dev server: compila limpio (sin warnings de Turbopack).
+
+Stage Summary:
+- Overlay de atajos de teclado (kbd estilizado, búsqueda, categorías) funcional en toda la app (montado en layout root) + botón visible `?` en el sidebar del dashboard.
+- Página de Integraciones completa con 12 integraciones, 8 categorías, setup dialog paso a paso, status badges, CTAs y footer sticky.
+- Paleta esmeralda (#059669) + oro (#f59e0b) respetada en todo. Sin azul/índigo (colores de marca puntuales para íconos de integraciones son colores reales de las marcas, no de la UI de FTP).
+- 100% español. Responsive mobile-first.
+- Ready para que el usuario navegue a `/integrations` desde el sidebar del dashboard o desde el switch SPA.
+
+---
+Task ID: 14-b
+Agent: Subagent (Card Preview & Landing Polish — Z.ai Code)
+Task: Pulir las 5 plantillas nuevas de CardPreview (corporativo, creativo, oscuro, vintage, tech) y enriquecer la landing page (Hero rotativo, Features con hover expandible, Interactive Demo, Pricing con toggle mensual/anual + FAQ, Stats con iconos)
+
+Work Log:
+- Leído `/home/z/my-project/worklog.md` (Tasks 1, 3-a, 3-b, 3-c, 3-d, 5-a, 6-c, 8-b, 9-a, 9-b, 10, 11-a, 11-b, 12-a, 12-b, 13-a, 13-b) para entender el contexto. Revisados `src/components/card-preview.tsx` (1109 líneas con 5 templates premium), `src/components/sections/landing-page.tsx` (1908 líneas), `src/app/globals.css` (789 líneas) y `src/lib/types.ts` (BusinessCard).
+- Verificadas APIs disponibles: `useAppStore` (currentUser, navigate, cards, setSelectedPlanForCheckout), `PLANS`/`PLAN_ORDER`/`TEMPLATES`/`COLOR_PRESETS` desde `@/lib/plans`, `CardPreview` desde `@/components/card-preview`, `AnimatedCounter`, `GradientText`, `GlassCard`, `WaveDivider`, `DotsDivider`, `MeshGradientBackground`, `ParticleBackground`, `Marquee`, `Typewriter`, `cn()`.
+
+### 1. Mejoras a `src/components/card-preview.tsx`
+
+**Imports añadidos:** `Download`, `Terminal`, `ScanLine` desde lucide-react.
+
+**a) CorporativoCard mejorado:**
+- Añadida clase `brand-bar-top` con franja superior gradiente esmeralda→oro→esmeralda usando variable CSS `--brand-color`.
+- Sidebar con gradiente vertical navy (`#0f1e3d` → `#1c2950`).
+- Sección de horario compacta con tabla Lun-Vie en formato `09:00–18:00`.
+- Botón formal "Descargar PDF" con clase `.btn-pdf-formal` (invert hover) que dispara `window.print()`.
+- Header con etiqueta "Tarjeta profesional · Est. 2024".
+- Cards de servicios/productos/equipo con hover lift y shadow.
+
+**b) CreativoCard mejorado:**
+- 3 blobs animados con `.template-creativo-blob` (border-radius morphing) y delays escalonados (2s, 4s).
+- 6 elementos decorativos flotantes (Sparkles + dots + diamonds) con `.float-decor` y delays 0.5s–3s.
+- Gradiente de 3 paradas (primary → secondary → tertiary `#fbbf24`).
+- Fuente Poppins con font-black.
+- Foto perfil con forma orgánica asimétrica `rounded-[30%_70%_70%_30%/30%_30%_70%_70%]` y rotate-6.
+- Servicios con alternating organic shapes (cada uno distinto border-radius).
+- Productos floating con -rotate-2/rotate-2 alternados.
+
+**c) OscuroCard mejorado:**
+- Clase `grid-overlay-dark` para patrón de malla sutil.
+- 3 blobs aurora (esmeralda + ámbar + esmeralda secundario) con `glow-emerald-soft`.
+- Fila de 3 stats glass-dark (Visitas, QR, Estado) con iconos Eye/QrIcon/Shield.
+- Secciones en `glass-dark-strong` (backdrop-blur 16px, bg-white/8%, border-white/14%).
+- Horario en grid 3 cols dentro de glass card.
+- Nuevo componente `QrBlockDark` — QR invertido (puntos blancos sobre fondo `#0f172a`).
+
+**d) VintageCard mejorado:**
+- Clase `ornamental-corner` con flourish decorativo en esquinas (top-left/bottom-right).
+- Doble borde ornamental (inset-3 border-double + inset-5 border).
+- Header "Establecido 2024" con ornamentos ✦.
+- Perfil 28x28 con `border-4 border-double` y sepia filter (0.4 + contrast 0.95).
+- Dividers `.vintage-divider` con Diamond entre secciones.
+- Servicios con foto mini circular sepia (h-14 w-14).
+- Horario estilo "Atención" con días en cursiva y separadores decorativos.
+- QR con marco doble ornamental.
+- Footer "Est. MMXXIV" (año romano).
+
+**e) TechCard mejorado:**
+- Clase `scanline-overlay` (efecto scanline animado a 8s) + `grid-animated` (malla 30px animada 20s).
+- Background más oscuro `#020617`.
+- Header tipo terminal con `> [card-linkName] $` y dots rojo/ámbar/esmeralda.
+- Blobs neon (esmeralda + cyan) con blur 3xl.
+- Avatar con `neon-border neon-glow` (box-shadow doble + inset).
+- Productos array estilo código `[00, nombre, $precio]` con hover border.
+- Nuevo `QrBlockTech` — QR con `neon-glow-strong` y boxShadow custom (`0 0 12px neon, 0 0 24px cyan`).
+- Horario estilo `crontab -l` (mon-fri/sat/sun).
+- Botones con `neon-border neon-glow` y hover scale-105.
+
+### 2. Mejoras a `src/components/sections/landing-page.tsx`
+
+**Imports añadidos:** `useMemo`, `COLOR_PRESETS`, `BusinessCard`, `CardPreview`, e iconos `Eye`, `Layers`, `Palette`, `Play`, `HelpCircle`, `Plus`, `Minus`.
+
+**a) Hero — RotatingCardPreview:**
+- `buildMockCard(overrides)` factory completa con schedule, servicios, productos, testimonios, social links, activeSections para que todas las plantillas se vean completas.
+- `HERO_ROTATING_TEMPLATES` con las 10 plantillas (moderno, clásico, minimalista, elegante, dinámica, corporativo, creativo, oscuro, vintage, tech) y su paleta de colores.
+- `FloatingCardPreview` ahora rota plantilla cada 3s con `setInterval`.
+- Pausa en hover (`onMouseEnter/Leave`).
+- Badge "Demo en vivo" con ping animado verde.
+- Transición entre plantillas con `AnimatePresence mode="wait"` + rotateY 90°/0°/-90° (efecto flip 3D).
+- Dots indicadores clickeables para navegar manualmente.
+- Label dinámico "Plantilla: [Nombre]" en esmeralda.
+
+**b) Features — expand + gradient border:**
+- Clases `feature-card-expand` (translateY + scale + shadow) y `gradient-border-hover` (border gradiente animado en hover) en ambos grupos (FEATURES y ADDITIONAL_FEATURES).
+- Link "Saber más →" que aparece con `opacity-0 → group-hover:opacity-100`.
+
+**c) InteractiveDemo (NUEVA SECCIÓN):**
+- Insertada entre CasesPreview y PricingPreview.
+- Layout `lg:grid-cols-[1fr_minmax(380px,460px)]` con controles a la izquierda y preview a la derecha (sticky top-24).
+- 5 toggles de plantilla (moderno, corporativo, creativo, oscuro, vintage) con `.template-toggle-btn` y `data-active`.
+- 6 swatches circulares de paletas (`DEMO_COLOR_SWATCHES = COLOR_PRESETS.slice(0, 6)`) con `.color-swatch` y `data-active`.
+- Nombre de paleta + descripción del gradiente debajo.
+- Stats rápidas (10 plantillas, 20 paletas, 24+ funciones).
+- CTA "Crea la tuya" → navigate('login').
+- Live preview con `CardPreview` + AnimatePresence fade-up entre cambios.
+
+**d) PricingPreview mejorado:**
+- Toggle Mensual/Anual con slider animado (`left-1 right-1/2` ↔ `left-1/2 right-1`).
+- Badge "−20%" con `.savings-badge` (pulse animation 2s).
+- `computePrice()` calcula anual = `precio * 12 * 0.8`.
+- Label "MXN / año" cuando es anual.
+- Mensaje "Ahorras $X MXN al año" en planes pagos.
+- Badge "más popular" con `.popular-badge` (bounce-rotate 3s).
+- FAQ snippet con 3 preguntas expandibles (Plus/Minus icons) y `AnimatePresence` para animación de altura.
+
+**e) Stats mejorado:**
+- Cada stat ahora tiene icono (LayoutTemplate, QrCode, Zap, Shield) en chip glassmorphism `bg-white/10 backdrop-blur ring-1 ring-white/15`.
+- 4 stats con accent color diferenciado (emerald-200, amber-200, emerald-100, amber-100).
+
+### 3. `src/app/globals.css` — APPEND
+
+Añadidos ~250 líneas de CSS nuevo:
+- `.template-creativo-blob` + `@keyframes blob-morph` (border-radius morph 8s).
+- `.float-decor` + `@keyframes float-decor` (translate + rotate 6s).
+- `.scanline-overlay::after` + `@keyframes scanline` (gradiente 4px animado 8s).
+- `.neon-glow` y `.neon-glow-strong` (multi-layer box-shadow con currentColor).
+- `.ornamental-border` con pseudo-elementos ✦ top/bottom.
+- `.ornamental-corner` con flourishes L-shape en esquinas.
+- `.vintage-divider` con líneas gradiente horizontal.
+- `.glass-dark` y `.glass-dark-strong` (backdrop-blur 12/16px).
+- `.grid-animated` + `@keyframes grid-move` (malla 30px animada 20s).
+- `.grid-overlay-dark` (malla 24px estática sutil).
+- `.glow-emerald-soft` (box-shadow halo esmeralda).
+- `.brand-bar-top::before` (barra gradiente 4px superior con `--brand-color`).
+- `.btn-pdf-formal` con hover invert filter.
+- `.feature-card-expand` y `.gradient-border-hover` (transform + border mask).
+- `.popular-badge` + `@keyframes popular-bounce` (translateY + rotate 3s).
+- `.savings-badge` + `@keyframes savings-pulse` (ring expand 2s).
+- `.template-toggle-btn[data-active]` y `.color-swatch[data-active]::after`.
+- `.badge-float-in` + `@keyframes badge-float-in`.
+- `.qr-container-compact` (con variante `.inverted`).
+- `.hover-lift` utility.
+- `@keyframes rotate-templates` (definido para futuras iteraciones).
+
+### Quality Checks
+- `bun run lint` → 0 errores, 0 warnings. (1 error preexistente en `keyboard-shortcuts-overlay.tsx:205` — fuera de scope).
+- `npx tsc --noEmit` → 0 errores en `src/` (errores solo en `examples/` y `skills/` preexistentes y no relacionados).
+- Dev server: compila limpio, HTTP 200 en `/` (verificado con `bun run dev` + curl).
+
+Stage Summary:
+- 5 plantillas premium de CardPreview pulidas con más detalle visual (sidebar formal + PDF, blobs animados + orgánicas, glassmorphism + QR invertido, ornamentos vintage + Est. 2024, terminal/scanline/neon + grid animado).
+- Landing page enriquecida con: Hero rotativo de 10 plantillas (3s, pausa en hover, navegación manual), Features con hover expand + gradient borders, NUEVA sección InteractiveDemo (5 toggles + 6 paletas + live preview), Pricing con toggle mensual/anual + savings badge + popular animado + FAQ snippet, Stats con iconos glassmorphism.
+- ~250 líneas de CSS nuevo en globals.css con animaciones y utilidades reutilizables.
+- Paleta 100% esmeralda (#059669) + oro (#f59e0b) en UI chrome; los colores template-specific viven solo dentro de los previews.
+- 100% español (México) en labels, descripciones, toasts, aria-labels.
+- Responsive: mobile-first, grids colapsables, InteractiveDemo apila controles abajo del preview en móvil.
+- Accesibilidad: aria-pressed en toggles, aria-label en swatches, keyboard focus rings heredados.
+- Sin errores de lint ni TypeScript en src/.
+
+
+---
+Task ID: 14 (Cron Review - Ronda 10)
+Agent: Main (Z.ai Code)
+Task: QA, Overlay de Atajos de Teclado, Página de Integraciones, Pulido de CardPreview, Mejoras de Landing
+
+Work Log:
+- Revisado worklog.md: proyecto muy maduro con 45+ componentes, agenda widget, FAB, analytics modal
+- QA con agent-browser: landing, login, dashboard, editor verificados sin errores
+- ESLint: 0 errores, TypeScript: 0 errores
+- Despachados 2 subagentes en paralelo:
+
+  Task 14-a (Keyboard Shortcuts + Integrations):
+  - Creado keyboard-shortcuts-overlay.tsx: overlay con 25 atajos en 5 categorías
+    * Tecla ? para abrir, ESC para cerrar
+    * Custom event ftp:open-keyboard-shortcuts
+    * Kbd styling tipo tecla mecánica (gradiente + sombra + íconos SVG)
+    * Buscador con autofocus, tabs por categoría
+    * Footer CTA "¿Necesitas más ayuda?" → navigate('help')
+  - Creado KeyboardShortcutsButton: botón ? visible en sidebar
+  - Creado integrations-data.ts: 12 integraciones con iconos, colores, features, setup steps
+    * WhatsApp Business, Stripe, PayPal, Google Calendar, Google Analytics
+    * Meta Pixel, Instagram, Mailchimp, Zapier, Slack, Mercado Pago, Hotjar
+    * 4 populares, 8 available, 3 coming_soon, 1 premium
+  - Creado integrations-page.tsx: marketplace de integraciones
+    * Hero gradiente, tabs por categoría (8), búsqueda
+    * Grid responsivo con IntegrationCard (icon, status, features, conectar)
+    * SetupDialog con header colorido, features grid, setup steps
+    * CTA "Solicitar integración" → navigate('support')
+  - ViewType 'integrations' añadido
+  - DASHBOARD_SECTIONS actualizado con Integraciones
+  - Plug y Keyboard icons añadidos a DynamicIcon
+  - Integrado en layout.tsx (overlay global), dashboard (navegación + botón ?)
+
+  Task 14-b (CardPreview Polish + Landing Improvements):
+  - Pulidas 5 plantillas de CardPreview con más detalle:
+    * Corporativo: barra superior gradiente + sidebar navy + horario compacto + botón PDF formal
+    * Creativo: 3 blobs animados con morphing + 6 elementos flotantes + gradiente 3 paradas + foto orgánica
+    * Oscuro: grid overlay + 3 auroras glow + 3 stats glass-dark + QR invertido (QrBlockDark)
+    * Vintage: ornamentos en esquinas + doble borde ornamental + "Est. 2024" + sepia filter + dividers Diamond
+    * Tech: scanline-overlay + grid-animated + header terminal + avatar neon-border + QR neon glow + horario crontab
+  - Mejoras de landing-page.tsx:
+    * Hero: FloatingCardPreview rotativo (cicla 10 plantillas cada 3s, pausa hover, dots clickeables)
+    * Features: feature-card-expand + gradient-border-hover + link "Saber más →"
+    * Nueva sección InteractiveDemo (5 toggles plantilla + 6 swatches paletas + preview live)
+    * PricingPreview: toggle Mensual/Anual + savings badge + FAQ snippet
+    * Stats: iconos en chip glassmorphism
+  - Actualizado globals.css con ~250 líneas: template-creativo-blob, scanline-overlay, neon-glow, ornamental-border, glass-dark, grid-animated, feature-card-expand, gradient-border-hover, popular-badge, savings-badge
+
+- QA con agent-browser verificado:
+  * Integrations Page: "Integraciones" con 8 categorías ✓
+  * Botón "? Atajos" visible ✓
+  * Sin errores de consola ✓
+  * ESLint: 0 errores ✓
+  * TypeScript: 0 errores ✓
+
+Stage Summary:
+- 2 nuevas funciones principales: Overlay de Atajos de Teclado (25 shortcuts), Página de Integraciones (12 integraciones)
+- 5 plantillas de CardPreview pulidas con detalles visuales avanzados
+- Landing page mejorada: hero rotativo, demo interactivo, toggle mensual/anual
+- 250 líneas CSS nuevas para plantillas y componentes
+- 1 nuevo ViewType: integrations
+- Todas las funciones verificadas con agent-browser
+
+Current Project Status:
+- 50+ componentes totales
+- 20 ViewTypes en el router SPA
+- 10 plantillas de tarjeta pulidas + 20 paletas de color
+- 12 integraciones disponibles
+- 25 atajos de teclado
+- PWA installable con offline support
+- Accesibilidad WCAG mejorada
+- Blog con 12 artículos
+- Búsqueda global integrada
+- Comparador de tarjetas con gráficas
+- Activity widget + Agenda widget en tiempo real
+- Centro de notificaciones completo
+- 8 casos de éxito con resultados
+- Tour interactivo (8 pasos)
+- Command palette (Cmd+K)
+- Checkout con pago mock
+- Share modal con QR + redes
+- Página de perfil con 6 tabs
+- Centro de ayuda + sistema de tickets
+- Páginas legales
+- Página de temas/paletas
+- Modo kiosko
+- Export: JSON, CSV, vCard, PDF, PNG + Import
+- Onboarding checklist
+- FAB menu expandible
+- Card analytics modal con 4 gráficas
+- Quick stats bar
+- Card health indicator (score 0-100)
+- Keyboard shortcuts overlay (25 atajos)
+- Página de integraciones (12 servicios)
+- Landing: hero rotativo + demo interactivo
+- Sin errores de lint ni TypeScript
+
+Unresolved Issues:
+- Servidor dev inestable en sandbox - problema del entorno
+- Recomendaciones próximas fase:
+  1. Integrar pago real con Stripe/PayPal
+  2. Añadir persistencia con Prisma/SQLite
+  3. Implementar chat en vivo con WebSocket
+  4. Multi-idioma (inglés/portugués)
+  5. Testing E2E con Playwright
+  6. Optimización SEO (sitemap, robots.txt, structured data)
+  7. API de WhatsApp Business real

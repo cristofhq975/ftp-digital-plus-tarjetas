@@ -1,0 +1,1110 @@
+     1→     1→'use client';
+     2→     2→
+     3→     3→import { BusinessCard } from '@/lib/types';
+     4→     4→import { PLANS } from '@/lib/plans';
+     5→     5→import { isQrExpired, getQrDaysRemaining, buildWhatsappUrl, formatPhone } from '@/lib/card-utils';
+     6→     6→import { QRCodeCanvas } from 'qrcode.react';
+     7→     7→import {
+     8→     8→  Phone, Mail, Globe, MapPin, Clock, MessageCircle, Instagram,
+     9→     9→  Facebook, Linkedin, Youtube, Twitter, ShoppingBag, Briefcase,
+    10→    10→  Star, Calendar, ExternalLink, Images, FileText, Quote, Users,
+    11→    11→  Shield, Eye, QrCode as QrIcon, Sparkles, Heart, Building2,
+    12→    12→  Cpu, Hash, Zap, Diamond,
+    13→    13→} from 'lucide-react';
+    14→    14→import { cn } from '@/lib/utils';
+    15→    15→
+    16→    16→interface CardPreviewProps {
+    17→    17→  card: BusinessCard;
+    18→    18→  userPlan: string;
+    19→    19→  previewMode?: 'full' | 'compact';
+    20→    20→}
+    21→    21→
+    22→    22→export function CardPreview({ card, userPlan, previewMode = 'full' }: CardPreviewProps) {
+    23→    23→  const plan = PLANS[userPlan as keyof typeof PLANS] || PLANS.gratis;
+    24→    24→  const isFreePlan = plan.id === 'gratis';
+    25→    25→  const qrExpired = plan.qrExpires && card.qrExpiresAt ? isQrExpired(card) : false;
+    26→    26→  const daysLeft = plan.qrExpires && card.qrExpiresAt ? getQrDaysRemaining(card) : 0;
+    27→    27→
+    28→    28→  // WhatsApp URL for QR
+    29→    29→  const whatsappUrl = card.whatsappNumber
+    30→    30→    ? buildWhatsappUrl(card.whatsappNumber, card.whatsappMessage || 'Hola, vi tu tarjeta digital')
+    31→    31→    : '';
+    32→    32→
+    33→    33→  const qrValue = qrExpired
+    34→    34→    ? 'https://ftpdigitalplus.com/qr-expirado'
+    35→    35→    : whatsappUrl || 'https://ftpdigitalplus.com';
+    36→    36→
+    37→    37→  const fontFamilyMap: Record<string, string> = {
+    38→    38→    poppins: "'Poppins', sans-serif",
+    39→    39→    inter: "'Inter', sans-serif",
+    40→    40→    roboto: "'Roboto', sans-serif",
+    41→    41→    montserrat: "'Montserrat', sans-serif",
+    42→    42→    playfair: "'Playfair Display', serif",
+    43→    43→    lora: "'Lora', serif",
+    44→    44→    oswald: "'Oswald', sans-serif",
+    45→    45→    raleway: "'Raleway', sans-serif",
+    46→    46→  };
+    47→    47→
+    48→    48→  const cardStyle: React.CSSProperties = {
+    49→    49→    fontFamily: fontFamilyMap[card.fontFamily] || "'Poppins', sans-serif",
+    50→    50→    fontSize: `${card.fontSize}px`,
+    51→    51→    color: card.textColor,
+    52→    52→  };
+    53→    53→
+    54→    54→  if (isFreePlan) {
+    55→    55→    // Free plan: only show the downloadable image preview
+    56→    56→    return <FreeCardPreview card={card} qrValue={qrValue} qrExpired={qrExpired} daysLeft={daysLeft} cardStyle={cardStyle} />;
+    57→    57→  }
+    58→    58→
+    59→    59→  // Dispatch to template-specific renderers for the 5 new premium templates.
+    60→    60→  // The 5 original templates (moderno, clasico, minimalista, elegante, dinamica)
+    61→    61→  // share a single layout defined below.
+    62→    62→  switch (card.template) {
+    63→    63→    case 'corporativo':
+    64→    64→      return <CorporativoCard card={card} cardStyle={cardStyle} whatsappUrl={whatsappUrl} qrValue={qrValue} />;
+    65→    65→    case 'creativo':
+    66→    66→      return <CreativoCard card={card} cardStyle={cardStyle} whatsappUrl={whatsappUrl} qrValue={qrValue} />;
+    67→    67→    case 'oscuro':
+    68→    68→      return <OscuroCard card={card} cardStyle={cardStyle} whatsappUrl={whatsappUrl} qrValue={qrValue} />;
+    69→    69→    case 'vintage':
+    70→    70→      return <VintageCard card={card} cardStyle={cardStyle} whatsappUrl={whatsappUrl} qrValue={qrValue} />;
+    71→    71→    case 'tech':
+    72→    72→      return <TechCard card={card} cardStyle={cardStyle} whatsappUrl={whatsappUrl} qrValue={qrValue} />;
+    73→    73→  }
+    74→    74→
+    75→    75→  // Paid plans: full web card
+    76→    76→  return (
+    77→    77→    <div
+    78→    78→      className={cn(
+    79→    79→        'w-full overflow-hidden rounded-2xl shadow-2xl',
+    80→    80→        card.template === 'dinamica' && 'animate-[float_4s_ease-in-out_infinite]'
+    81→    81→      )}
+    82→    82→      style={{
+    83→    83→        background: card.backgroundColor,
+    84→    84→        ...cardStyle,
+    85→    85→      }}
+    86→    86→    >
+    87→    87→      {/* Cover Photo */}
+    88→    88→      <div className="relative h-40 w-full overflow-hidden" style={{ background: `linear-gradient(135deg, ${card.primaryColor}, ${card.secondaryColor})` }}>
+    89→    89→        {card.coverPhoto ? (
+    90→    90→          <img src={card.coverPhoto} alt="Portada" className="h-full w-full object-cover" />
+    91→    91→        ) : (
+    92→    92→          <div className="flex h-full items-center justify-center">
+    93→    93→            <Sparkles className="h-12 w-12 text-white/30" />
+    94→    94→          </div>
+    95→    95→        )}
+    96→    96→        {/* Banner */}
+    97→    97→        {card.banner.enabled && card.banner.title && (
+    98→    98→          <div className="absolute top-4 left-4 right-4 rounded-lg bg-white/95 p-3 shadow-lg">
+    99→    99→            <p className="text-sm font-bold" style={{ color: card.primaryColor }}>{card.banner.title}</p>
+   100→   100→            {card.banner.text && <p className="text-xs text-muted-foreground">{card.banner.text}</p>}
+   101→   101→          </div>
+   102→   102→        )}
+   103→   103→      </div>
+   104→   104→
+   105→   105→      {/* Profile Section */}
+   106→   106→      <div className="relative px-6 pb-6">
+   107→   107→        <div className="-mt-12 mb-4 flex justify-center">
+   108→   108→          <div className="h-24 w-24 overflow-hidden rounded-full border-4 shadow-lg" style={{ borderColor: card.backgroundColor }}>
+   109→   109→            {card.profilePhoto ? (
+   110→   110→              <img src={card.profilePhoto} alt={card.cardName} className="h-full w-full object-cover" />
+   111→   111→            ) : (
+   112→   112→              <div className="flex h-full w-full items-center justify-center text-3xl" style={{ background: card.primaryColor, color: '#fff' }}>
+   113→   113→                {card.cardName.charAt(0).toUpperCase()}
+   114→   114→              </div>
+   115→   115→            )}
+   116→   116→          </div>
+   117→   117→        </div>
+   118→   118→
+   119→   119→        <div className="text-center">
+   120→   120→          <h2 className="text-2xl font-bold" style={{ color: card.textColor }}>{card.cardName}</h2>
+   121→   121→          {card.description && (
+   122→   122→            <p className="mt-2 text-sm text-muted-foreground">{card.description}</p>
+   123→   123→          )}
+   124→   124→        </div>
+   125→   125→
+   126→   126→        {/* Quick Actions */}
+   127→   127→        <div className="mt-6 flex flex-wrap justify-center gap-3">
+   128→   128→          {card.whatsappNumber && (
+   129→   129→            <a
+   130→   130→              href={whatsappUrl}
+   131→   131→              target="_blank"
+   132→   132→              rel="noopener noreferrer"
+   133→   133→              className="flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:scale-105"
+   134→   134→              style={{ background: '#25D366' }}
+   135→   135→            >
+   136→   136→              <MessageCircle className="h-4 w-4" /> WhatsApp
+   137→   137→            </a>
+   138→   138→          )}
+   139→   139→          {card.socialLinks.facebook && (
+   140→   140→            <a href={card.socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full shadow-md transition hover:scale-110" style={{ background: '#1877F2', color: '#fff' }}>
+   141→   141→              <Facebook className="h-4 w-4" />
+   142→   142→            </a>
+   143→   143→          )}
+   144→   144→          {card.socialLinks.instagram && (
+   145→   145→            <a href={card.socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full shadow-md transition hover:scale-110" style={{ background: '#E4405F', color: '#fff' }}>
+   146→   146→              <Instagram className="h-4 w-4" />
+   147→   147→            </a>
+   148→   148→          )}
+   149→   149→          {card.socialLinks.linkedin && (
+   150→   150→            <a href={card.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full shadow-md transition hover:scale-110" style={{ background: '#0A66C2', color: '#fff' }}>
+   151→   151→              <Linkedin className="h-4 w-4" />
+   152→   152→            </a>
+   153→   153→          )}
+   154→   154→          {card.socialLinks.youtube && (
+   155→   155→            <a href={card.socialLinks.youtube} target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full shadow-md transition hover:scale-110" style={{ background: '#FF0000', color: '#fff' }}>
+   156→   156→              <Youtube className="h-4 w-4" />
+   157→   157→            </a>
+   158→   158→          )}
+   159→   159→          {card.socialLinks.twitter && (
+   160→   160→            <a href={card.socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="flex h-10 w-10 items-center justify-center rounded-full shadow-md transition hover:scale-110" style={{ background: '#000', color: '#fff' }}>
+   161→   161→              <Twitter className="h-4 w-4" />
+   162→   162→            </a>
+   163→   163→          )}
+   164→   164→        </div>
+   165→   165→      </div>
+   166→   166→
+   167→   167→      {/* Content Sections */}
+   168→   168→      <div className="space-y-6 px-6 pb-8">
+   169→   169→        {/* QR Section */}
+   170→   170→        {card.activeSections.includes('qr') && (
+   171→   171→          <CardSection title="Mi QR" icon={<QrIcon className="h-5 w-5" />} primaryColor={card.primaryColor}>
+   172→   172→            <div className="flex flex-col items-center gap-3">
+   173→   173→              <div className="rounded-xl border-2 p-4" style={{ borderColor: card.primaryColor, background: card.qrBgColor }}>
+   174→   174→                <QRCodeCanvas
+   175→   175→                  value={qrValue}
+   176→   176→                  size={160}
+   177→   177→                  fgColor={card.qrColor}
+   178→   178→                  bgColor={card.qrBgColor}
+   179→   179→                  level="H"
+   180→   180→                  imageSettings={card.qrLogo ? undefined : undefined}
+   181→   181→                />
+   182→   182→              </div>
+   183→   183→              <p className="text-xs text-muted-foreground">Escanea para contactarme</p>
+   184→   184→            </div>
+   185→   185→          </CardSection>
+   186→   186→        )}
+   187→   187→
+   188→   188→        {/* Services */}
+   189→   189→        {card.activeSections.includes('servicios') && card.services.length > 0 && (
+   190→   190→          <CardSection title="Servicios" icon={<Briefcase className="h-5 w-5" />} primaryColor={card.primaryColor}>
+   191→   191→            <div className="grid gap-3 sm:grid-cols-2">
+   192→   192→              {card.services.map(s => (
+   193→   193→                <div key={s.id} className="rounded-lg border p-3" style={{ borderColor: card.primaryColor + '30' }}>
+   194→   194→                  {s.photo && <img src={s.photo} alt={s.name} className="mb-2 h-24 w-full rounded object-cover" />}
+   195→   195→                  <h4 className="font-semibold" style={{ color: card.textColor }}>{s.name}</h4>
+   196→   196→                  {s.description && <p className="text-xs text-muted-foreground">{s.description}</p>}
+   197→   197→                  {s.url && <a href={s.url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs font-medium" style={{ color: card.primaryColor }}>Ver más <ExternalLink className="h-3 w-3" /></a>}
+   198→   198→                </div>
+   199→   199→              ))}
+   200→   200→            </div>
+   201→   201→          </CardSection>
+   202→   202→        )}
+   203→   203→
+   204→   204→        {/* Products */}
+   205→   205→        {card.activeSections.includes('productos') && card.products.length > 0 && (
+   206→   206→          <CardSection title="Productos" icon={<ShoppingBag className="h-5 w-5" />} primaryColor={card.primaryColor}>
+   207→   207→            <div className="grid gap-3 sm:grid-cols-2">
+   208→   208→              {card.products.map(p => (
+   209→   209→                <div key={p.id} className="rounded-lg border p-3" style={{ borderColor: card.primaryColor + '30' }}>
+   210→   210→                  {p.image && <img src={p.image} alt={p.name} className="mb-2 h-24 w-full rounded object-cover" />}
+   211→   211→                  <h4 className="font-semibold" style={{ color: card.textColor }}>{p.name}</h4>
+   212→   212→                  {p.description && <p className="text-xs text-muted-foreground">{p.description}</p>}
+   213→   213→                  <div className="mt-2 flex items-center justify-between">
+   214→   214→                    <span className="font-bold" style={{ color: card.primaryColor }}>
+   215→   215→                      {new Intl.NumberFormat('es-MX', { style: 'currency', currency: p.currency }).format(p.price)}
+   216→   216→                    </span>
+   217→   217→                    {p.url && <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium" style={{ color: card.primaryColor }}>Comprar</a>}
+   218→   218→                  </div>
+   219→   219→                </div>
+   220→   220→              ))}
+   221→   221→            </div>
+   222→   222→          </CardSection>
+   223→   223→        )}
+   224→   224→
+   225→   225→        {/* Gallery */}
+   226→   226→        {card.activeSections.includes('galeria') && card.gallery.length > 0 && (
+   227→   227→          <CardSection title="Galería" icon={<Images className="h-5 w-5" />} primaryColor={card.primaryColor}>
+   228→   228→            <div className="grid grid-cols-3 gap-2">
+   229→   229→              {card.gallery.map(g => (
+   230→   230→                <div key={g.id} className="aspect-square overflow-hidden rounded-lg">
+   231→   231→                  {g.type === 'image' ? (
+   232→   232→                    <img src={g.url} alt={g.caption} className="h-full w-full object-cover" />
+   233→   233→                  ) : (
+   234→   234→                    <video src={g.url} className="h-full w-full object-cover" />
+   235→   235→                  )}
+   236→   236→                </div>
+   237→   237→              ))}
+   238→   238→            </div>
+   239→   239→          </CardSection>
+   240→   240→        )}
+   241→   241→
+   242→   242→        {/* Blog */}
+   243→   243→        {card.activeSections.includes('blog') && card.blog.length > 0 && (
+   244→   244→          <CardSection title="Blog" icon={<FileText className="h-5 w-5" />} primaryColor={card.primaryColor}>
+   245→   245→            <div className="space-y-3">
+   246→   246→              {card.blog.map(b => (
+   247→   247→                <div key={b.id} className="rounded-lg border p-3" style={{ borderColor: card.primaryColor + '30' }}>
+   248→   248→                  {b.image && <img src={b.image} alt={b.title} className="mb-2 h-32 w-full rounded object-cover" />}
+   249→   249→                  <h4 className="font-semibold" style={{ color: card.textColor }}>{b.title}</h4>
+   250→   250→                  <p className="text-xs text-muted-foreground">{b.description}</p>
+   251→   251→                </div>
+   252→   252→              ))}
+   253→   253→            </div>
+   254→   254→          </CardSection>
+   255→   255→        )}
+   256→   256→
+   257→   257→        {/* Testimonials */}
+   258→   258→        {card.activeSections.includes('testimonios') && card.testimonials.length > 0 && (
+   259→   259→          <CardSection title="Testimonios" icon={<Quote className="h-5 w-5" />} primaryColor={card.primaryColor}>
+   260→   260→            <div className="space-y-3">
+   261→   261→              {card.testimonials.map(t => (
+   262→   262→                <div key={t.id} className="rounded-lg border p-3" style={{ borderColor: card.primaryColor + '30' }}>
+   263→   263→                  <div className="mb-2 flex items-center gap-3">
+   264→   264→                    {t.photo ? (
+   265→   265→                      <img src={t.photo} alt={t.name} className="h-10 w-10 rounded-full object-cover" />
+   266→   266→                    ) : (
+   267→   267→                      <div className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white" style={{ background: card.primaryColor }}>
+   268→   268→                        {t.name.charAt(0)}
+   269→   269→                      </div>
+   270→   270→                    )}
+   271→   271→                    <div>
+   272→   272→                      <p className="font-semibold text-sm" style={{ color: card.textColor }}>{t.name}</p>
+   273→   273→                      <div className="flex">
+   274→   274→                        {Array.from({ length: 5 }).map((_, i) => (
+   275→   275→                          <Star key={i} className={cn('h-3 w-3', i < t.rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground')} />
+   276→   276→                        ))}
+   277→   277→                      </div>
+   278→   278→                    </div>
+   279→   279→                  </div>
+   280→   280→                  <p className="text-sm text-muted-foreground italic">"{t.text}"</p>
+   281→   281→                </div>
+   282→   282→              ))}
+   283→   283→            </div>
+   284→   284→          </CardSection>
+   285→   285→        )}
+   286→   286→
+   287→   287→        {/* Team */}
+   288→   288→        {card.activeSections.includes('equipo') && card.team.length > 0 && (
+   289→   289→          <CardSection title="Equipo y Citas" icon={<Users className="h-5 w-5" />} primaryColor={card.primaryColor}>
+   290→   290→            <div className="space-y-3">
+   291→   291→              {card.team.map(m => (
+   292→   292→                <div key={m.id} className="rounded-lg border p-3" style={{ borderColor: card.primaryColor + '30' }}>
+   293→   293→                  <div className="flex items-center gap-3">
+   294→   294→                    {m.photo ? (
+   295→   295→                      <img src={m.photo} alt={m.name} className="h-12 w-12 rounded-full object-cover" />
+   296→   296→                    ) : (
+   297→   297→                      <div className="flex h-12 w-12 items-center justify-center rounded-full font-bold text-white" style={{ background: card.primaryColor }}>
+   298→   298→                        {m.name.charAt(0)}
+   299→   299→                      </div>
+   300→   300→                    )}
+   301→   301→                    <div>
+   302→   302→                      <p className="font-semibold" style={{ color: card.textColor }}>{m.name}</p>
+   303→   303→                      <p className="text-xs" style={{ color: card.primaryColor }}>{m.role}</p>
+   304→   304→                    </div>
+   305→   305→                  </div>
+   306→   306→                  {m.bio && <p className="mt-2 text-xs text-muted-foreground">{m.bio}</p>}
+   307→   307→                  <div className="mt-2 flex items-center gap-3 text-xs">
+   308→   308→                    <span className="flex items-center gap-1 text-muted-foreground">
+   309→   309→                      <Clock className="h-3 w-3" /> {m.appointmentDuration} min
+   310→   310→                    </span>
+   311→   311→                    {m.isPaid && (
+   312→   312→                      <span className="font-semibold" style={{ color: card.primaryColor }}>
+   313→   313→                        {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(m.appointmentPrice)}
+   314→   314→                      </span>
+   315→   315→                    )}
+   316→   316→                  </div>
+   317→   317→                  <button className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg py-2 text-xs font-semibold text-white" style={{ background: card.primaryColor }}>
+   318→   318→                    <Calendar className="h-3 w-3" /> Agendar Cita
+   319→   319→                  </button>
+   320→   320→                </div>
+   321→   321→              ))}
+   322→   322→            </div>
+   323→   323→          </CardSection>
+   324→   324→        )}
+   325→   325→
+   326→   326→        {/* Schedule */}
+   327→   327→        {card.activeSections.includes('horario') && (
+   328→   328→          <CardSection title="Horario de Atención" icon={<Clock className="h-5 w-5" />} primaryColor={card.primaryColor}>
+   329→   329→            <div className="space-y-1 text-sm">
+   330→   330→              {[
+   331→   331→                { label: 'Lunes', data: card.schedule.monday },
+   332→   332→                { label: 'Martes', data: card.schedule.tuesday },
+   333→   333→                { label: 'Miércoles', data: card.schedule.wednesday },
+   334→   334→                { label: 'Jueves', data: card.schedule.thursday },
+   335→   335→                { label: 'Viernes', data: card.schedule.friday },
+   336→   336→                { label: 'Sábado', data: card.schedule.saturday },
+   337→   337→                { label: 'Domingo', data: card.schedule.sunday },
+   338→   338→              ].map(day => (
+   339→   339→                <div key={day.label} className="flex justify-between border-b pb-1" style={{ borderColor: card.primaryColor + '15' }}>
+   340→   340→                  <span className="font-medium" style={{ color: card.textColor }}>{day.label}</span>
+   341→   341→                  <span className={day.data.open ? '' : 'text-red-500'}>
+   342→   342→                    {day.data.open ? `${day.data.start} - ${day.data.end}` : 'Cerrado'}
+   343→   343→                  </span>
+   344→   344→                </div>
+   345→   345→              ))}
+   346→   346→            </div>
+   347→   347→          </CardSection>
+   348→   348→        )}
+   349→   349→
+   350→   350→        {/* Instagram Embed */}
+   351→   351→        {card.instagramEmbed && (
+   352→   352→          <CardSection title="Instagram" icon={<Instagram className="h-5 w-5" />} primaryColor={card.primaryColor}>
+   353→   353→            <div className="rounded-lg border p-3 text-center" style={{ borderColor: card.primaryColor + '30' }}>
+   354→   354→              <a href={card.instagramEmbed} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-medium" style={{ color: card.primaryColor }}>
+   355→   355→                <Instagram className="h-4 w-4" /> Ver perfil de Instagram
+   356→   356→              </a>
+   357→   357→            </div>
+   358→   358→          </CardSection>
+   359→   359→        )}
+   360→   360→
+   361→   361→        {/* Floating Frames */}
+   362→   362→        {card.floatingFrames.length > 0 && (
+   363→   363→          <CardSection title="Enlaces" icon={<ExternalLink className="h-5 w-5" />} primaryColor={card.primaryColor}>
+   364→   364→            <div className="space-y-2">
+   365→   365→              {card.floatingFrames.map(f => (
+   366→   366→                <a key={f.id} href={f.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg border p-2 text-sm transition hover:bg-muted" style={{ borderColor: card.primaryColor + '30' }}>
+   367→   367→                  <ExternalLink className="h-4 w-4" style={{ color: card.primaryColor }} />
+   368→   368→                  <span style={{ color: card.textColor }}>{f.title}</span>
+   369→   369→                </a>
+   370→   370→              ))}
+   371→   371→            </div>
+   372→   372→          </CardSection>
+   373→   373→        )}
+   374→   374→      </div>
+   375→   375→
+   376→   376→      {/* Footer / Branding */}
+   377→   377→      {!card.hideBrand && (
+   378→   378→        <div className="border-t px-6 py-4 text-center" style={{ borderColor: card.primaryColor + '20' }}>
+   379→   379→          <p className="text-xs text-muted-foreground">
+   380→   380→            Creado con <Heart className="inline h-3 w-3 fill-red-500 text-red-500" /> por{' '}
+   381→   381→            <span className="font-bold" style={{ color: card.primaryColor }}>FTP Digital Plus</span>
+   382→   382→          </p>
+   383→   383→        </div>
+   384→   384→      )}
+   385→   385→    </div>
+   386→   386→  );
+   387→   387→}
+   388→   388→
+   389→   389→function CardSection({ title, icon, children, primaryColor }: { title: string; icon: React.ReactNode; children: React.ReactNode; primaryColor: string }) {
+   390→   390→  return (
+   391→   391→    <div>
+   392→   392→      <div className="mb-3 flex items-center gap-2">
+   393→   393→        <div className="flex h-8 w-8 items-center justify-center rounded-lg text-white" style={{ background: primaryColor }}>
+   394→   394→          {icon}
+   395→   395→        </div>
+   396→   396→        <h3 className="text-lg font-bold">{title}</h3>
+   397→   397→      </div>
+   398→   398→      {children}
+   399→   399→    </div>
+   400→   400→  );
+   401→   401→}
+   402→   402→
+   403→   403→function FreeCardPreview({ card, qrValue, qrExpired, daysLeft, cardStyle }: {
+   404→   404→  card: BusinessCard;
+   405→   405→  qrValue: string;
+   406→   406→  qrExpired: boolean;
+   407→   407→  daysLeft: number;
+   408→   408→  cardStyle: React.CSSProperties;
+   409→   409→}) {
+   410→   410→  const whatsappUrl = card.whatsappNumber
+   411→   411→    ? buildWhatsappUrl(card.whatsappNumber, card.whatsappMessage || 'Hola, vi tu tarjeta digital')
+   412→   412→    : '';
+   413→   413→
+   414→   414→  return (
+   415→   415→    <div className="mx-auto max-w-sm">
+   416→   416→      <div className="overflow-hidden rounded-2xl shadow-2xl" style={{ background: 'linear-gradient(135deg, ' + card.primaryColor + ', ' + card.secondaryColor + ')' }}>
+   417→   417→        {/* Decorative elements */}
+   418→   418→        <div className="relative px-6 pt-8 pb-6 text-center">
+   419→   419→          <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-white/10" />
+   420→   420→          <div className="absolute bottom-0 left-0 h-24 w-24 rounded-full bg-white/10" />
+   421→   421→
+   422→   422→          {/* Profile */}
+   423→   423→          <div className="relative mx-auto mb-4 h-24 w-24 overflow-hidden rounded-full border-4 border-white shadow-lg">
+   424→   424→            {card.profilePhoto ? (
+   425→   425→              <img src={card.profilePhoto} alt={card.cardName} className="h-full w-full object-cover" />
+   426→   426→            ) : (
+   427→   427→              <div className="flex h-full w-full items-center justify-center text-4xl font-bold text-white">
+   428→   428→                {card.cardName.charAt(0).toUpperCase()}
+   429→   429→              </div>
+   430→   430→            )}
+   431→   431→          </div>
+   432→   432→
+   433→   433→          <h2 className="text-2xl font-bold text-white">{card.cardName}</h2>
+   434→   434→
+   435→   435→          {card.description && (
+   436→   436→            <p className="mt-2 text-sm text-white/90 line-clamp-3">{card.description}</p>
+   437→   437→          )}
+   438→   438→
+   439→   439→          {card.whatsappNumber && (
+   440→   440→            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/20 px-4 py-1.5 text-sm font-medium text-white backdrop-blur">
+   441→   441→              <Phone className="h-3.5 w-3.5" />
+   442→   442→              {formatPhone(card.whatsappNumber)}
+   443→   443→            </div>
+   444→   444→          )}
+   445→   445→        </div>
+   446→   446→
+   447→   447→        {/* QR Card */}
+   448→   448→        <div className="bg-white p-6">
+   449→   449→          <div className="mx-auto mb-4 flex flex-col items-center">
+   450→   450→            <div className="rounded-xl border-2 p-3" style={{ borderColor: card.primaryColor }}>
+   451→   451→              <QRCodeCanvas
+   452→   452→                value={qrValue}
+   453→   453→                size={160}
+   454→   454→                fgColor={qrExpired ? '#ef4444' : card.qrColor}
+   455→   455→                bgColor={card.qrBgColor}
+   456→   456→                level="H"
+   457→   457→              />
+   458→   458→            </div>
+   459→   459→
+   460→   460→            {qrExpired ? (
+   461→   461→              <div className="mt-3 text-center">
+   462→   462→                <p className="text-sm font-bold text-red-500">⚠ QR EXPIRADO</p>
+   463→   463→                <p className="text-xs text-muted-foreground">Renueva en ftpdigitalplus.com</p>
+   464→   464→              </div>
+   465→   465→            ) : daysLeft > 0 ? (
+   466→   466→              <div className="mt-3 text-center">
+   467→   467→                <p className="text-xs font-semibold text-amber-600">
+   468→   468→                  ⏳ Expira en {daysLeft} día{daysLeft !== 1 ? 's' : ''}
+   469→   469→                </p>
+   470→   470→                <p className="text-xs text-muted-foreground">Escanea para WhatsApp</p>
+   471→   471→              </div>
+   472→   472→            ) : (
+   473→   473→              <p className="mt-3 text-xs text-muted-foreground">Escanea para WhatsApp</p>
+   474→   474→            )}
+   475→   475→          </div>
+   476→   476→        </div>
+   477→   477→
+   478→   478→        {/* Watermark */}
+   479→   479→        <div className="flex items-center justify-between bg-emerald-700 px-6 py-3">
+   480→   480→          <span className="text-sm font-bold text-white">FTP Digital Plus</span>
+   481→   481→          <span className="text-xs text-amber-300">ftpdigitalplus.com</span>
+   482→   482→        </div>
+   483→   483→      </div>
+   484→   484→
+   485→   485→      <p className="mt-3 text-center text-xs text-muted-foreground">
+   486→   486→        Vista previa de la imagen descargable (Plan Gratis)
+   487→   487→      </p>
+   488→   488→    </div>
+   489→   489→  );
+   490→   490→}
+   491→   491→
+   492→   492→/* ============================================================
+   493→   493→   Template-specific renderers — 5 new premium templates
+   494→   494→   (Task 11-b)
+   495→   495→   Each renderer receives the same shared props so they can
+   496→   496→   compose their own layout while reusing colors / QR.
+   497→   497→   ============================================================ */
+   498→   498→
+   499→   499→interface TemplateRenderProps {
+   500→   500→  card: BusinessCard;
+   501→   501→  cardStyle: React.CSSProperties;
+   502→   502→  whatsappUrl: string;
+   503→   503→  qrValue: string;
+   504→   504→}
+   505→   505→
+   506→   506→/* --- Small helpers shared by the new templates --- */
+   507→   507→
+   508→   508→function SocialRow({
+   509→   509→  card,
+   510→   510→  whatsappUrl,
+   511→   511→  variant = 'light',
+   512→   512→}: {
+   513→   513→  card: BusinessCard;
+   514→   514→  whatsappUrl: string;
+   515→   515→  variant?: 'light' | 'dark' | 'tech';
+   516→   516→}) {
+   517→   517→  const items: { href?: string; label: string; icon: React.ReactNode; bg: string }[] = [];
+   518→   518→  if (card.whatsappNumber) {
+   519→   519→    items.push({ href: whatsappUrl, label: 'WhatsApp', icon: <MessageCircle className="h-3.5 w-3.5" />, bg: '#25D366' });
+   520→   520→  }
+   521→   521→  if (card.socialLinks.facebook) items.push({ href: card.socialLinks.facebook, label: 'Facebook', icon: <Facebook className="h-3.5 w-3.5" />, bg: '#1877F2' });
+   522→   522→  if (card.socialLinks.instagram) items.push({ href: card.socialLinks.instagram, label: 'Instagram', icon: <Instagram className="h-3.5 w-3.5" />, bg: '#E4405F' });
+   523→   523→  if (card.socialLinks.linkedin) items.push({ href: card.socialLinks.linkedin, label: 'LinkedIn', icon: <Linkedin className="h-3.5 w-3.5" />, bg: '#0A66C2' });
+   524→   524→  if (card.socialLinks.youtube) items.push({ href: card.socialLinks.youtube, label: 'YouTube', icon: <Youtube className="h-3.5 w-3.5" />, bg: '#FF0000' });
+   525→   525→  if (card.socialLinks.twitter) items.push({ href: card.socialLinks.twitter, label: 'X', icon: <Twitter className="h-3.5 w-3.5" />, bg: '#000000' });
+   526→   526→
+   527→   527→  if (items.length === 0) return null;
+   528→   528→
+   529→   529→  return (
+   530→   530→    <div className="flex flex-wrap items-center gap-2">
+   531→   531→      {items.map((it) => (
+   532→   532→        <a
+   533→   533→          key={it.label}
+   534→   534→          href={it.href}
+   535→   535→          target="_blank"
+   536→   536→          rel="noopener noreferrer"
+   537→   537→          aria-label={it.label}
+   538→   538→          className={cn(
+   539→   539→            'flex h-8 w-8 items-center justify-center rounded-full text-white shadow-sm transition hover:scale-110',
+   540→   540→            variant === 'tech' && 'rounded-md',
+   541→   541→          )}
+   542→   542→          style={{ background: it.bg }}
+   543→   543→        >
+   544→   544→          {it.icon}
+   545→   545→        </a>
+   546→   546→      ))}
+   547→   547→    </div>
+   548→   548→  );
+   549→   549→}
+   550→   550→
+   551→   551→function QrBlock({
+   552→   552→  card,
+   553→   553→  qrValue,
+   554→   554→  variant = 'light',
+   555→   555→}: {
+   556→   556→  card: BusinessCard;
+   557→   557→  qrValue: string;
+   558→   558→  variant?: 'light' | 'dark' | 'tech';
+   559→   559→}) {
+   560→   560→  if (!card.activeSections.includes('qr')) return null;
+   561→   561→  return (
+   562→   562→    <div className="flex flex-col items-center gap-2">
+   563→   563→      <div
+   564→   564→        className={cn(
+   565→   565→          'rounded-xl p-3',
+   566→   566→          variant === 'tech' ? 'neon-border' : 'border-2',
+   567→   567→        )}
+   568→   568→        style={variant === 'tech' ? { background: 'rgba(0,0,0,0.6)' } : { borderColor: card.primaryColor, background: card.qrBgColor }}
+   569→   569→      >
+   570→   570→        <QRCodeCanvas value={qrValue} size={140} fgColor={card.qrColor} bgColor={variant === 'tech' ? 'rgba(0,0,0,0)' : card.qrBgColor} level="H" />
+   571→   571→      </div>
+   572→   572→      <p className="text-[11px] opacity-70">Escanea para contactarme</p>
+   573→   573→    </div>
+   574→   574→  );
+   575→   575→}
+   576→   576→
+   577→   577→/* ====================================================================
+   578→   578→   1. CORPORATIVO — Formal sidebar layout, navy + serif fonts
+   579→   579→   ==================================================================== */
+   580→   580→
+   581→   581→function CorporativoCard({ card, cardStyle, whatsappUrl, qrValue }: TemplateRenderProps) {
+   582→   582→  const navy = '#0f1e3d';
+   583→   583→  const gold = card.primaryColor;
+   584→   584→  const light = '#f5f5f0';
+   585→   585→
+   586→   586→  return (
+   587→   587→    <div
+   588→   588→      className={cn('template-corporativo w-full overflow-hidden rounded-2xl shadow-2xl')}
+   589→   589→      style={{ ...cardStyle, background: light, color: '#1c2540', fontFamily: "'Playfair Display', serif" }}
+   590→   590→    >
+   591→   591→      <div className="grid grid-cols-1 md:grid-cols-[260px_1fr]">
+   592→   592→        {/* Sidebar */}
+   593→   593→        <aside className="relative p-6 text-white" style={{ background: navy }}>
+   594→   594→          <div className="absolute right-0 top-0 h-24 w-24 opacity-20" style={{ background: `linear-gradient(135deg, ${gold}, transparent)` }} />
+   595→   595→          <div className="mb-6 flex items-center gap-3">
+   596→   596→            {card.profilePhoto ? (
+   597→   597→              <img src={card.profilePhoto} alt={card.cardName} className="h-16 w-16 rounded-full border-2 object-cover" style={{ borderColor: gold }} />
+   598→   598→            ) : (
+   599→   599→              <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 text-2xl font-bold" style={{ borderColor: gold, color: gold }}>
+   600→   600→                {card.cardName.charAt(0).toUpperCase()}
+   601→   601→              </div>
+   602→   602→            )}
+   603→   603→          </div>
+   604→   604→          <h2 className="text-xl font-bold leading-tight">{card.cardName}</h2>
+   605→   605→          {card.description && <p className="mt-2 text-xs opacity-75">{card.description}</p>}
+   606→   606→          <div className="my-5 h-px w-full opacity-30" style={{ background: gold }} />
+   607→   607→
+   608→   608→          <div className="space-y-3 text-xs">
+   609→   609→            <div className="flex items-center gap-2">
+   610→   610→              <Building2 className="h-3.5 w-3.5" style={{ color: gold }} />
+   611→   611→              <span className="opacity-80">Empresa profesional</span>
+   612→   612→            </div>
+   613→   613→            {card.whatsappNumber && (
+   614→   614→              <div className="flex items-center gap-2">
+   615→   615→                <Phone className="h-3.5 w-3.5" style={{ color: gold }} />
+   616→   616→                <span className="opacity-80">{formatPhone(card.whatsappNumber)}</span>
+   617→   617→              </div>
+   618→   618→            )}
+   619→   619→            <div className="flex items-center gap-2">
+   620→   620→              <Clock className="h-3.5 w-3.5" style={{ color: gold }} />
+   621→   621→              <span className="opacity-80">Lun–Vie 9–18h</span>
+   622→   622→            </div>
+   623→   623→          </div>
+   624→   624→
+   625→   625→          <div className="mt-6">
+   626→   626→            <QrBlock card={card} qrValue={qrValue} variant="dark" />
+   627→   627→          </div>
+   628→   628→        </aside>
+   629→   629→
+   630→   630→        {/* Main content */}
+   631→   631→        <main className="space-y-6 p-6">
+   632→   632→          <header className="border-b-2 pb-3" style={{ borderColor: gold }}>
+   633→   633→            <p className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-70" style={{ color: gold }}>
+   634→   634→              {card.linkName || 'Perfil Corporativo'}
+   635→   635→            </p>
+   636→   636→            <h3 className="mt-1 text-2xl font-bold" style={{ color: navy }}>
+   637→   637→              {card.cardName}
+   638→   638→            </h3>
+   639→   639→          </header>
+   640→   640→
+   641→   641→          {card.activeSections.includes('servicios') && card.services.length > 0 && (
+   642→   642→            <section>
+   643→   643→              <SectionTitle label="Servicios" color={gold} />
+   644→   644→              <div className="grid gap-3 sm:grid-cols-2">
+   645→   645→                {card.services.map((s) => (
+   646→   646→                  <div key={s.id} className="rounded-md border-l-2 bg-white/60 p-3 shadow-sm" style={{ borderColor: gold }}>
+   647→   647→                    {s.photo && <img src={s.photo} alt={s.name} className="mb-2 h-20 w-full rounded object-cover" />}
+   648→   648→                    <h4 className="text-sm font-semibold" style={{ color: navy }}>{s.name}</h4>
+   649→   649→                    {s.description && <p className="text-[11px] opacity-70">{s.description}</p>}
+   650→   650→                  </div>
+   651→   651→                ))}
+   652→   652→              </div>
+   653→   653→            </section>
+   654→   654→          )}
+   655→   655→
+   656→   656→          {card.activeSections.includes('productos') && card.products.length > 0 && (
+   657→   657→            <section>
+   658→   658→              <SectionTitle label="Productos" color={gold} />
+   659→   659→              <div className="grid gap-3 sm:grid-cols-2">
+   660→   660→                {card.products.map((p) => (
+   661→   661→                  <div key={p.id} className="rounded-md border-l-2 bg-white/60 p-3" style={{ borderColor: gold }}>
+   662→   662→                    <h4 className="text-sm font-semibold" style={{ color: navy }}>{p.name}</h4>
+   663→   663→                    <span className="text-xs font-bold" style={{ color: gold }}>
+   664→   664→                      {new Intl.NumberFormat('es-MX', { style: 'currency', currency: p.currency }).format(p.price)}
+   665→   665→                    </span>
+   666→   666→                  </div>
+   667→   667→                ))}
+   668→   668→              </div>
+   669→   669→            </section>
+   670→   670→          )}
+   671→   671→
+   672→   672→          {card.activeSections.includes('equipo') && card.team.length > 0 && (
+   673→   673→            <section>
+   674→   674→              <SectionTitle label="Equipo" color={gold} />
+   675→   675→              <div className="grid gap-2 sm:grid-cols-2">
+   676→   676→                {card.team.map((m) => (
+   677→   677→                  <div key={m.id} className="flex items-center gap-2 rounded-md bg-white/60 p-2">
+   678→   678→                    <div className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: navy }}>
+   679→   679→                      {m.name.charAt(0)}
+   680→   680→                    </div>
+   681→   681→                    <div>
+   682→   682→                      <p className="text-xs font-semibold" style={{ color: navy }}>{m.name}</p>
+   683→   683→                      <p className="text-[10px] opacity-70">{m.role}</p>
+   684→   684→                    </div>
+   685→   685→                  </div>
+   686→   686→                ))}
+   687→   687→              </div>
+   688→   688→            </section>
+   689→   689→          )}
+   690→   690→
+   691→   691→          <SocialRow card={card} whatsappUrl={whatsappUrl} variant="light" />
+   692→   692→
+   693→   693→          {!card.hideBrand && (
+   694→   694→            <footer className="border-t pt-3 text-center text-[10px] opacity-60" style={{ borderColor: gold + '40' }}>
+   695→   695→              Creado con <Heart className="inline h-2.5 w-2.5 fill-red-500 text-red-500" /> por{' '}
+   696→   696→              <span className="font-bold" style={{ color: gold }}>FTP Digital Plus</span>
+   697→   697→            </footer>
+   698→   698→          )}
+   699→   699→        </main>
+   700→   700→      </div>
+   701→   701→    </div>
+   702→   702→  );
+   703→   703→}
+   704→   704→
+   705→   705→function SectionTitle({ label, color }: { label: string; color: string }) {
+   706→   706→  return (
+   707→   707→    <div className="mb-3 flex items-center gap-2">
+   708→   708→      <span className="h-4 w-1 rounded" style={{ background: color }} />
+   709→   709→      <h3 className="text-sm font-bold uppercase tracking-wider" style={{ color: '#1c2540' }}>
+   710→   710→        {label}
+   711→   711→      </h3>
+   712→   712→      <span className="ml-auto h-px flex-1 opacity-30" style={{ background: color }} />
+   713→   713→    </div>
+   714→   714→  );
+   715→   715→}
+   716→   716→
+   717→   717→/* ====================================================================
+   718→   718→   2. CREATIVO — Vibrant, asymmetric, blob shapes
+   719→   719→   ==================================================================== */
+   720→   720→
+   721→   721→function CreativoCard({ card, cardStyle, whatsappUrl, qrValue }: TemplateRenderProps) {
+   722→   722→  return (
+   723→   723→    <div
+   724→   724→      className={cn('template-creativo relative w-full overflow-hidden rounded-[2rem] shadow-2xl')}
+   725→   725→      style={{ ...cardStyle, background: `linear-gradient(135deg, ${card.primaryColor}, ${card.secondaryColor})`, color: '#fff' }}
+   726→   726→    >
+   727→   727→      {/* Blobs */}
+   728→   728→      <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
+   729→   729→      <div className="pointer-events-none absolute -left-12 bottom-20 h-48 w-48 rounded-[40%] bg-white/15 blur-2xl" />
+   730→   730→      <div className="pointer-events-none absolute right-10 bottom-0 h-24 w-24 rounded-full bg-amber-300/30 blur-xl" />
+   731→   731→
+   732→   732→      <div className="relative p-6">
+   733→   733→        {/* Asymmetric header */}
+   734→   734→        <div className="flex items-end justify-between gap-4">
+   735→   735→          <div>
+   736→   736→            <div className="mb-2 inline-flex rotate-[-3deg] rounded-full bg-white/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur">
+   737→   737→              <Sparkles className="mr-1 h-3 w-3" /> Creativo
+   738→   738→            </div>
+   739→   739→            <h2 className="text-3xl font-black leading-none">{card.cardName}</h2>
+   740→   740→            {card.description && <p className="mt-2 max-w-[80%] text-xs opacity-90">{card.description}</p>}
+   741→   741→          </div>
+   742→   742→          <div className="relative h-20 w-20 shrink-0 rotate-6 overflow-hidden rounded-3xl border-4 border-white/40 shadow-lg">
+   743→   743→            {card.profilePhoto ? (
+   744→   744→              <img src={card.profilePhoto} alt={card.cardName} className="h-full w-full object-cover" />
+   745→   745→            ) : (
+   746→   746→              <div className="flex h-full w-full items-center justify-center text-3xl font-black">
+   747→   747→                {card.cardName.charAt(0).toUpperCase()}
+   748→   748→              </div>
+   749→   749→            )}
+   750→   750→          </div>
+   751→   751→        </div>
+   752→   752→
+   753→   753→        {/* Wave divider */}
+   754→   754→        <svg viewBox="0 0 120 12" preserveAspectRatio="none" className="mt-5 h-3 w-full text-white/30">
+   755→   755→          <path d="M0,6 Q15,0 30,6 T60,6 T90,6 T120,6 V12 H0 Z" fill="currentColor" />
+   756→   756→        </svg>
+   757→   757→
+   758→   758→        {/* Floating services */}
+   759→   759→        {card.activeSections.includes('servicios') && card.services.length > 0 && (
+   760→   760→          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+   761→   761→            {card.services.map((s, i) => (
+   762→   762→              <div
+   763→   763→                key={s.id}
+   764→   764→                className={cn(
+   765→   765→                  'rounded-2xl bg-white/15 p-3 backdrop-blur transition hover:scale-105',
+   766→   766→                  i % 2 === 0 ? 'rotate-[-1deg]' : 'rotate-1',
+   767→   767→                )}
+   768→   768→              >
+   769→   769→                {s.photo && <img src={s.photo} alt={s.name} className="mb-2 h-16 w-full rounded-xl object-cover" />}
+   770→   770→                <h4 className="text-sm font-bold">{s.name}</h4>
+   771→   771→                {s.description && <p className="text-[10px] opacity-85">{s.description}</p>}
+   772→   772→              </div>
+   773→   773→            ))}
+   774→   774→          </div>
+   775→   775→        )}
+   776→   776→
+   777→   777→        {/* Bottom row */}
+   778→   778→        <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+   779→   779→          {card.activeSections.includes('qr') && <QrBlock card={card} qrValue={qrValue} variant="dark" />}
+   780→   780→          <div className="flex flex-col gap-3">
+   781→   781→            {card.whatsappNumber && (
+   782→   782→              <a
+   783→   783→                href={whatsappUrl}
+   784→   784→                target="_blank"
+   785→   785→                rel="noopener noreferrer"
+   786→   786→                className="inline-flex items-center gap-2 self-start rounded-full bg-white px-4 py-2 text-xs font-bold text-emerald-700 shadow"
+   787→   787→              >
+   788→   788→                <MessageCircle className="h-4 w-4" /> {formatPhone(card.whatsappNumber)}
+   789→   789→              </a>
+   790→   790→            )}
+   791→   791→            <SocialRow card={card} whatsappUrl={whatsappUrl} variant="dark" />
+   792→   792→          </div>
+   793→   793→        </div>
+   794→   794→
+   795→   795→        {!card.hideBrand && (
+   796→   796→          <p className="mt-5 text-center text-[10px] opacity-80">
+   797→   797→            Creado con <Heart className="inline h-2.5 w-2.5 fill-red-300 text-red-300" /> por FTP Digital Plus
+   798→   798→          </p>
+   799→   799→        )}
+   800→   800→      </div>
+   801→   801→    </div>
+   802→   802→  );
+   803→   803→}
+   804→   804→
+   805→   805→/* ====================================================================
+   806→   806→   3. OSCURO — Dark slate background, emerald accents, glass cards
+   807→   807→   ==================================================================== */
+   808→   808→
+   809→   809→function OscuroCard({ card, cardStyle, whatsappUrl, qrValue }: TemplateRenderProps) {
+   810→   810→  const accent = card.primaryColor;
+   811→   811→  return (
+   812→   812→    <div
+   813→   813→      className={cn('template-oscuro relative w-full overflow-hidden rounded-2xl shadow-2xl')}
+   814→   814→      style={{ ...cardStyle, background: '#0f172a', color: '#f8fafc', fontFamily: "'Inter', sans-serif" }}
+   815→   815→    >
+   816→   816→      {/* Aurora */}
+   817→   817→      <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full opacity-30 blur-3xl" style={{ background: accent }} />
+   818→   818→      <div className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full bg-amber-400/15 blur-3xl" />
+   819→   819→
+   820→   820→      <div className="relative p-6">
+   821→   821→        {/* Header */}
+   822→   822→        <div className="flex items-center gap-4">
+   823→   823→          <div
+   824→   824→            className="relative h-20 w-20 overflow-hidden rounded-2xl border border-white/15 shadow-lg"
+   825→   825→            style={{ boxShadow: `0 0 30px -8px ${accent}80` }}
+   826→   826→          >
+   827→   827→            {card.profilePhoto ? (
+   828→   828→              <img src={card.profilePhoto} alt={card.cardName} className="h-full w-full object-cover" />
+   829→   829→            ) : (
+   830→   830→              <div className="flex h-full w-full items-center justify-center text-3xl font-bold" style={{ background: accent, color: '#fff' }}>
+   831→   831→                {card.cardName.charAt(0).toUpperCase()}
+   832→   832→              </div>
+   833→   833→            )}
+   834→   834→          </div>
+   835→   835→          <div>
+   836→   836→            <p className="text-[10px] font-bold uppercase tracking-[0.3em]" style={{ color: accent }}>Modo Oscuro</p>
+   837→   837→            <h2 className="text-2xl font-bold">{card.cardName}</h2>
+   838→   838→            {card.description && <p className="mt-1 text-xs text-slate-300/80">{card.description}</p>}
+   839→   839→          </div>
+   840→   840→        </div>
+   841→   841→
+   842→   842→        {/* Glass sections */}
+   843→   843→        <div className="mt-6 space-y-4">
+   844→   844→          {card.activeSections.includes('servicios') && card.services.length > 0 && (
+   845→   845→            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+   846→   846→              <h3 className="mb-3 flex items-center gap-2 text-sm font-bold">
+   847→   847→                <Briefcase className="h-4 w-4" style={{ color: accent }} /> Servicios
+   848→   848→              </h3>
+   849→   849→              <div className="grid gap-2 sm:grid-cols-2">
+   850→   850→                {card.services.map((s) => (
+   851→   851→                  <div key={s.id} className="rounded-lg bg-white/5 p-2">
+   852→   852→                    <h4 className="text-xs font-semibold">{s.name}</h4>
+   853→   853→                    {s.description && <p className="text-[10px] text-slate-400">{s.description}</p>}
+   854→   854→                  </div>
+   855→   855→                ))}
+   856→   856→              </div>
+   857→   857→            </div>
+   858→   858→          )}
+   859→   859→
+   860→   860→          {card.activeSections.includes('testimonios') && card.testimonials.length > 0 && (
+   861→   861→            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+   862→   862→              <h3 className="mb-3 flex items-center gap-2 text-sm font-bold">
+   863→   863→                <Quote className="h-4 w-4" style={{ color: accent }} /> Testimonios
+   864→   864→              </h3>
+   865→   865→              <div className="space-y-2">
+   866→   866→                {card.testimonials.map((t) => (
+   867→   867→                  <div key={t.id} className="rounded-lg bg-white/5 p-2">
+   868→   868→                    <p className="text-[11px] italic text-slate-300">"{t.text}"</p>
+   869→   869→                    <p className="mt-1 text-[10px] font-semibold" style={{ color: accent }}>— {t.name}</p>
+   870→   870→                  </div>
+   871→   871→                ))}
+   872→   872→              </div>
+   873→   873→            </div>
+   874→   874→          )}
+   875→   875→        </div>
+   876→   876→
+   877→   877→        {/* QR + socials */}
+   878→   878→        <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+   879→   879→          <QrBlock card={card} qrValue={qrValue} variant="dark" />
+   880→   880→          <div className="flex flex-col gap-3">
+   881→   881→            <SocialRow card={card} whatsappUrl={whatsappUrl} variant="dark" />
+   882→   882→          </div>
+   883→   883→        </div>
+   884→   884→
+   885→   885→        {!card.hideBrand && (
+   886→   886→          <p className="mt-5 text-center text-[10px] text-slate-400">
+   887→   887→            Creado con <Heart className="inline h-2.5 w-2.5 fill-emerald-400 text-emerald-400" /> por{' '}
+   888→   888→            <span className="font-bold" style={{ color: accent }}>FTP Digital Plus</span>
+   889→   889→          </p>
+   890→   890→        )}
+   891→   891→      </div>
+   892→   892→    </div>
+   893→   893→  );
+   894→   894→}
+   895→   895→
+   896→   896→/* ====================================================================
+   897→   897→   4. VINTAGE — Sepia, serif, ornamental borders, paper texture
+   898→   898→   ==================================================================== */
+   899→   899→
+   900→   900→function VintageCard({ card, cardStyle, whatsappUrl, qrValue }: TemplateRenderProps) {
+   901→   901→  const sepiaBg = '#f3ead3';
+   902→   902→  const sepiaFg = '#5b3a1a';
+   903→   903→  const accent = card.primaryColor || '#a16207';
+   904→   904→  return (
+   905→   905→    <div
+   906→   906→      className={cn('template-vintage paper-texture relative w-full overflow-hidden rounded-sm shadow-2xl')}
+   907→   907→      style={{ ...cardStyle, background: sepiaBg, color: sepiaFg, fontFamily: "'Playfair Display', serif" }}
+   908→   908→    >
+   909→   909→      {/* Ornamental border */}
+   910→   910→      <div className="pointer-events-none absolute inset-2 border-2 border-double" style={{ borderColor: accent + '60' }} />
+   911→   911→      <div className="pointer-events-none absolute inset-3 border" style={{ borderColor: accent + '40' }} />
+   912→   912→
+   913→   913→      <div className="relative p-8">
+   914→   914→        {/* Ornament top */}
+   915→   915→        <div className="mb-4 flex items-center justify-center gap-3 text-[10px] uppercase tracking-[0.4em]" style={{ color: accent }}>
+   916→   916→          <span>✦</span>
+   917→   917→          <span>Establecido</span>
+   918→   918→          <span>✦</span>
+   919→   919→        </div>
+   920→   920→
+   921→   921→        {/* Profile */}
+   922→   922→        <div className="flex flex-col items-center text-center">
+   923→   923→          <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-double shadow-md" style={{ borderColor: accent }}>
+   924→   924→            {card.profilePhoto ? (
+   925→   925→              <img src={card.profilePhoto} alt={card.cardName} className="h-full w-full object-cover" style={{ filter: 'sepia(0.3)' }} />
+   926→   926→            ) : (
+   927→   927→              <div className="flex h-full w-full items-center justify-center text-3xl font-bold" style={{ color: accent, background: '#fff' }}>
+   928→   928→                {card.cardName.charAt(0).toUpperCase()}
+   929→   929→              </div>
+   930→   930→            )}
+   931→   931→          </div>
+   932→   932→          <h2 className="mt-3 text-3xl font-bold italic" style={{ color: sepiaFg }}>{card.cardName}</h2>
+   933→   933→          {card.description && <p className="mt-2 max-w-md text-xs italic opacity-80">{card.description}</p>}
+   934→   934→        </div>
+   935→   935→
+   936→   936→        {/* Divider */}
+   937→   937→        <div className="my-5 flex items-center gap-3">
+   938→   938→          <span className="h-px flex-1 opacity-40" style={{ background: accent }} />
+   939→   939→          <Diamond className="h-3 w-3" style={{ color: accent }} />
+   940→   940→          <span className="h-px flex-1 opacity-40" style={{ background: accent }} />
+   941→   941→        </div>
+   942→   942→
+   943→   943→        {/* Sections */}
+   944→   944→        {card.activeSections.includes('servicios') && card.services.length > 0 && (
+   945→   945→          <section className="mb-5">
+   946→   946→            <h3 className="mb-2 text-center text-sm font-bold uppercase tracking-[0.3em]" style={{ color: accent }}>Servicios</h3>
+   947→   947→            <div className="grid gap-2 sm:grid-cols-2">
+   948→   948→              {card.services.map((s) => (
+   949→   949→                <div key={s.id} className="border border-dashed p-2 text-center" style={{ borderColor: accent + '50' }}>
+   950→   950→                  <h4 className="text-xs font-bold">{s.name}</h4>
+   951→   951→                  {s.description && <p className="text-[10px] opacity-70">{s.description}</p>}
+   952→   952→                </div>
+   953→   953→              ))}
+   954→   954→            </div>
+   955→   955→          </section>
+   956→   956→        )}
+   957→   957→
+   958→   958→        {card.activeSections.includes('testimonios') && card.testimonials.length > 0 && (
+   959→   959→          <section className="mb-5 text-center">
+   960→   960→            <h3 className="mb-2 text-sm font-bold uppercase tracking-[0.3em]" style={{ color: accent }}>Testimonios</h3>
+   961→   961→            <blockquote className="mx-auto max-w-md text-xs italic">
+   962→   962→              "{card.testimonials[0].text}"
+   963→   963→              <footer className="mt-1 text-[10px] not-italic opacity-70">— {card.testimonials[0].name}</footer>
+   964→   964→            </blockquote>
+   965→   965→          </section>
+   966→   966→        )}
+   967→   967→
+   968→   968→        {/* QR + contact */}
+   969→   969→        <div className="mt-6 flex flex-col items-center gap-3">
+   970→   970→          <QrBlock card={card} qrValue={qrValue} variant="light" />
+   971→   971→          {card.whatsappNumber && (
+   972→   972→            <a
+   973→   973→              href={whatsappUrl}
+   974→   974→              target="_blank"
+   975→   975→              rel="noopener noreferrer"
+   976→   976→              className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold"
+   977→   977→              style={{ borderColor: accent, color: accent }}
+   978→   978→            >
+   979→   979→              <MessageCircle className="h-3.5 w-3.5" /> {formatPhone(card.whatsappNumber)}
+   980→   980→            </a>
+   981→   981→          )}
+   982→   982→          <SocialRow card={card} whatsappUrl={whatsappUrl} variant="light" />
+   983→   983→        </div>
+   984→   984→
+   985→   985→        {!card.hideBrand && (
+   986→   986→          <p className="mt-6 text-center text-[10px] italic opacity-60">
+   987→   987→            Creado con <Heart className="inline h-2.5 w-2.5 fill-red-700 text-red-700" /> por FTP Digital Plus
+   988→   988→          </p>
+   989→   989→        )}
+   990→   990→      </div>
+   991→   991→    </div>
+   992→   992→  );
+   993→   993→}
+   994→   994→
+   995→   995→/* ====================================================================
+   996→   996→   5. TECH — Dark, neon, monospace, grid pattern, glow effects
+   997→   997→   ==================================================================== */
+   998→   998→
+   999→   999→function TechCard({ card, cardStyle, whatsappUrl, qrValue }: TemplateRenderProps) {
+  1000→  1000→  const neon = card.primaryColor || '#10b981';
+  1001→  1001→  const cyan = card.secondaryColor || '#06b6d4';
+  1002→  1002→  return (
+  1003→  1003→    <div
+  1004→  1004→      className={cn('template-tech relative w-full overflow-hidden rounded-lg shadow-2xl')}
+  1005→  1005→      style={{ ...cardStyle, background: '#0a0f1c', color: '#e2f5e9', fontFamily: "'JetBrains Mono', monospace" }}
+  1006→  1006→    >
+  1007→  1007→      {/* Grid overlay handled via ::before in CSS */}
+  1008→  1008→      <div className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full opacity-20 blur-3xl" style={{ background: neon }} />
+  1009→  1009→
+  1010→  1010→      <div className="relative p-5">
+  1011→  1011→        {/* Header bar — terminal style */}
+  1012→  1012→        <div className="mb-4 flex items-center justify-between rounded border border-white/10 bg-black/40 px-3 py-2 text-[10px]">
+  1013→  1013→          <div className="flex items-center gap-1.5">
+  1014→  1014→            <span className="h-2 w-2 rounded-full bg-rose-500" />
+  1015→  1015→            <span className="h-2 w-2 rounded-full bg-amber-400" />
+  1016→  1016→            <span className="h-2 w-2 rounded-full" style={{ background: neon }} />
+  1017→  1017→          </div>
+  1018→  1018→          <span className="opacity-70">~/ftp-digital-plus/{card.linkName || 'card'}</span>
+  1019→  1019→          <span className="hidden sm:inline opacity-50">v2.0.1</span>
+  1020→  1020→        </div>
+  1021→  1021→
+  1022→  1022→        {/* Identity */}
+  1023→  1023→        <div className="flex items-center gap-4">
+  1024→  1024→          <div
+  1025→  1025→            className="relative flex h-16 w-16 items-center justify-center rounded-lg border text-2xl font-bold neon-border"
+  1026→  1026→            style={{ background: 'rgba(0,0,0,0.5)', color: neon }}
+  1027→  1027→          >
+  1028→  1028→            {card.profilePhoto ? (
+  1029→  1029→              <img src={card.profilePhoto} alt={card.cardName} className="h-full w-full rounded-lg object-cover" />
+  1030→  1030→            ) : (
+  1031→  1031→              <span className="neon-text" style={{ color: neon }}>
+  1032→  1032→                {card.cardName.charAt(0).toUpperCase()}
+  1033→  1033→              </span>
+  1034→  1034→            )}
+  1035→  1035→          </div>
+  1036→  1036→          <div>
+  1037→  1037→            <p className="text-[10px] opacity-60">
+  1038→  1038→              <Hash className="mr-1 inline h-3 w-3" />user_id
+  1039→  1039→            </p>
+  1040→  1040→            <h2 className="text-xl font-bold neon-text" style={{ color: neon }}>
+  1041→  1041→              {card.cardName}
+  1042→  1042→            </h2>
+  1043→  1043→            {card.description && <p className="mt-1 max-w-xs text-[11px] opacity-70">{card.description}</p>}
+  1044→  1044→          </div>
+  1045→  1045→        </div>
+  1046→  1046→
+  1047→  1047→        {/* Stats line */}
+  1048→  1048→        <div className="mt-4 grid grid-cols-3 gap-2 text-[10px]">
+  1049→  1049→          <div className="rounded border border-white/10 bg-black/30 p-2">
+  1050→  1050→            <p className="opacity-60">visitas</p>
+  1051→  1051→            <p className="font-bold" style={{ color: cyan }}>{card.views}</p>
+  1052→  1052→          </div>
+  1053→  1053→          <div className="rounded border border-white/10 bg-black/30 p-2">
+  1054→  1054→            <p className="opacity-60">qr_scans</p>
+  1055→  1055→            <p className="font-bold" style={{ color: cyan }}>{card.qrScans}</p>
+  1056→  1056→          </div>
+  1057→  1057→          <div className="rounded border border-white/10 bg-black/30 p-2">
+  1058→  1058→            <p className="opacity-60">status</p>
+  1059→  1059→            <p className="font-bold neon-text" style={{ color: neon }}>online</p>
+  1060→  1060→          </div>
+  1061→  1061→        </div>
+  1062→  1062→
+  1063→  1063→        {/* Services as code-like list */}
+  1064→  1064→        {card.activeSections.includes('servicios') && card.services.length > 0 && (
+  1065→  1065→          <div className="mt-4">
+  1066→  1066→            <p className="mb-2 text-[10px] opacity-60">
+  1067→  1067→              <Cpu className="mr-1 inline h-3 w-3" />services[]
+  1068→  1068→            </p>
+  1069→  1069→            <div className="space-y-1.5">
+  1070→  1070→              {card.services.slice(0, 4).map((s, i) => (
+  1071→  1071→                <div key={s.id} className="flex items-start gap-2 rounded border border-white/5 bg-black/30 px-2 py-1.5 text-[11px]">
+  1072→  1072→                  <span style={{ color: cyan }}>{String(i).padStart(2, '0')}</span>
+  1073→  1073→                  <span className="font-semibold" style={{ color: neon }}>{s.name}</span>
+  1074→  1074→                  {s.description && <span className="opacity-60">{'// '}{s.description.slice(0, 40)}{s.description.length > 40 ? '...' : ''}</span>}
+  1075→  1075→                </div>
+  1076→  1076→              ))}
+  1077→  1077→            </div>
+  1078→  1078→          </div>
+  1079→  1079→        )}
+  1080→  1080→
+  1081→  1081→        {/* QR + actions */}
+  1082→  1082→        <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+  1083→  1083→          <QrBlock card={card} qrValue={qrValue} variant="tech" />
+  1084→  1084→          <div className="flex flex-col gap-2">
+  1085→  1085→            {card.whatsappNumber && (
+  1086→  1086→              <a
+  1087→  1087→                href={whatsappUrl}
+  1088→  1088→                target="_blank"
+  1089→  1089→                rel="noopener noreferrer"
+  1090→  1090→                className="inline-flex items-center gap-2 self-start rounded border px-3 py-1.5 text-[11px] font-bold neon-border"
+  1091→  1091→                style={{ color: neon }}
+  1092→  1092→              >
+  1093→  1093→                <Zap className="h-3 w-3" /> /contact
+  1094→  1094→              </a>
+  1095→  1095→            )}
+  1096→  1096→            <SocialRow card={card} whatsappUrl={whatsappUrl} variant="tech" />
+  1097→  1097→          </div>
+  1098→  1098→        </div>
+  1099→  1099→
+  1100→  1100→        {!card.hideBrand && (
+  1101→  1101→          <p className="mt-5 text-center text-[10px] opacity-50">
+  1102→  1102→            <span className="opacity-70">{'//'}</span> built with{' '}
+  1103→  1103→            <span className="neon-text font-bold" style={{ color: neon }}>FTP_Digital_Plus</span>
+  1104→  1104→          </p>
+  1105→  1105→        )}
+  1106→  1106→      </div>
+  1107→  1107→    </div>
+  1108→  1108→  );
+  1109→  1109→}
+  1110→  1110→

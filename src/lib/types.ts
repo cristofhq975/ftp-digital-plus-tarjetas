@@ -33,7 +33,8 @@ export type ViewType =
   | 'notifications'
   | 'cases'
   | 'themes'
-  | 'kiosk';
+  | 'kiosk'
+  | 'integrations';
 
 // Ticket de soporte
 export type SupportTicketCategory = 'cuenta' | 'facturacion' | 'tecnico' | 'tarjeta' | 'otro';

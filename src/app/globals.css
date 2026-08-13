@@ -787,3 +787,332 @@
 }
 
 
+
+/* ============================================
+   Task 14-b — Card Template & Landing Polish
+   ============================================ */
+
+/* Animated blob shape for creativo template */
+.template-creativo-blob {
+  border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+  animation: blob-morph 8s ease-in-out infinite;
+}
+
+@keyframes blob-morph {
+  0%, 100% { border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; }
+  50% { border-radius: 70% 30% 30% 70% / 70% 70% 30% 30%; }
+}
+
+/* Floating decorative dots for creativo */
+@keyframes float-decor {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); opacity: 0.6; }
+  50% { transform: translate(8px, -12px) rotate(180deg); opacity: 1; }
+}
+.float-decor {
+  animation: float-decor 6s ease-in-out infinite;
+}
+
+/* Scanline effect for tech template */
+.scanline-overlay {
+  position: relative;
+}
+.scanline-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    transparent 50%,
+    rgba(0, 0, 0, 0.04) 50%
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  animation: scanline 8s linear infinite;
+  z-index: 2;
+}
+
+@keyframes scanline {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 100%; }
+}
+
+/* Neon glow for tech template */
+.neon-glow {
+  box-shadow:
+    0 0 5px currentColor,
+    0 0 20px currentColor,
+    inset 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.neon-glow-strong {
+  box-shadow:
+    0 0 8px currentColor,
+    0 0 24px currentColor,
+    0 0 48px currentColor,
+    inset 0 0 12px rgba(255, 255, 255, 0.15);
+}
+
+/* Vintage ornamental border */
+.ornamental-border {
+  border: 2px double currentColor;
+  position: relative;
+}
+.ornamental-border::before,
+.ornamental-border::after {
+  content: '✦';
+  position: absolute;
+  font-size: 0.9em;
+  color: currentColor;
+  background: inherit;
+  padding: 0 0.5em;
+  line-height: 1;
+}
+.ornamental-border::before {
+  top: -0.6em;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.ornamental-border::after {
+  bottom: -0.6em;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Ornamental corner — vintage flourish */
+.ornamental-corner {
+  position: relative;
+}
+.ornamental-corner::before,
+.ornamental-corner::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-color: currentColor;
+  border-style: solid;
+  opacity: 0.55;
+}
+.ornamental-corner::before {
+  top: 6px; left: 6px;
+  border-width: 2px 0 0 2px;
+}
+.ornamental-corner::after {
+  bottom: 6px; right: 6px;
+  border-width: 0 2px 2px 0;
+}
+
+/* Decorative divider — vintage */
+.vintage-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.vintage-divider::before,
+.vintage-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, currentColor, transparent);
+  opacity: 0.45;
+}
+
+/* Glassmorphism enhanced for dark template */
+.glass-dark {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.glass-dark-strong {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+/* Grid pattern animated for tech template */
+.grid-animated {
+  background-image:
+    linear-gradient(rgba(16, 185, 129, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 185, 129, 0.06) 1px, transparent 1px);
+  background-size: 30px 30px;
+  animation: grid-move 20s linear infinite;
+}
+
+@keyframes grid-move {
+  0% { background-position: 0 0; }
+  100% { background-position: 30px 30px; }
+}
+
+/* Dark subtle grid overlay for oscuro template */
+.grid-overlay-dark {
+  background-image:
+    linear-gradient(rgba(16, 185, 129, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(16, 185, 129, 0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Emerald glow halo for dark glass cards */
+.glow-emerald-soft {
+  box-shadow: 0 0 24px -8px rgba(16, 185, 129, 0.4);
+}
+
+/* Top brand bar for corporativo template */
+.brand-bar-top {
+  position: relative;
+}
+.brand-bar-top::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg,
+    var(--brand-color, oklch(0.55 0.15 160)),
+    oklch(0.75 0.18 85),
+    var(--brand-color, oklch(0.55 0.15 160)));
+}
+
+/* Formal PDF button for corporativo */
+.btn-pdf-formal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border: 1px solid currentColor;
+  background: transparent;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.btn-pdf-formal:hover {
+  background: currentColor;
+}
+.btn-pdf-formal:hover .btn-pdf-formal-label,
+.btn-pdf-formal:hover svg {
+  filter: invert(1);
+}
+
+/* Hover expand for feature cards on landing */
+.feature-card-expand {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.3s ease,
+              border-color 0.3s ease;
+}
+.feature-card-expand:hover {
+  transform: translateY(-4px) scale(1.015);
+  box-shadow: 0 18px 40px -16px rgba(16, 185, 129, 0.25);
+}
+
+/* Gradient border on hover */
+.gradient-border-hover {
+  position: relative;
+  transition: border-color 0.3s ease;
+}
+.gradient-border-hover::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg,
+    rgba(16, 185, 129, 0),
+    rgba(245, 158, 11, 0));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  transition: background 0.3s ease;
+}
+.gradient-border-hover:hover::after {
+  background: linear-gradient(135deg,
+    rgba(16, 185, 129, 0.6),
+    rgba(245, 158, 11, 0.6));
+}
+
+/* Rotating card preview for hero */
+@keyframes rotate-templates {
+  0%, 22% { opacity: 1; transform: translateY(0); }
+  25%, 47% { opacity: 0; transform: translateY(-12px); }
+  50%, 72% { opacity: 0; transform: translateY(12px); }
+  75%, 100% { opacity: 0; transform: translateY(12px); }
+}
+
+/* Floating stats badge animation */
+@keyframes badge-float-in {
+  from { opacity: 0; transform: translateY(20px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.badge-float-in {
+  animation: badge-float-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Pricing popular floating badge */
+@keyframes popular-bounce {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-4px) rotate(2deg); }
+}
+.popular-badge {
+  animation: popular-bounce 3s ease-in-out infinite;
+}
+
+/* Annual savings pulse */
+@keyframes savings-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+}
+.savings-badge {
+  animation: savings-pulse 2s infinite;
+}
+
+/* Template toggle button for interactive demo */
+.template-toggle-btn {
+  transition: all 0.2s ease;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+}
+.template-toggle-btn[data-active="true"] {
+  background: linear-gradient(135deg, #059669, #10b981);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 12px -2px rgba(5, 150, 105, 0.4);
+}
+
+/* Color swatch for interactive demo */
+.color-swatch {
+  position: relative;
+  transition: transform 0.2s ease;
+}
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+.color-swatch[data-active="true"]::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  border: 2px solid currentColor;
+  pointer-events: none;
+}
+
+/* QR container — ensures square sizing across templates */
+.qr-container-compact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 12px;
+  background: white;
+}
+.qr-container-compact.inverted {
+  background: #0f172a;
+}
+
+/* Sticky hover lift utility for card previews */
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+

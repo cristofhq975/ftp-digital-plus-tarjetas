@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/lib/store';
 import { FTPLogo } from '@/components/ftp-logo';
@@ -10,8 +10,8 @@ import { AnimatedCounter } from '@/components/visual/animated-counter';
 import { GradientText } from '@/components/visual/gradient-text';
 import { Marquee } from '@/components/visual/marquee';
 import { Typewriter } from '@/components/animations/typewriter';
-import { PLANS, PLAN_ORDER } from '@/lib/plans';
-import type { PlanType } from '@/lib/types';
+import { PLANS, PLAN_ORDER, COLOR_PRESETS } from '@/lib/plans';
+import type { PlanType, BusinessCard } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,6 +24,7 @@ import {
   ParticleBackground,
 } from '@/components/visual/improved-backgrounds';
 import { WaveDivider, DotsDivider } from '@/components/visual/section-divider';
+import { CardPreview } from '@/components/card-preview';
 import {
   QrCode,
   Briefcase,
@@ -62,6 +63,13 @@ import {
   Target,
   Lightbulb,
   Clock,
+  Eye,
+  Layers,
+  Palette,
+  Play,
+  HelpCircle,
+  Plus,
+  Minus,
 } from 'lucide-react';
 import { getFeaturedCases, INDUSTRY_LABELS } from '@/lib/cases-data';
 
@@ -237,10 +245,10 @@ const STEPS = [
 ];
 
 const STATS = [
-  { value: 1000, suffix: '+', label: 'Tarjetas creadas' },
-  { value: 50, suffix: 'k+', label: 'Escaneos QR' },
-  { value: 24, suffix: '', label: 'Funciones incluidas' },
-  { value: 99, suffix: '.9%', label: 'Disponibilidad' },
+  { value: 1000, suffix: '+', label: 'Tarjetas creadas', icon: LayoutTemplate, accent: 'text-emerald-200' },
+  { value: 50, suffix: 'k+', label: 'Escaneos QR', icon: QrCode, accent: 'text-amber-200' },
+  { value: 24, suffix: '', label: 'Funciones incluidas', icon: Zap, accent: 'text-emerald-100' },
+  { value: 99, suffix: '.9%', label: 'Disponibilidad', icon: Shield, accent: 'text-amber-100' },
 ];
 
 const TESTIMONIALS = [
@@ -654,80 +662,187 @@ function Hero() {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Mock card builder — used by hero rotating preview & interactive demo
+   ------------------------------------------------------------------ */
+
+function buildMockCard(overrides: Partial<BusinessCard>): BusinessCard {
+  const defaultSchedule = {
+    monday: { open: true, start: '09:00', end: '18:00' },
+    tuesday: { open: true, start: '09:00', end: '18:00' },
+    wednesday: { open: true, start: '09:00', end: '18:00' },
+    thursday: { open: true, start: '09:00', end: '18:00' },
+    friday: { open: true, start: '09:00', end: '18:00' },
+    saturday: { open: true, start: '10:00', end: '14:00' },
+    sunday: { open: false, start: '00:00', end: '00:00' },
+  };
+  return {
+    id: 'mock-' + Math.random().toString(36).slice(2),
+    userId: 'mock-user',
+    linkName: 'demo',
+    cardName: 'Dra. María González',
+    description: 'Médico cirujano especialista en medicina interna. Atención con cita previa.',
+    logo: '',
+    coverPhoto: '',
+    profilePhoto: '',
+    template: 'moderno',
+    primaryColor: '#059669',
+    secondaryColor: '#10b981',
+    backgroundColor: '#ffffff',
+    textColor: '#0f172a',
+    fontFamily: 'poppins',
+    fontSize: 16,
+    customCSS: '',
+    customJS: '',
+    qrStyle: 'cuadrado',
+    qrColor: '#059669',
+    qrBgColor: '#ffffff',
+    qrLogo: '',
+    qrGeneratedAt: new Date().toISOString(),
+    qrExpiresAt: null,
+    whatsappNumber: '+52 55 1234 5678',
+    whatsappVerified: true,
+    whatsappMessage: 'Hola, vi tu tarjeta digital',
+    schedule: defaultSchedule,
+    services: [
+      { id: 's1', name: 'Consulta General', url: '', description: 'Diagnóstico y tratamiento integral.', photo: '' },
+      { id: 's2', name: 'Chequeo Anual', url: '', description: 'Examen médico preventivo completo.', photo: '' },
+    ],
+    products: [
+      { id: 'p1', name: 'Plan Nutricional', price: 599, currency: 'MXN', description: 'Plan personalizado 30 días', image: '', url: '' },
+    ],
+    gallery: [],
+    blog: [],
+    testimonials: [
+      { id: 't1', name: 'Laura M.', text: 'Atención excepcional y muy profesional.', photo: '', rating: 5 },
+    ],
+    team: [],
+    socialLinks: {
+      facebook: 'https://facebook.com',
+      instagram: 'https://instagram.com',
+      twitter: '',
+      linkedin: '',
+      youtube: '',
+      tiktok: '',
+      whatsapp: '',
+      telegram: '',
+    },
+    instagramEmbed: '',
+    floatingFrames: [],
+    banner: { enabled: false, title: '', text: '', imageUrl: '', linkUrl: '' },
+    seoTitle: '',
+    seoDescription: '',
+    seoKeywords: '',
+    privacyPolicy: '',
+    terms: '',
+    activeSections: ['detalles', 'servicios', 'productos', 'qr', 'horario', 'testimonios', 'sociales'],
+    hideBrand: false,
+    passwordProtected: false,
+    cardPassword: '',
+    views: 342,
+    qrScans: 156,
+    isActive: true,
+    createdAt: new Date().toISOString(),
+    affiliateCode: '',
+    affiliateClicks: 0,
+    ...overrides,
+  };
+}
+
+const HERO_ROTATING_TEMPLATES: Array<{ template: BusinessCard['template']; label: string; primary: string; secondary: string }> = [
+  { template: 'moderno', label: 'Moderno', primary: '#059669', secondary: '#10b981' },
+  { template: 'clasico', label: 'Clásico', primary: '#047857', secondary: '#34d399' },
+  { template: 'minimalista', label: 'Minimalista', primary: '#1f2937', secondary: '#4b5563' },
+  { template: 'elegante', label: 'Elegante', primary: '#7c3aed', secondary: '#a78bfa' },
+  { template: 'dinamica', label: 'Dinámica', primary: '#ea580c', secondary: '#fb923c' },
+  { template: 'corporativo', label: 'Corporativo', primary: '#d97706', secondary: '#f59e0b' },
+  { template: 'creativo', label: 'Creativo', primary: '#be123c', secondary: '#f43f5e' },
+  { template: 'oscuro', label: 'Modo Oscuro', primary: '#10b981', secondary: '#34d399' },
+  { template: 'vintage', label: 'Vintage', primary: '#a16207', secondary: '#d97706' },
+  { template: 'tech', label: 'Tech', primary: '#10b981', secondary: '#06b6d4' },
+];
+
 function FloatingCardPreview() {
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    if (paused) return;
+    const t = setInterval(() => {
+      setIdx(i => (i + 1) % HERO_ROTATING_TEMPLATES.length);
+    }, 3000);
+    return () => clearInterval(t);
+  }, [paused]);
+
+  const cfg = HERO_ROTATING_TEMPLATES[idx];
+  const card = useMemo(
+    () => buildMockCard({
+      template: cfg.template,
+      primaryColor: cfg.primary,
+      secondaryColor: cfg.secondary,
+    }),
+    [cfg.template, cfg.primary, cfg.secondary],
+  );
+
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
       {/* Glow */}
       <div className="absolute -inset-4 rounded-3xl bg-amber-300/20 blur-2xl" />
 
-      {/* Main card */}
+      {/* Live badge */}
+      <div className="absolute -top-3 left-1/2 z-20 -translate-x-1/2">
+        <Badge className="border-emerald-300 bg-white/95 text-emerald-700 shadow-md backdrop-blur">
+          <span className="relative mr-1.5 flex size-2">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+            <span className="relative inline-flex size-2 rounded-full bg-emerald-600" />
+          </span>
+          Demo en vivo
+        </Badge>
+      </div>
+
+      {/* Rotating card */}
       <motion.div
-        animate={{ y: [0, -10, 0] }}
+        animate={{ y: [0, -8, 0] }}
         transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-        className="relative rounded-2xl border border-white/60 bg-white p-6 shadow-2xl shadow-emerald-900/30"
+        className="relative"
       >
-        {/* Top bar */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex size-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-base font-bold text-white shadow-md">
-              MG
-            </div>
-            <div>
-              <p className="text-sm font-bold text-slate-900">Dra. María González</p>
-              <p className="text-xs text-slate-500">Médico Internista</p>
-            </div>
-          </div>
-          <div className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-            BÁSICO
-          </div>
-        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={cfg.template}
+            initial={{ opacity: 0, rotateY: 90, scale: 0.95 }}
+            animate={{ opacity: 1, rotateY: 0, scale: 1 }}
+            exit={{ opacity: 0, rotateY: -90, scale: 0.95 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="origin-center"
+          >
+            <CardPreview card={card} userPlan="pro" />
+          </motion.div>
+        </AnimatePresence>
+      </motion.div>
 
-        <p className="mt-4 text-xs leading-relaxed text-slate-600">
-          Médico cirujano especialista en medicina interna. Cédula profesional
-          1234567. Atención con cita previa.
+      {/* Template name + dots */}
+      <div className="mt-4 flex flex-col items-center gap-2">
+        <p className="text-xs font-semibold text-slate-700">
+          Plantilla: <span className="text-emerald-700">{cfg.label}</span>
         </p>
-
-        {/* Quick actions */}
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          {[
-            { icon: MessageCircle, label: 'WhatsApp', color: 'text-emerald-600 bg-emerald-50' },
-            { icon: Phone, label: 'Llamar', color: 'text-amber-600 bg-amber-50' },
-            { icon: CalendarDays, label: 'Cita', color: 'text-emerald-600 bg-emerald-50' },
-          ].map(item => (
-            <div
-              key={item.label}
+        <div className="flex items-center gap-1.5">
+          {HERO_ROTATING_TEMPLATES.map((t, i) => (
+            <button
+              key={t.template}
+              onClick={() => setIdx(i)}
+              aria-label={`Ver plantilla ${t.label}`}
               className={cn(
-                'flex flex-col items-center gap-1 rounded-lg py-2 text-[10px] font-medium',
-                item.color,
+                'h-1.5 rounded-full transition-all',
+                i === idx ? 'w-6 bg-emerald-600' : 'w-1.5 bg-slate-300 hover:bg-slate-400',
               )}
-            >
-              <item.icon className="size-4" />
-              {item.label}
-            </div>
+            />
           ))}
         </div>
-
-        {/* QR */}
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
-          <div className="grid size-14 shrink-0 grid-cols-5 grid-rows-5 gap-px rounded-md bg-white p-1">
-            {Array.from({ length: 25 }).map((_, i) => (
-              <div
-                key={i}
-                className={cn(
-                  'rounded-[1px]',
-                  [0, 1, 2, 5, 7, 10, 12, 14, 17, 19, 22, 24, 3, 9, 11, 15, 21, 23, 6, 18].includes(i)
-                    ? 'bg-emerald-700'
-                    : 'bg-transparent',
-                )}
-              />
-            ))}
-          </div>
-          <div className="flex-1">
-            <p className="text-xs font-semibold text-slate-900">Escanea mi QR</p>
-            <p className="text-[10px] text-slate-500">Permanente · Sin vencimiento</p>
-          </div>
-        </div>
-      </motion.div>
+      </div>
 
       {/* Floating badges */}
       <motion.div
@@ -797,7 +912,7 @@ function Features() {
                 variant="light"
                 hover
                 glow
-                className="group relative h-full overflow-hidden p-6"
+                className="feature-card-expand gradient-border-hover group relative h-full overflow-hidden p-6"
               >
                 {/* Glow accent */}
                 <div
@@ -828,6 +943,10 @@ function Features() {
                       {feature.description}
                     </p>
                   </div>
+                  <div className="mt-auto flex items-center gap-1 text-xs font-semibold text-emerald-700 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                    Saber más
+                    <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+                  </div>
                 </div>
               </GlassCard>
             </motion.div>
@@ -856,7 +975,7 @@ function Features() {
                       variant="light"
                       hover
                       glow
-                      className="group relative h-full overflow-hidden p-6"
+                      className="feature-card-expand gradient-border-hover group relative h-full overflow-hidden p-6"
                     >
                       <div
                         className={cn(
@@ -885,6 +1004,10 @@ function Features() {
                           <p className="text-sm leading-relaxed text-slate-600">
                             {feature.description}
                           </p>
+                        </div>
+                        <div className="mt-auto flex items-center gap-1 text-xs font-semibold text-emerald-700 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                          Saber más
+                          <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
                         </div>
                       </div>
                     </GlassCard>
@@ -1002,8 +1125,11 @@ function Stats() {
             <motion.div
               key={stat.label}
               {...fadeUpProps(idx * 0.1)}
-              className="text-center"
+              className="flex flex-col items-center text-center"
             >
+              <div className="mb-2 flex size-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm ring-1 ring-white/15">
+                <stat.icon className={cn('size-6', stat.accent)} />
+              </div>
               <p className="bg-gradient-to-r from-amber-300 to-amber-200 bg-clip-text text-4xl font-extrabold text-transparent sm:text-5xl">
                 <AnimatedCounter value={stat.value} suffix={stat.suffix} duration={1800} />
               </p>
@@ -1288,13 +1414,210 @@ function CasesPreview() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Pricing preview                                                    */
+/*  Interactive Demo — toggle templates & color presets
+   ------------------------------------------------------------------ */
+
+const DEMO_TEMPLATES: Array<{ id: BusinessCard['template']; label: string }> = [
+  { id: 'moderno', label: 'Moderno' },
+  { id: 'corporativo', label: 'Corporativo' },
+  { id: 'creativo', label: 'Creativo' },
+  { id: 'oscuro', label: 'Oscuro' },
+  { id: 'vintage', label: 'Vintage' },
+];
+
+const DEMO_COLOR_SWATCHES = COLOR_PRESETS.slice(0, 6);
+
+function InteractiveDemo() {
+  const navigate = useAppStore(s => s.navigate);
+  const [tpl, setTpl] = useState<BusinessCard['template']>('moderno');
+  const [presetIdx, setPresetIdx] = useState(0);
+  const preset = DEMO_COLOR_SWATCHES[presetIdx];
+
+  const card = useMemo(
+    () => buildMockCard({
+      template: tpl,
+      primaryColor: preset.primary,
+      secondaryColor: preset.secondary,
+      backgroundColor: preset.background,
+      textColor: preset.text,
+      qrColor: preset.primary,
+    }),
+    [tpl, preset],
+  );
+
+  return (
+    <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50/40 via-white to-amber-50/30 py-20 sm:py-28">
+      {/* Decorative blobs */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-20 top-10 size-72 rounded-full bg-emerald-200/30 blur-3xl" />
+        <div className="absolute -right-20 bottom-10 size-72 rounded-full bg-amber-200/30 blur-3xl" />
+      </div>
+
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <motion.div {...fadeUpProps()} className="mx-auto max-w-2xl text-center">
+          <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">
+            <Play className="mr-1 size-3.5" />
+            Demo interactiva
+          </Badge>
+          <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+            Pruébalo{' '}
+            <GradientText variant="emerald-gold" animated>en vivo</GradientText>
+          </h2>
+          <p className="mt-4 text-lg text-slate-600">
+            Cambia plantillas y colores en tiempo real para ver cómo se vería tu tarjeta.
+            Sin registro, sin compromiso.
+          </p>
+        </motion.div>
+
+        <div className="mt-12 grid gap-8 lg:grid-cols-[1fr_minmax(380px,460px)] lg:items-start">
+          {/* Controls panel */}
+          <motion.div {...fadeUpProps(0.1)} className="order-2 lg:order-1">
+            <Card className="overflow-hidden border-slate-200 shadow-lg">
+              <CardContent className="p-6">
+                {/* Template selector */}
+                <div className="mb-6">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Layers className="size-4 text-emerald-600" />
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">
+                      Plantilla
+                    </h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {DEMO_TEMPLATES.map(t => (
+                      <button
+                        key={t.id}
+                        data-active={tpl === t.id}
+                        onClick={() => setTpl(t.id)}
+                        aria-pressed={tpl === t.id}
+                        className="template-toggle-btn rounded-lg px-3 py-2 text-xs font-semibold transition"
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Color preset selector */}
+                <div className="mb-6">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Palette className="size-4 text-amber-600" />
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-700">
+                      Paleta de color
+                    </h3>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {DEMO_COLOR_SWATCHES.map((p, i) => (
+                      <button
+                        key={p.name}
+                        data-active={presetIdx === i}
+                        onClick={() => setPresetIdx(i)}
+                        aria-label={`Aplicar paleta ${p.name}`}
+                        title={p.name}
+                        style={{ color: p.primary }}
+                        className="color-swatch flex h-10 w-10 flex-col items-stretch overflow-hidden rounded-full border border-slate-200"
+                      >
+                        <span className="flex-1" style={{ background: p.primary }} />
+                        <span className="flex-1" style={{ background: p.secondary }} />
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Paleta: <span className="font-semibold text-slate-700">{preset.name}</span> · {preset.gradient}
+                  </p>
+                </div>
+
+                {/* Quick stats / benefits */}
+                <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-4 text-center">
+                  <div>
+                    <p className="text-lg font-bold text-emerald-700">10</p>
+                    <p className="text-[10px] text-slate-500">Plantillas</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-amber-600">20</p>
+                    <p className="text-[10px] text-slate-500">Paletas</p>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-emerald-700">24+</p>
+                    <p className="text-[10px] text-slate-500">Funciones</p>
+                  </div>
+                </div>
+
+                <Button
+                  size="lg"
+                  onClick={() => navigate('login')}
+                  className="mt-6 w-full gap-1.5 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-md hover:from-emerald-700 hover:to-emerald-600"
+                >
+                  <Sparkles className="size-4" />
+                  Crea la tuya
+                  <ArrowRight className="ml-1 size-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Live preview */}
+          <motion.div
+            {...fadeUpProps(0.15)}
+            className="order-1 lg:order-2"
+          >
+            <div className="sticky top-24">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <Eye className="size-3.5 text-emerald-600" />
+                  Vista previa en tiempo real
+                </div>
+                <Badge variant="outline" className="border-emerald-200 text-emerald-700">
+                  {DEMO_TEMPLATES.find(t => t.id === tpl)?.label}
+                </Badge>
+              </div>
+              <div className="rounded-2xl bg-slate-100 p-4 shadow-inner">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={tpl + presetIdx}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <CardPreview card={card} userPlan="pro" />
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ------------------------------------------------------------------ */
+/*  Pricing — with billing toggle, savings badge & FAQ snippet
+   ------------------------------------------------------------------ */
+
+const PRICING_FAQ_SNIPPET = [
+  {
+    q: '¿Puedo cambiar de plan en cualquier momento?',
+    a: 'Sí, puedes subir o bajar de plan cuando quieras. Los cambios se aplican de inmediato y prorrateamos el cobro del periodo actual.',
+  },
+  {
+    q: '¿Qué pasa cuando vence el QR del Plan Gratis?',
+    a: 'El QR del plan gratuito caduca a los 7 días. Al mejorar a Básico o Pro, tu QR vuelve a estar activo y nunca más vence.',
+  },
+  {
+    q: '¿Hay algún costo oculto o comisión por uso?',
+    a: 'No. El precio que ves es el precio que pagas. Sin comisiones por escaneos de QR, vistas o mensajes recibidos.',
+  },
+];
+
+const ANNUAL_DISCOUNT_RATE = 0.2; // 20% de ahorro al pagar anual
 
 function PricingPreview() {
   const navigate = useAppStore(s => s.navigate);
   const currentUser = useAppStore(s => s.currentUser);
   const setSelectedPlanForCheckout = useAppStore(s => s.setSelectedPlanForCheckout);
+  const [billing, setBilling] = useState<'mensual' | 'anual'>('mensual');
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const handleChoose = (planId: PlanType) => {
     if (planId === 'gratis') {
@@ -1307,6 +1630,15 @@ function PricingPreview() {
     } else {
       navigate('login');
     }
+  };
+
+  const computePrice = (price: number) => {
+    if (billing === 'anual' && price > 0) {
+      // Mensual price * 12 meses * (1 - discount)
+      const annual = Math.round(price * 12 * (1 - ANNUAL_DISCOUNT_RATE));
+      return annual;
+    }
+    return price;
   };
 
   return (
@@ -1325,10 +1657,58 @@ function PricingPreview() {
           </p>
         </motion.div>
 
-        <div className="mt-14 grid gap-6 lg:grid-cols-3">
+        {/* Billing toggle — Mensual / Anual */}
+        <motion.div
+          {...fadeUpProps(0.05)}
+          className="mt-8 flex flex-col items-center gap-3"
+        >
+          <div className="relative inline-flex items-center rounded-full border border-slate-200 bg-slate-50 p-1 shadow-inner">
+            <button
+              onClick={() => setBilling('mensual')}
+              aria-pressed={billing === 'mensual'}
+              className={cn(
+                'relative z-10 rounded-full px-5 py-2 text-sm font-semibold transition-colors',
+                billing === 'mensual' ? 'text-emerald-700' : 'text-slate-500 hover:text-slate-700',
+              )}
+            >
+              Mensual
+            </button>
+            <button
+              onClick={() => setBilling('anual')}
+              aria-pressed={billing === 'anual'}
+              className={cn(
+                'relative z-10 flex items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition-colors',
+                billing === 'anual' ? 'text-emerald-700' : 'text-slate-500 hover:text-slate-700',
+              )}
+            >
+              Anual
+              <span className="savings-badge inline-flex items-center rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-amber-950">
+                −20%
+              </span>
+            </button>
+            {/* Slider indicator */}
+            <span
+              className={cn(
+                'absolute inset-y-1 z-0 rounded-full bg-white shadow-sm transition-all duration-300 ease-out',
+                billing === 'mensual' ? 'left-1 right-1/2 mr-1' : 'left-1/2 right-1 ml-1',
+              )}
+            />
+          </div>
+          {billing === 'anual' && (
+            <p className="text-xs text-emerald-700">
+              <CheckCircle2 className="mr-1 inline size-3.5" />
+              Ahorra hasta 20% pagando un año por adelantado
+            </p>
+          )}
+        </motion.div>
+
+        <div className="mt-12 grid gap-6 lg:grid-cols-3">
           {PLAN_ORDER.map((planId, idx) => {
             const plan = PLANS[planId];
             const isHighlight = plan.highlight;
+            const isPaid = plan.price > 0;
+            const displayedPrice = computePrice(plan.price);
+            const periodLabel = billing === 'anual' && isPaid ? 'MXN / año' : `MXN ${plan.period}`;
             return (
               <motion.div key={planId} {...fadeUpProps(idx * 0.1)}>
                 <Card
@@ -1343,7 +1723,7 @@ function PricingPreview() {
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                       <Badge
                         className={cn(
-                          'border-0 px-3 py-1 text-xs font-semibold shadow-md',
+                          'popular-badge border-0 px-3 py-1 text-xs font-semibold shadow-md',
                           isHighlight
                             ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950'
                             : 'bg-slate-800 text-white',
@@ -1361,10 +1741,15 @@ function PricingPreview() {
 
                     <div className="flex items-baseline gap-1">
                       <span className="text-4xl font-extrabold text-slate-900">
-                        ${plan.price}
+                        ${displayedPrice}
                       </span>
-                      <span className="text-sm text-slate-500">MXN {plan.period}</span>
+                      <span className="text-sm text-slate-500">{periodLabel}</span>
                     </div>
+                    {billing === 'anual' && isPaid && (
+                      <p className="text-[11px] font-semibold text-emerald-700">
+                        Ahorras ${plan.price * 12 - displayedPrice} MXN al año
+                      </p>
+                    )}
 
                     <ul className="flex flex-col gap-2.5 text-sm">
                       {plan.features.slice(0, 6).map(f => (
@@ -1410,6 +1795,44 @@ function PricingPreview() {
             Comparar todos los planes
             <ArrowRight className="ml-1 size-4" />
           </Button>
+        </motion.div>
+
+        {/* FAQ snippet */}
+        <motion.div {...fadeUpProps(0.15)} className="mx-auto mt-16 max-w-3xl">
+          <div className="mb-6 flex items-center justify-center gap-2 text-center">
+            <HelpCircle className="size-5 text-emerald-600" />
+            <h3 className="text-xl font-bold text-slate-900">Preguntas frecuentes</h3>
+          </div>
+          <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white shadow-sm">
+            {PRICING_FAQ_SNIPPET.map((item, i) => (
+              <button
+                key={item.q}
+                onClick={() => setOpenFaq(prev => (prev === i ? null : i))}
+                className="flex w-full flex-col gap-1 px-5 py-4 text-left transition-colors hover:bg-slate-50/60"
+                aria-expanded={openFaq === i}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold text-slate-900">{item.q}</span>
+                  <span className="shrink-0 text-emerald-600">
+                    {openFaq === i ? <Minus className="size-4" /> : <Plus className="size-4" />}
+                  </span>
+                </div>
+                <AnimatePresence initial={false}>
+                  {openFaq === i && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                      className="overflow-hidden"
+                    >
+                      <p className="pt-2 text-sm text-slate-600">{item.a}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </button>
+            ))}
+          </div>
         </motion.div>
       </div>
       {/* Dots divider — separación visual hacia Testimonios */}
@@ -1897,6 +2320,7 @@ export function LandingPage() {
         <Stats />
         <Comparison />
         <CasesPreview />
+        <InteractiveDemo />
         <PricingPreview />
         <Testimonials />
         <FinalCTA />

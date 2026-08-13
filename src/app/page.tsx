@@ -23,6 +23,7 @@ import { NotificationsPage } from '@/components/sections/notifications-page';
 import { CasesPage } from '@/components/sections/cases-page';
 import { ThemesPage } from '@/components/sections/themes-page';
 import { KioskMode } from '@/components/sections/kiosk-mode';
+import { IntegrationsPage } from '@/components/sections/integrations-page';
 
 function CurrentView() {
   const currentView = useAppStore(s => s.currentView);
@@ -58,6 +59,8 @@ function CurrentView() {
       return <ThemesPage />;
     case 'kiosk':
       return <KioskMode />;
+    case 'integrations':
+      return <IntegrationsPage />;
     case 'template-gallery':
       return <TemplateGallery />;
     case 'help':
