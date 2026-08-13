@@ -14,6 +14,7 @@ import { RegisterSW } from "@/components/pwa/register-sw";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { OfflineIndicator } from "@/components/pwa/offline-indicator";
 import { FeedbackBanner } from "@/components/feedback/feedback-banner";
+import { FabMenu } from "@/components/fab-menu";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -101,6 +102,8 @@ export default function RootLayout({
           <InstallPrompt />
           <RegisterSW />
           <FeedbackBanner />
+          {/* FAB global — solo se muestra cuando hay sesión activa (Task 13-a) */}
+          <FabMenu />
         </ThemeProvider>
       </body>
     </html>

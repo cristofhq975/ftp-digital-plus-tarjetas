@@ -10,6 +10,7 @@ import {
   TrendingUp, TrendingDown, Eye, QrCode, Mail, Calendar, Download,
   Globe, Smartphone, Monitor, Tablet, ArrowLeft, Sparkles, Lock, Clock,
   MousePointerClick, CalendarDays, MapPin, Activity, Award, GitCompare,
+  BarChart3,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -25,7 +26,9 @@ import {
   Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
 } from '@/components/ui/table';
 import { FTPLogo } from '@/components/ftp-logo';
+import { CardAnalyticsModal } from '@/components/card-analytics-modal';
 import { useAppStore, useCurrentUserCards } from '@/lib/store';
+import type { BusinessCard } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 // ============================ PALETA DE COLORES ============================
@@ -256,6 +259,8 @@ export function AnalyticsPage() {
   const appointments = useAppStore(s => s.appointments);
 
   const [range, setRange] = useState('30');
+  // Task 13-b: estado para el modal de analítica detallada de tarjeta
+  const [analyticsCard, setAnalyticsCard] = useState<BusinessCard | null>(null);
 
   // Días efectivos (en demo "Todo el tiempo" usa 90 días)
   const days = range === 'all' ? 90 : parseInt(range, 10);
@@ -823,6 +828,7 @@ export function AnalyticsPage() {
                           <TableHead className="text-right">Mensajes</TableHead>
                           <TableHead className="text-right">Conversión</TableHead>
                           <TableHead className="text-center">Estado</TableHead>
+                          <TableHead className="text-center">Detalle</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -896,6 +902,18 @@ export function AnalyticsPage() {
                               >
                                 {c.isActive ? 'Activa' : 'Inactiva'}
                               </Badge>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setAnalyticsCard(c)}
+                                className="button-press h-8 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                                aria-label={`Ver analítica detallada de ${c.cardName}`}
+                              >
+                                <BarChart3 className="h-3.5 w-3.5" />
+                                <span className="hidden sm:inline">Ver detalle</span>
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1102,6 +1120,13 @@ export function AnalyticsPage() {
           </motion.div>
         </div>
       </main>
+
+      {/* Card Analytics Modal — Task 13-b */}
+      <CardAnalyticsModal
+        card={analyticsCard}
+        open={!!analyticsCard}
+        onOpenChange={(o) => { if (!o) setAnalyticsCard(null); }}
+      />
 
       <Footer />
     </div>

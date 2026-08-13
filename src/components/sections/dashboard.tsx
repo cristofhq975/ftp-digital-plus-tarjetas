@@ -13,6 +13,7 @@ import {
   HelpCircle, Image as ImageIcon, Images, Activity,
   Camera, Smartphone, Upload, LifeBuoy, Search, RefreshCw,
   Compass, FileDown, Import as ImportIcon, MonitorPlay, Palette,
+  BarChart3,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Area, AreaChart, ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip } from 'recharts';
@@ -54,12 +55,19 @@ import { LoadingList, LoadingCard } from '@/components/loading-states';
 import { ExportMenu } from '@/components/export-menu';
 import { OnboardingChecklist } from '@/components/onboarding-checklist';
 import { ImportModal } from '@/components/import-modal';
+// Task 13-b: Analítica detallada + Quick stats + Health indicator
+import { CardAnalyticsModal } from '@/components/card-analytics-modal';
+import { QuickStatsBar } from '@/components/quick-stats-bar';
+import { CardHealthIndicator } from '@/components/card-health-indicator';
 import { useAppStore, useCurrentUserCards } from '@/lib/store';
 import { PLANS, DASHBOARD_SECTIONS } from '@/lib/plans';
 import { BusinessCard, PlanType, ContactMessage, Appointment } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { formatDate, formatDateTime } from '@/lib/card-utils';
 import { ActivityWidget } from '@/components/activity-widget';
+import { AgendaWidget } from '@/components/agenda-widget';
+import { MessagesPreviewWidget } from '@/components/messages-preview';
+import { FabMenu } from '@/components/fab-menu';
 
 type SectionId =
   | 'tablero' | 'messages' | 'appointments' | 'orders'
@@ -87,6 +95,8 @@ export function Dashboard() {
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [shareCard, setShareCard] = useState<BusinessCard | null>(null);
+  // Task 13-b: estado para el modal de analítica detallada de tarjeta
+  const [analyticsCard, setAnalyticsCard] = useState<BusinessCard | null>(null);
 
   const openShare = (card: BusinessCard | null) => {
     if (!card) {
@@ -254,6 +264,8 @@ export function Dashboard() {
                     onShareCard={openShare}
                     onKiosk={handleKiosk}
                     onImportOpen={() => setImportOpen(true)}
+                    onViewAnalytics={(card) => setAnalyticsCard(card)}
+                    onNavigateSection={(section) => setActiveSection(section)}
                   />
                 )}
                 {activeSection === 'messages' && <MessagesSection />}
@@ -309,6 +321,13 @@ export function Dashboard() {
         open={!!shareCard}
         onOpenChange={(o) => { if (!o) setShareCard(null); }}
         card={shareCard}
+      />
+
+      {/* Card Analytics Modal — Task 13-b */}
+      <CardAnalyticsModal
+        card={analyticsCard}
+        open={!!analyticsCard}
+        onOpenChange={(o) => { if (!o) setAnalyticsCard(null); }}
       />
 
       {/* First-time onboarding wizard */}
@@ -714,12 +733,14 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 }
 
 function TableroSection({
-  onCreateOpen, onShareCard, onKiosk, onImportOpen,
+  onCreateOpen, onShareCard, onKiosk, onImportOpen, onViewAnalytics, onNavigateSection,
 }: {
   onCreateOpen: () => void;
   onShareCard: (card: BusinessCard | null) => void;
   onKiosk: () => void;
   onImportOpen: () => void;
+  onViewAnalytics: (card: BusinessCard) => void;
+  onNavigateSection: (section: 'messages' | 'appointments') => void;
 }) {
   const currentUser = useAppStore(s => s.currentUser)!;
   const cards = useCurrentUserCards();
@@ -752,6 +773,19 @@ function TableroSection({
     window.addEventListener('ftp:open-create-card', handler);
     return () => window.removeEventListener('ftp:open-create-card', handler);
   }, [onCreateOpen]);
+
+  // Escuchar eventos de los widgets (AgendaWidget, MessagesPreviewWidget) para
+  // cambiar a las sub-secciones internas del dashboard.
+  useEffect(() => {
+    const openAppointments = () => onNavigateSection('appointments');
+    const openMessages = () => onNavigateSection('messages');
+    window.addEventListener('ftp:open-appointments', openAppointments);
+    window.addEventListener('ftp:open-messages', openMessages);
+    return () => {
+      window.removeEventListener('ftp:open-appointments', openAppointments);
+      window.removeEventListener('ftp:open-messages', openMessages);
+    };
+  }, [onNavigateSection]);
 
   const handleEdit = (card: BusinessCard) => {
     selectCard(card.id);
@@ -952,6 +986,9 @@ function TableroSection({
         </div>
       </div>
 
+      {/* Quick Stats Bar — Task 13-b */}
+      <QuickStatsBar onNavigateSection={onNavigateSection} />
+
       {/* Stats cards with sparklines — glassmorphism (Task 9-b) */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map((stat, i) => (
@@ -997,6 +1034,13 @@ function TableroSection({
         <FavoritesWidget onViewAll={() => onCreateOpen()} />
         {/* Live activity feed (auto-refresh every 30s) */}
         <ActivityWidget maxItems={8} />
+      </div>
+
+      {/* Agenda Widget + Messages Preview — Task 13-a */}
+      {/* Mini-calendario con próximas citas + vista previa de mensajes recientes */}
+      <div className="grid gap-6 xl:grid-cols-3">
+        <AgendaWidget className="xl:col-span-2" maxItems={5} />
+        <MessagesPreviewWidget className="xl:col-span-1" maxItems={4} />
       </div>
 
       {/* My cards section */}
@@ -1074,6 +1118,7 @@ function TableroSection({
                       onDelete={() => handleDelete(card)}
                       onToggle={() => toggleCardActive(card.id)}
                       onToggleFav={() => handleToggleFav(card)}
+                      onViewAnalytics={() => onViewAnalytics(card)}
                     />
                   </motion.div>
                 ))}
@@ -1092,6 +1137,7 @@ function TableroSection({
 // ============================ CARD ITEM ============================
 function CardItem({
   card, onEdit, onView, onCopy, onShare, onDelete, onToggle, onToggleFav, isFavorite,
+  onViewAnalytics,
 }: {
   card: BusinessCard;
   onEdit: () => void;
@@ -1102,6 +1148,7 @@ function CardItem({
   onToggle: () => void;
   onToggleFav: () => void;
   isFavorite: boolean;
+  onViewAnalytics: () => void;
 }) {
   const initials = card.cardName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
@@ -1162,8 +1209,8 @@ function CardItem({
           </div>
         </div>
 
-        {/* Stats inline with icons */}
-        <div className="mt-4 grid grid-cols-3 gap-2">
+        {/* Stats inline with icons + Health indicator (Task 13-b) */}
+        <div className="mt-4 grid grid-cols-4 gap-2">
           <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2">
             <Eye className="h-4 w-4 shrink-0 text-emerald-500" />
             <div className="min-w-0">
@@ -1184,6 +1231,11 @@ function CardItem({
               <p className="text-[10px] text-muted-foreground">Servicios</p>
               <p className="text-sm font-semibold text-slate-800">{card.services.length}</p>
             </div>
+          </div>
+          {/* Health indicator — Task 13-b */}
+          <div className="flex flex-col items-center justify-center rounded-lg bg-slate-50 px-1 py-1.5">
+            <CardHealthIndicator card={card} size="sm" />
+            <span className="mt-0.5 text-[9px] font-medium text-muted-foreground">Salud</span>
           </div>
         </div>
 
@@ -1251,6 +1303,23 @@ function CardItem({
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>Exportar / Descargar</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            {/* Ver analítica — Task 13-b */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={onViewAnalytics}
+                    className="button-press h-9 w-9 border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                    aria-label="Ver analítica detallada"
+                  >
+                    <BarChart3 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Ver analítica detallada</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
