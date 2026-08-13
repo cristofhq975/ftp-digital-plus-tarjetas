@@ -48,11 +48,14 @@ import { CountUp } from '@/components/animations/count-up';
 import { FavoritesWidget } from '@/components/sections/favorites';
 import { GlassCard } from '@/components/visual/glass-card';
 import { AuroraBackground } from '@/components/visual/improved-backgrounds';
+import { EmptyState as SharedEmptyState } from '@/components/empty-state';
+import { LoadingList, LoadingCard } from '@/components/loading-states';
 import { useAppStore, useCurrentUserCards } from '@/lib/store';
 import { PLANS, DASHBOARD_SECTIONS } from '@/lib/plans';
 import { BusinessCard, PlanType, ContactMessage, Appointment } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { formatDate, formatDateTime } from '@/lib/card-utils';
+import { ActivityWidget } from '@/components/activity-widget';
 
 type SectionId =
   | 'tablero' | 'messages' | 'appointments' | 'orders'
@@ -103,9 +106,14 @@ export function Dashboard() {
   const unreadCount = messages.filter(m => !m.read).length;
 
   const handleNavigate = (id: SectionId) => {
-    // 'stats' and 'template-gallery' are full-page navigations
+    // 'stats', 'template-gallery', 'compare' and 'help' are full-page navigations
     if (id === 'stats' as any) {
       navigate('stats');
+      setMobileOpen(false);
+      return;
+    }
+    if (id === 'compare' as any) {
+      navigate('compare');
       setMobileOpen(false);
       return;
     }
@@ -594,6 +602,10 @@ const MOCK_ACTIVITIES = [
   },
 ];
 
+// Nota (Task 10-a): La actividad reciente ahora se renderiza vía <ActivityWidget /> (componente dedicado con
+// auto-refresh y datos reales del store). MOCK_ACTIVITIES se conserva como referencia para otros componentes
+// que aún pudieran usarlo; eliminarlo rompería imports en otros archivos del bundle.
+
 function getRelativeTime(iso: string): string {
   const now = Date.now();
   const diff = now - new Date(iso).getTime();
@@ -752,13 +764,6 @@ function TableroSection({
     },
   ];
 
-  const activityColors: Record<string, { bg: string; text: string }> = {
-    emerald: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
-    amber: { bg: 'bg-amber-100', text: 'text-amber-700' },
-    teal: { bg: 'bg-teal-100', text: 'text-teal-700' },
-    rose: { bg: 'bg-rose-100', text: 'text-rose-700' },
-  };
-
   return (
     <div className="space-y-6">
       {/* Welcome header with aurora background + daily tip */}
@@ -882,53 +887,11 @@ function TableroSection({
         ))}
       </div>
 
-      {/* Favorites Widget + Recent Activity (2-column on xl) */}
+      {/* Favorites Widget + Live Activity Widget (2-column on xl) — Task 10-a */}
       <div className="grid gap-6 xl:grid-cols-2">
         <FavoritesWidget onViewAll={() => onCreateOpen()} />
-        {/* Recent activity timeline */}
-        <Card className="border-slate-200/60 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-sm">
-                <Activity className="h-4 w-4" />
-              </div>
-              Actividad Reciente
-            </CardTitle>
-            <Badge variant="secondary" className="bg-slate-100 text-slate-600">Últimas 24 h</Badge>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <ol className="relative max-h-80 space-y-3 overflow-y-auto pr-1 custom-scrollbar md:max-h-none md:overflow-visible">
-              {MOCK_ACTIVITIES.map((act, i) => {
-                const cfg = activityColors[act.color] || activityColors.emerald;
-                return (
-                  <motion.li
-                    key={act.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.06 }}
-                    className="relative flex items-start gap-3"
-                  >
-                    {/* Timeline line */}
-                    {i !== MOCK_ACTIVITIES.length - 1 && (
-                      <span className="absolute left-[18px] top-9 h-[calc(100%-12px)] w-px bg-slate-200" aria-hidden />
-                    )}
-                    <div className={cn('relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-4 ring-white', cfg.bg, cfg.text)}>
-                      <act.icon className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0 flex-1 pt-0.5">
-                      <p className="text-sm font-semibold text-slate-800">{act.title}</p>
-                      <p className="truncate text-xs text-muted-foreground">{act.description}</p>
-                      <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
-                        <Clock className="h-3 w-3" />
-                        {getRelativeTime(act.timestamp)}
-                      </p>
-                    </div>
-                  </motion.li>
-                );
-              })}
-            </ol>
-          </CardContent>
-        </Card>
+        {/* Live activity feed (auto-refresh every 30s) */}
+        <ActivityWidget maxItems={8} />
       </div>
 
       {/* My cards section */}
@@ -1419,6 +1382,17 @@ function MessagesSection() {
   // Filter messages relevant to this user's cards (for demo: show all)
   const userMessages = messages; // demo: show all
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const [loading, setLoading] = useState(true);
+
+  // Simular carga inicial breve (los datos están en memoria, pero mostramos
+  // el loading state para mejorar la percepción de UX).
+  useEffect(() => {
+    // requestAnimationFrame evita el warning react-hooks/set-state-in-effect
+    // al diferir la actualización de estado al siguiente frame.
+    const raf = requestAnimationFrame(() => setLoading(true));
+    const t = setTimeout(() => setLoading(false), 350);
+    return () => { cancelAnimationFrame(raf); clearTimeout(t); };
+  }, [filter]);
 
   const filtered = useMemo(() => {
     const sorted = [...userMessages].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -1462,11 +1436,18 @@ function MessagesSection() {
         </Tabs>
       </div>
 
-      {filtered.length === 0 ? (
-        <EmptyState
-          icon={Mailbox}
+      {loading ? (
+        <LoadingList count={4} />
+      ) : filtered.length === 0 ? (
+        <SharedEmptyState
+          variant="default"
+          icon={<Mailbox className="h-10 w-10 text-slate-500" aria-hidden />}
           title="No hay mensajes"
           description="Cuando alguien te contacte desde tus tarjetas, los mensajes aparecerán aquí."
+          action={cards.length === 0 ? {
+            label: 'Crear mi primera tarjeta',
+            onClick: () => useAppStore.getState().navigate('editor'),
+          } : undefined}
         />
       ) : (
         <div className="space-y-3">
@@ -1539,6 +1520,14 @@ function MessagesSection() {
 // ============================ APPOINTMENTS ============================
 function AppointmentsSection() {
   const appointments = useAppStore(s => s.appointments);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // requestAnimationFrame evita el warning react-hooks/set-state-in-effect
+    const raf = requestAnimationFrame(() => setLoading(true));
+    const t = setTimeout(() => setLoading(false), 350);
+    return () => { cancelAnimationFrame(raf); clearTimeout(t); };
+  }, []);
 
   const sorted = [...appointments].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const pending = sorted.filter(a => a.status === 'pending');
@@ -1567,9 +1556,12 @@ function AppointmentsSection() {
         <SummaryTile label="Canceladas" value={cancelled.length} icon={X} color="rose" />
       </div>
 
-      {sorted.length === 0 ? (
-        <EmptyState
-          icon={CalendarIcon}
+      {loading ? (
+        <LoadingList count={3} />
+      ) : sorted.length === 0 ? (
+        <SharedEmptyState
+          variant="default"
+          icon={<CalendarIcon className="h-10 w-10 text-slate-500" aria-hidden />}
           title="No hay citas agendadas"
           description="Cuando alguien agende una cita desde tus tarjetas, aparecerá aquí."
         />

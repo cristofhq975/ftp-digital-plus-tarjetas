@@ -1,0 +1,1333 @@
+     1→'use client';
+     2→
+     3→import { useState, useMemo, type FormEvent, type ChangeEvent } from 'react';
+     4→import { useForm } from 'react-hook-form';
+     5→import { zodResolver } from '@hookform/resolvers/zod';
+     6→import { z } from 'zod';
+     7→import { motion, AnimatePresence } from 'framer-motion';
+     8→import { toast } from 'sonner';
+     9→import { useAppStore } from '@/lib/store';
+    10→import { FTPLogo } from '@/components/ftp-logo';
+    11→import { ThemeToggle } from '@/components/theme-toggle';
+    12→import { PLANS, PLAN_ORDER } from '@/lib/plans';
+    13→import type { PlanType } from '@/lib/types';
+    14→import { cn } from '@/lib/utils';
+    15→import { Button } from '@/components/ui/button';
+    16→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+    17→import { Input } from '@/components/ui/input';
+    18→import { Label } from '@/components/ui/label';
+    19→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+    20→import { Checkbox } from '@/components/ui/checkbox';
+    21→import { Badge } from '@/components/ui/badge';
+    22→import { Separator } from '@/components/ui/separator';
+    23→import {
+    24→  CreditCard,
+    25→  Lock,
+    26→  Check,
+    27→  ArrowLeft,
+    28→  ArrowRight,
+    29→  Shield,
+    30→  ShieldCheck,
+    31→  Calendar,
+    32→  Building2,
+    33→  Wallet,
+    34→  CheckCircle2,
+    35→  Loader2,
+    36→  Sparkles,
+    37→  Tag,
+    38→  Upload,
+    39→  PartyPopper,
+    40→} from 'lucide-react';
+    41→
+    42→/* ------------------------------------------------------------------ */
+    43→/*  Constants                                                          */
+    44→/* ------------------------------------------------------------------ */
+    45→
+    46→type PaymentMethod = 'tarjeta' | 'paypal' | 'transferencia';
+    47→type Step = 'plan' | 'pago' | 'confirmacion';
+    48→
+    49→const PROMO_CODES: Record<string, number> = {
+    50→  FTP10: 0.1,
+    51→  BIENVENIDA: 0.2,
+    52→};
+    53→
+    54→const IVA_RATE = 0.16;
+    55→
+    56→const PAYMENT_METHODS: { id: PaymentMethod; label: string; icon: typeof CreditCard; hint: string }[] = [
+    57→  { id: 'tarjeta', label: 'Tarjeta', icon: CreditCard, hint: 'Visa, Mastercard, Amex' },
+    58→  { id: 'paypal', label: 'PayPal', icon: Wallet, hint: 'Cuenta PayPal' },
+    59→  { id: 'transferencia', label: 'Transferencia', icon: Building2, hint: 'SPEI / CLABE' },
+    60→];
+    61→
+    62→/* ------------------------------------------------------------------ */
+    63→/*  Helpers                                                            */
+    64→/* ------------------------------------------------------------------ */
+    65→
+    66→type CardBrand = 'visa' | 'mastercard' | 'amex' | 'desconocida';
+    67→
+    68→function detectBrand(rawNumber: string): CardBrand {
+    69→  const n = rawNumber.replace(/\s+/g, '');
+    70→  if (/^4/.test(n)) return 'visa';
+    71→  if (/^3[47]/.test(n)) return 'amex';
+    72→  if (/^(5[1-5]|2[2-7])/.test(n)) return 'mastercard';
+    73→  return 'desconocida';
+    74→}
+    75→
+    76→function formatCardNumber(value: string): string {
+    77→  const digits = value.replace(/\D/g, '').slice(0, 16);
+    78→  return digits.replace(/(.{4})/g, '$1 ').trim();
+    79→}
+    80→
+    81→function formatExpiry(value: string): string {
+    82→  const digits = value.replace(/\D/g, '').slice(0, 4);
+    83→  if (digits.length <= 2) return digits;
+    84→  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    85→}
+    86→
+    87→function formatCvc(value: string): string {
+    88→  return value.replace(/\D/g, '').slice(0, 4);
+    89→}
+    90→
+    91→function currency(n: number): string {
+    92→  return n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    93→}
+    94→
+    95→/* ------------------------------------------------------------------ */
+    96→/*  Validation schemas                                                 */
+    97→/* ------------------------------------------------------------------ */
+    98→
+    99→const cardSchema = z.object({
+   100→  cardNumber: z
+   101→    .string()
+   102→    .min(1, 'El número de tarjeta es obligatorio')
+   103→    .refine(v => v.replace(/\s+/g, '').length >= 13, 'Número de tarjeta incompleto')
+   104→    .refine(v => v.replace(/\s+/g, '').length <= 16, 'Máximo 16 dígitos'),
+   105→  expiry: z
+   106→    .string()
+   107→    .min(1, 'Fecha requerida')
+   108→    .regex(/^\d{2}\/\d{2}$/, 'Formato MM/YY')
+   109→    .refine(v => {
+   110→      const [mm, yy] = v.split('/').map(Number);
+   111→      if (mm < 1 || mm > 12) return false;
+   112→      const now = new Date();
+   113→      const currentYear = now.getFullYear() % 100;
+   114→      const currentMonth = now.getMonth() + 1;
+   115→      if (yy < currentYear) return false;
+   116→      if (yy === currentYear && mm < currentMonth) return false;
+   117→      return true;
+   118→    }, 'Tarjeta vencida'),
+   119→  cvc: z
+   120→    .string()
+   121→    .min(3, 'CVC inválido')
+   122→    .max(4, 'CVC inválido'),
+   123→  nameOnCard: z
+   124→    .string()
+   125→    .min(3, 'El nombre es demasiado corto')
+   126→    .max(60, 'El nombre es demasiado largo'),
+   127→  email: z
+   128→    .string()
+   129→    .min(1, 'Email requerido')
+   130→    .email('Email inválido'),
+   131→});
+   132→
+   133→const paypalSchema = z.object({
+   134→  email: z.string().min(1, 'Email requerido').email('Email inválido'),
+   135→});
+   136→
+   137→const transferSchema = z.object({
+   138→  holderName: z.string().min(3, 'Nombre del titular requerido'),
+   139→});
+   140→
+   141→type CardFormValues = z.infer<typeof cardSchema>;
+   142→type PaypalFormValues = z.infer<typeof paypalSchema>;
+   143→type TransferFormValues = z.infer<typeof transferSchema>;
+   144→
+   145→/* ------------------------------------------------------------------ */
+   146→/*  Header                                                             */
+   147→/* ------------------------------------------------------------------ */
+   148→
+   149→function CheckoutHeader({ onBack }: { onBack: () => void }) {
+   150→  return (
+   151→    <header className="sticky top-0 z-30 w-full border-b border-slate-200/70 bg-white/80 backdrop-blur-md">
+   152→      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+   153→        <button
+   154→          onClick={onBack}
+   155→          className="flex items-center gap-2 transition-opacity hover:opacity-90"
+   156→          aria-label="Volver"
+   157→        >
+   158→          <FTPLogo variant="full" className="h-9 w-auto" />
+   159→        </button>
+   160→        <div className="flex items-center gap-2">
+   161→          <ThemeToggle className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700" />
+   162→          <Button
+   163→            variant="ghost"
+   164→            onClick={onBack}
+   165→            className="text-slate-700 hover:bg-emerald-50 hover:text-emerald-700"
+   166→          >
+   167→            <ArrowLeft className="mr-1 size-4" />
+   168→            Volver
+   169→          </Button>
+   170→        </div>
+   171→      </div>
+   172→    </header>
+   173→  );
+   174→}
+   175→
+   176→/* ------------------------------------------------------------------ */
+   177→/*  Step indicator                                                     */
+   178→/* ------------------------------------------------------------------ */
+   179→
+   180→function StepIndicator({ current }: { current: Step }) {
+   181→  const steps: { id: Step; label: string; n: number }[] = [
+   182→    { id: 'plan', label: 'Plan', n: 1 },
+   183→    { id: 'pago', label: 'Pago', n: 2 },
+   184→    { id: 'confirmacion', label: 'Confirmación', n: 3 },
+   185→  ];
+   186→  const currentIndex = steps.findIndex(s => s.id === current);
+   187→
+   188→  return (
+   189→    <div className="flex items-center justify-center gap-1 sm:gap-2">
+   190→      {steps.map((s, i) => {
+   191→        const done = i < currentIndex;
+   192→        const active = i === currentIndex;
+   193→        return (
+   194→          <div key={s.id} className="flex items-center gap-1 sm:gap-2">
+   195→            <div className="flex items-center gap-2">
+   196→              <div
+   197→                className={cn(
+   198→                  'flex size-8 items-center justify-center rounded-full text-sm font-semibold transition-all sm:size-9',
+   199→                  done && 'bg-emerald-600 text-white',
+   200→                  active && 'bg-gradient-to-br from-emerald-600 to-emerald-500 text-white ring-4 ring-emerald-100',
+   201→                  !done && !active && 'bg-slate-100 text-slate-500',
+   202→                )}
+   203→              >
+   204→                {done ? <Check className="size-4" /> : s.n}
+   205→              </div>
+   206→              <span
+   207→                className={cn(
+   208→                  'hidden text-sm font-medium sm:inline',
+   209→                  active ? 'text-emerald-700' : done ? 'text-slate-700' : 'text-slate-400',
+   210→                )}
+   211→              >
+   212→                {s.label}
+   213→              </span>
+   214→            </div>
+   215→            {i < steps.length - 1 && (
+   216→              <div
+   217→                className={cn(
+   218→                  'h-0.5 w-6 rounded-full sm:w-12',
+   219→                  i < currentIndex ? 'bg-emerald-500' : 'bg-slate-200',
+   220→                )}
+   221→              />
+   222→            )}
+   223→          </div>
+   224→        );
+   225→      })}
+   226→    </div>
+   227→  );
+   228→}
+   229→
+   230→/* ------------------------------------------------------------------ */
+   231→/*  Plan selection screen                                              */
+   232→/* ------------------------------------------------------------------ */
+   233→
+   234→function PlanSelectionScreen({ onPick }: { onPick: (plan: PlanType) => void }) {
+   235→  const paidPlans = PLAN_ORDER.filter(id => id !== 'gratis');
+   236→
+   237→  return (
+   238→    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+   239→      <motion.div
+   240→        initial={{ opacity: 0, y: 10 }}
+   241→        animate={{ opacity: 1, y: 0 }}
+   242→        className="mx-auto max-w-2xl text-center"
+   243→      >
+   244→        <Badge className="border-amber-200 bg-amber-50 text-amber-700">
+   245→          <Sparkles className="mr-1 size-3.5" />
+   246→          Paso 1 · Elige tu plan
+   247→        </Badge>
+   248→        <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+   249→          Selecciona el plan a contratar
+   250→        </h1>
+   251→        <p className="mt-3 text-slate-600">
+   252→          Elige el plan que deseas y continúa al pago seguro. Podrás activar tu
+   253→          plan de inmediato tras completar la transacción.
+   254→        </p>
+   255→      </motion.div>
+   256→
+   257→      <div className="mt-10 grid gap-6 md:grid-cols-2">
+   258→        {paidPlans.map((planId, idx) => {
+   259→          const plan = PLANS[planId];
+   260→          const isHighlight = plan.highlight;
+   261→          return (
+   262→            <motion.div
+   263→              key={planId}
+   264→              initial={{ opacity: 0, y: 14 }}
+   265→              animate={{ opacity: 1, y: 0 }}
+   266→              transition={{ delay: idx * 0.08 }}
+   267→            >
+   268→              <Card
+   269→                className={cn(
+   270→                  'relative h-full transition-all duration-300 hover:-translate-y-1',
+   271→                  isHighlight
+   272→                    ? 'border-emerald-400 shadow-xl shadow-emerald-100 ring-2 ring-emerald-500/20'
+   273→                    : 'border-slate-200 hover:shadow-lg hover:shadow-slate-100',
+   274→                )}
+   275→              >
+   276→                {plan.badge && (
+   277→                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+   278→                    <Badge className="border-0 bg-gradient-to-r from-amber-400 to-amber-500 px-3 py-1 text-xs font-semibold text-amber-950 shadow-md">
+   279→                      {plan.badge}
+   280→                    </Badge>
+   281→                  </div>
+   282→                )}
+   283→                <CardContent className="flex h-full flex-col gap-5 pt-5">
+   284→                  <div className="flex flex-col gap-1">
+   285→                    <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
+   286→                    <p className="text-sm text-slate-500">{plan.description}</p>
+   287→                  </div>
+   288→                  <div className="flex items-baseline gap-1.5">
+   289→                    <span className="text-4xl font-extrabold text-slate-900">${plan.price}</span>
+   290→                    <span className="text-sm text-slate-500">MXN / {plan.period}</span>
+   291→                  </div>
+   292→                  <ul className="flex flex-col gap-2 text-sm">
+   293→                    {plan.features.slice(0, 6).map(f => (
+   294→                      <li key={f.name} className="flex items-start gap-2">
+   295→                        <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+   296→                        <span className="text-slate-700">{f.name}</span>
+   297→                      </li>
+   298→                    ))}
+   299→                  </ul>
+   300→                  <Button
+   301→                    onClick={() => onPick(planId)}
+   302→                    className={cn(
+   303→                      'mt-auto w-full',
+   304→                      isHighlight
+   305→                        ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-700 hover:to-emerald-600'
+   306→                        : 'bg-slate-900 text-white hover:bg-slate-800',
+   307→                    )}
+   308→                  >
+   309→                    Elegir este plan
+   310→                    <ArrowRight className="ml-1 size-4" />
+   311→                  </Button>
+   312→                </CardContent>
+   313→              </Card>
+   314→            </motion.div>
+   315→          );
+   316→        })}
+   317→      </div>
+   318→    </div>
+   319→  );
+   320→}
+   321→
+   322→/* ------------------------------------------------------------------ */
+   323→/*  Card brand icon                                                    */
+   324→/* ------------------------------------------------------------------ */
+   325→
+   326→function BrandBadge({ brand }: { brand: CardBrand }) {
+   327→  if (brand === 'desconocida') return null;
+   328→  const map: Record<Exclude<CardBrand, 'desconocida'>, { label: string; cls: string }> = {
+   329→    visa: { label: 'VISA', cls: 'bg-slate-800 text-white' },
+   330→    mastercard: { label: 'MC', cls: 'bg-amber-500 text-white' },
+   331→    amex: { label: 'AMEX', cls: 'bg-emerald-600 text-white' },
+   332→  };
+   333→  const { label, cls } = map[brand];
+   334→  return (
+   335→    <span
+   336→      className={cn(
+   337→        'rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide',
+   338→        cls,
+   339→      )}
+   340→    >
+   341→      {label}
+   342→    </span>
+   343→  );
+   344→}
+   345→
+   346→/* ------------------------------------------------------------------ */
+   347→/*  Card form                                                          */
+   348→/* ------------------------------------------------------------------ */
+   349→
+   350→function CardForm({
+   351→  register,
+   352→  errors,
+   353→  cardNumber,
+   354→  brand,
+   355→  onCardNumber,
+   356→  expiry,
+   357→  cvc,
+   358→  onExpiry,
+   359→  onCvc,
+   360→  saveCard,
+   361→  setSaveCard,
+   362→  emailDefault,
+   363→}: {
+   364→  register: ReturnType<typeof useForm<CardFormValues>>['register'];
+   365→  errors: ReturnType<typeof useForm<CardFormValues>>['formState']['errors'];
+   366→  cardNumber: string;
+   367→  brand: CardBrand;
+   368→  onCardNumber: (e: ChangeEvent<HTMLInputElement>) => void;
+   369→  expiry: string;
+   370→  cvc: string;
+   371→  onExpiry: (e: ChangeEvent<HTMLInputElement>) => void;
+   372→  onCvc: (e: ChangeEvent<HTMLInputElement>) => void;
+   373→  saveCard: boolean;
+   374→  setSaveCard: (v: boolean) => void;
+   375→  emailDefault: string;
+   376→}) {
+   377→  return (
+   378→    <motion.div
+   379→      initial={{ opacity: 0, x: 8 }}
+   380→      animate={{ opacity: 1, x: 0 }}
+   381→      exit={{ opacity: 0, x: -8 }}
+   382→      className="space-y-4"
+   383→    >
+   384→      <div className="space-y-1.5">
+   385→        <Label htmlFor="cardNumber" className="text-sm font-medium text-slate-700">
+   386→          Número de tarjeta
+   387→        </Label>
+   388→        <div className="relative">
+   389→          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+   390→            <CreditCard className="size-4" />
+   391→          </span>
+   392→          <Input
+   393→            id="cardNumber"
+   394→            inputMode="numeric"
+   395→            autoComplete="cc-number"
+   396→            placeholder="1234 5678 9012 3456"
+   397→            value={cardNumber}
+   398→            {...register('cardNumber')}
+   399→            onChange={onCardNumber}
+   400→            className={cn(
+   401→              'pl-9 pr-16',
+   402→              errors.cardNumber && 'border-red-400 focus-visible:ring-red-300',
+   403→            )}
+   404→          />
+   405→          <span className="absolute right-3 top-1/2 -translate-y-1/2">
+   406→            <BrandBadge brand={brand} />
+   407→          </span>
+   408→        </div>
+   409→        {errors.cardNumber && (
+   410→          <p className="text-xs text-red-600">{errors.cardNumber.message}</p>
+   411→        )}
+   412→      </div>
+   413→
+   414→      <div className="grid grid-cols-2 gap-3">
+   415→        <div className="space-y-1.5">
+   416→          <Label htmlFor="expiry" className="text-sm font-medium text-slate-700">
+   417→            Vencimiento
+   418→          </Label>
+   419→          <div className="relative">
+   420→            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+   421→              <Calendar className="size-4" />
+   422→            </span>
+   423→            <Input
+   424→              id="expiry"
+   425→              inputMode="numeric"
+   426→              autoComplete="cc-exp"
+   427→              placeholder="MM/YY"
+   428→              value={expiry}
+   429→              {...register('expiry')}
+   430→              onChange={onExpiry}
+   431→              className={cn(
+   432→                'pl-9',
+   433→                errors.expiry && 'border-red-400 focus-visible:ring-red-300',
+   434→              )}
+   435→            />
+   436→          </div>
+   437→          {errors.expiry && (
+   438→            <p className="text-xs text-red-600">{errors.expiry.message}</p>
+   439→          )}
+   440→        </div>
+   441→        <div className="space-y-1.5">
+   442→          <Label htmlFor="cvc" className="text-sm font-medium text-slate-700">
+   443→            CVC
+   444→          </Label>
+   445→          <div className="relative">
+   446→            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+   447→              <Lock className="size-4" />
+   448→            </span>
+   449→            <Input
+   450→              id="cvc"
+   451→              inputMode="numeric"
+   452→              autoComplete="cc-csc"
+   453→              placeholder="123"
+   454→              value={cvc}
+   455→              {...register('cvc')}
+   456→              onChange={onCvc}
+   457→              className={cn(
+   458→                'pl-9',
+   459→                errors.cvc && 'border-red-400 focus-visible:ring-red-300',
+   460→              )}
+   461→            />
+   462→          </div>
+   463→          {errors.cvc && (
+   464→            <p className="text-xs text-red-600">{errors.cvc.message}</p>
+   465→          )}
+   466→        </div>
+   467→      </div>
+   468→
+   469→      <div className="space-y-1.5">
+   470→        <Label htmlFor="nameOnCard" className="text-sm font-medium text-slate-700">
+   471→          Nombre como aparece en la tarjeta
+   472→        </Label>
+   473→        <Input
+   474→          id="nameOnCard"
+   475→          autoComplete="cc-name"
+   476→          placeholder="JUAN PÉREZ LÓPEZ"
+   477→          {...register('nameOnCard')}
+   478→          className={cn(
+   479→            errors.nameOnCard && 'border-red-400 focus-visible:ring-red-300',
+   480→          )}
+   481→        />
+   482→        {errors.nameOnCard && (
+   483→          <p className="text-xs text-red-600">{errors.nameOnCard.message}</p>
+   484→        )}
+   485→      </div>
+   486→
+   487→      <div className="space-y-1.5">
+   488→        <Label htmlFor="email" className="text-sm font-medium text-slate-700">
+   489→          Correo electrónico (recibo)
+   490→        </Label>
+   491→        <Input
+   492→          id="email"
+   493→          type="email"
+   494→          autoComplete="email"
+   495→          defaultValue={emailDefault}
+   496→          placeholder="tucorreo@ejemplo.com"
+   497→          {...register('email')}
+   498→          className={cn(
+   499→            errors.email && 'border-red-400 focus-visible:ring-red-300',
+   500→          )}
+   501→        />
+   502→        {errors.email && (
+   503→          <p className="text-xs text-red-600">{errors.email.message}</p>
+   504→        )}
+   505→      </div>
+   506→
+   507→      <label
+   508→        htmlFor="saveCard"
+   509→        className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50/60 p-3 text-sm text-slate-700 transition-colors hover:bg-slate-50"
+   510→      >
+   511→        <Checkbox
+   512→          id="saveCard"
+   513→          checked={saveCard}
+   514→          onCheckedChange={(v) => setSaveCard(v === true)}
+   515→        />
+   516→        <span className="font-medium">Guardar tarjeta para futuros pagos</span>
+   517→      </label>
+   518→    </motion.div>
+   519→  );
+   520→}
+   521→
+   522→/* ------------------------------------------------------------------ */
+   523→/*  PayPal form                                                        */
+   524→/* ------------------------------------------------------------------ */
+   525→
+   526→function PayPalForm({
+   527→  register,
+   528→  errors,
+   529→  emailDefault,
+   530→}: {
+   531→  register: ReturnType<typeof useForm<PaypalFormValues>>['register'];
+   532→  errors: ReturnType<typeof useForm<PaypalFormValues>>['formState']['errors'];
+   533→  emailDefault: string;
+   534→}) {
+   535→  return (
+   536→    <motion.div
+   537→      initial={{ opacity: 0, x: 8 }}
+   538→      animate={{ opacity: 1, x: 0 }}
+   539→      exit={{ opacity: 0, x: -8 }}
+   540→      className="space-y-4"
+   541→    >
+   542→      <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-6 text-center">
+   543→        <div className="flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-emerald-500 text-white">
+   544→          <Wallet className="size-7" />
+   545→        </div>
+   546→        <p className="text-sm text-slate-600">
+   547→          Serás redirigido a <span className="font-semibold text-slate-900">PayPal</span> para completar el pago de forma segura.
+   548→        </p>
+   549→        <Badge variant="secondary" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+   550→          <Shield className="mr-1 size-3" /> Protegido por PayPal
+   551→        </Badge>
+   552→      </div>
+   553→      <div className="space-y-1.5">
+   554→        <Label htmlFor="ppEmail" className="text-sm font-medium text-slate-700">
+   555→          Correo electrónico de PayPal
+   556→        </Label>
+   557→        <Input
+   558→          id="ppEmail"
+   559→          type="email"
+   560→          autoComplete="email"
+   561→          defaultValue={emailDefault}
+   562→          placeholder="tucorreo@paypal.com"
+   563→          {...register('email')}
+   564→          className={cn(
+   565→            errors.email && 'border-red-400 focus-visible:ring-red-300',
+   566→          )}
+   567→        />
+   568→        {errors.email && (
+   569→          <p className="text-xs text-red-600">{errors.email.message}</p>
+   570→        )}
+   571→      </div>
+   572→    </motion.div>
+   573→  );
+   574→}
+   575→
+   576→/* ------------------------------------------------------------------ */
+   577→/*  Transferencia form                                                 */
+   578→/* ------------------------------------------------------------------ */
+   579→
+   580→const BANK_DETAILS = {
+   581→  bank: 'Banco FTP Fiduciario',
+   582→  clabe: '012 345 67890 1234567',
+   583→  holder: 'FTP Digital Plus S.A. de C.V.',
+   584→  reference: 'FTP-2024-XXXX',
+   585→};
+   586→
+   587→function TransferenciaForm({
+   588→  register,
+   589→  errors,
+   590→}: {
+   591→  register: ReturnType<typeof useForm<TransferFormValues>>['register'];
+   592→  errors: ReturnType<typeof useForm<TransferFormValues>>['formState']['errors'];
+   593→}) {
+   594→  const copyToClipboard = (text: string, label: string) => {
+   595→    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+   596→      navigator.clipboard.writeText(text).then(
+   597→        () => toast.success(`${label} copiado al portapapeles`),
+   598→        () => toast.error('No se pudo copiar'),
+   599→      );
+   600→    }
+   601→  };
+   602→
+   603→  return (
+   604→    <motion.div
+   605→      initial={{ opacity: 0, x: 8 }}
+   606→      animate={{ opacity: 1, x: 0 }}
+   607→      exit={{ opacity: 0, x: -8 }}
+   608→      className="space-y-4"
+   609→    >
+   610→      <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 text-sm text-amber-900">
+   611→        <p className="font-semibold">Instrucciones de transferencia SPEI</p>
+   612→        <ol className="mt-2 list-decimal space-y-1 pl-5 text-amber-800">
+   613→          <li>Realiza la transferencia a la cuenta indicada abajo.</li>
+   614→          <li>Guarda el comprobante PDF o imagen.</li>
+   615→          <li>Sube el comprobante usando el botón.</li>
+   616→          <li>Tu plan se activará en un máximo de 24 horas hábiles tras verificación.</li>
+   617→        </ol>
+   618→      </div>
+   619→
+   620→      <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
+   621→        <Row label="Banco" value={BANK_DETAILS.bank} onCopy={() => copyToClipboard(BANK_DETAILS.bank, 'Banco')} />
+   622→        <Separator />
+   623→        <Row label="CLABE interbancaria" value={BANK_DETAILS.clabe} onCopy={() => copyToClipboard(BANK_DETAILS.clabe.replace(/\s+/g, ''), 'CLABE')} mono />
+   624→        <Separator />
+   625→        <Row label="Titular de la cuenta" value={BANK_DETAILS.holder} onCopy={() => copyToClipboard(BANK_DETAILS.holder, 'Titular')} />
+   626→        <Separator />
+   627→        <Row label="Referencia" value={BANK_DETAILS.reference} onCopy={() => copyToClipboard(BANK_DETAILS.reference, 'Referencia')} mono />
+   628→      </div>
+   629→
+   630→      <div className="space-y-1.5">
+   631→        <Label htmlFor="holderName" className="text-sm font-medium text-slate-700">
+   632→          Nombre del titular que transfiere
+   633→        </Label>
+   634→        <Input
+   635→          id="holderName"
+   636→          placeholder="Tu nombre completo"
+   637→          {...register('holderName')}
+   638→          className={cn(
+   639→            errors.holderName && 'border-red-400 focus-visible:ring-red-300',
+   640→          )}
+   641→        />
+   642→        {errors.holderName && (
+   643→          <p className="text-xs text-red-600">{errors.holderName.message}</p>
+   644→        )}
+   645→      </div>
+   646→
+   647→      <Button
+   648→        type="button"
+   649→        variant="outline"
+   650→        onClick={() => toast.success('Comprobante recibido (demo)', { description: 'Tu pago será verificado en un máximo de 24h.' })}
+   651→        className="w-full border-dashed"
+   652→      >
+   653→        <Upload className="mr-2 size-4" />
+   654→        Subir comprobante
+   655→      </Button>
+   656→    </motion.div>
+   657→  );
+   658→}
+   659→
+   660→function Row({ label, value, onCopy, mono }: { label: string; value: string; onCopy: () => void; mono?: boolean }) {
+   661→  return (
+   662→    <div className="flex items-center justify-between gap-3 py-1">
+   663→      <div>
+   664→        <p className="text-[11px] uppercase tracking-wide text-slate-500">{label}</p>
+   665→        <p className={cn('text-sm font-semibold text-slate-900', mono && 'font-mono tracking-tight')}>{value}</p>
+   666→      </div>
+   667→      <Button type="button" variant="ghost" size="sm" onClick={onCopy} className="text-emerald-700 hover:bg-emerald-50">
+   668→        Copiar
+   669→      </Button>
+   670→    </div>
+   671→  );
+   672→}
+   673→
+   674→/* ------------------------------------------------------------------ */
+   675→/*  Security badges                                                    */
+   676→/* ------------------------------------------------------------------ */
+   677→
+   678→function SecurityBadges() {
+   679→  const items = [
+   680→    { icon: Lock, label: 'Encriptación SSL 256-bit' },
+   681→    { icon: ShieldCheck, label: 'PCI DSS Compliant' },
+   682→    { icon: Check, label: 'Pago seguro' },
+   683→  ];
+   684→  return (
+   685→    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-xs text-slate-600">
+   686→      {items.map(it => (
+   687→        <span key={it.label} className="inline-flex items-center gap-1.5">
+   688→          <it.icon className="size-3.5 text-emerald-600" />
+   689→          {it.label}
+   690→        </span>
+   691→      ))}
+   692→    </div>
+   693→  );
+   694→}
+   695→
+   696→/* ------------------------------------------------------------------ */
+   697→/*  Order summary                                                      */
+   698→/* ------------------------------------------------------------------ */
+   699→
+   700→function OrderSummary({
+   701→  plan,
+   702→  promo,
+   703→  promoApplied,
+   704→  onApplyPromo,
+   705→  onRemovePromo,
+   706→}: {
+   707→  plan: PlanType;
+   708→  promo: { code: string; percent: number } | null;
+   709→  promoApplied: boolean;
+   710→  onApplyPromo: (code: string) => void;
+   711→  onRemovePromo: () => void;
+   712→}) {
+   713→  const config = PLANS[plan];
+   714→  const subtotal = config.price;
+   715→  const discount = promo ? subtotal * promo.percent : 0;
+   716→  const base = subtotal - discount;
+   717→  const iva = base * IVA_RATE;
+   718→  const total = base + iva;
+   719→
+   720→  const [code, setCode] = useState('');
+   721→
+   722→  const handleApply = () => {
+   723→    const trimmed = code.trim().toUpperCase();
+   724→    if (!trimmed) {
+   725→      toast.error('Ingresa un código de descuento');
+   726→      return;
+   727→    }
+   728→    onApplyPromo(trimmed);
+   729→    setCode('');
+   730→  };
+   731→
+   732→  return (
+   733→    <Card className="overflow-hidden border-slate-200 shadow-sm">
+   734→      <CardHeader className="border-b border-slate-100 bg-gradient-to-br from-emerald-50 to-white">
+   735→        <div className="flex items-start justify-between gap-2">
+   736→          <div>
+   737→            <CardTitle className="text-lg text-slate-900">Resumen del pedido</CardTitle>
+   738→            <CardDescription className="text-slate-500">Plan {config.name}</CardDescription>
+   739→          </div>
+   740→          {config.badge && (
+   741→            <Badge className="bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950">
+   742→              {config.badge}
+   743→            </Badge>
+   744→          )}
+   745→        </div>
+   746→      </CardHeader>
+   747→      <CardContent className="space-y-4 p-5">
+   748→        <div>
+   749→          <div className="flex items-baseline justify-between">
+   750→            <span className="text-sm text-slate-600">Plan {config.name}</span>
+   751→            <span className="text-sm font-semibold text-slate-900">
+   752→              ${currency(subtotal)} MXN
+   753→            </span>
+   754→          </div>
+   755→          <p className="text-xs text-slate-500">{config.period}</p>
+   756→        </div>
+   757→
+   758→        {/* Promo code */}
+   759→        {promo && promoApplied ? (
+   760→          <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm">
+   761→            <span className="inline-flex items-center gap-1.5 text-emerald-700">
+   762→              <Tag className="size-3.5" />
+   763→              Código <strong className="font-mono">{promo.code}</strong> ({Math.round(promo.percent * 100)}% off)
+   764→            </span>
+   765→            <button
+   766→              onClick={onRemovePromo}
+   767→              className="text-xs font-medium text-emerald-700 underline-offset-2 hover:underline"
+   768→            >
+   769→              Quitar
+   770→            </button>
+   771→          </div>
+   772→        ) : (
+   773→          <div className="space-y-1.5">
+   774→            <Label htmlFor="promo" className="text-xs font-medium text-slate-600">
+   775→              Código de descuento
+   776→            </Label>
+   777→            <div className="flex gap-2">
+   778→              <Input
+   779→                id="promo"
+   780→                value={code}
+   781→                onChange={e => setCode(e.target.value)}
+   782→                placeholder="Ej. FTP10"
+   783→                className="h-9 uppercase"
+   784→                onKeyDown={e => {
+   785→                  if (e.key === 'Enter') {
+   786→                    e.preventDefault();
+   787→                    handleApply();
+   788→                  }
+   789→                }}
+   790→              />
+   791→              <Button type="button" size="sm" variant="secondary" onClick={handleApply} className="bg-emerald-600 text-white hover:bg-emerald-700">
+   792→                Aplicar
+   793→              </Button>
+   794→            </div>
+   795→            <p className="text-[11px] text-slate-400">
+   796→              Prueba: <span className="font-mono">FTP10</span> (10%) o <span className="font-mono">BIENVENIDA</span> (20%)
+   797→            </p>
+   798→          </div>
+   799→        )}
+   800→
+   801→        <Separator />
+   802→
+   803→        <div className="space-y-1.5 text-sm">
+   804→          <div className="flex justify-between">
+   805→            <span className="text-slate-600">Subtotal</span>
+   806→            <span className="font-medium text-slate-900">${currency(subtotal)} MXN</span>
+   807→          </div>
+   808→          {discount > 0 && (
+   809→            <div className="flex justify-between text-emerald-700">
+   810→              <span>Descuento ({Math.round((discount / subtotal) * 100)}%)</span>
+   811→              <span className="font-medium">-${currency(discount)} MXN</span>
+   812→            </div>
+   813→          )}
+   814→          <div className="flex justify-between">
+   815→            <span className="text-slate-600">IVA (16%)</span>
+   816→            <span className="font-medium text-slate-900">${currency(iva)} MXN</span>
+   817→          </div>
+   818→        </div>
+   819→
+   820→        <Separator />
+   821→
+   822→        <div className="flex items-baseline justify-between">
+   823→          <span className="text-base font-semibold text-slate-900">Total</span>
+   824→          <span className="text-2xl font-extrabold text-emerald-700">
+   825→            ${currency(total)} <span className="text-sm font-medium text-slate-500">MXN</span>
+   826→          </span>
+   827→        </div>
+   828→
+   829→        <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+   830→          <p className="flex items-start gap-1.5">
+   831→            <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+   832→            Tu plan se activará inmediatamente después del pago.
+   833→          </p>
+   834→        </div>
+   835→
+   836→        <div>
+   837→          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+   838→            Incluye
+   839→          </p>
+   840→          <ul className="max-h-56 space-y-1.5 overflow-y-auto pr-1 text-sm">
+   841→            {config.features.filter(f => f.included).slice(0, 12).map(f => (
+   842→              <li key={f.name} className="flex items-start gap-2">
+   843→                <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600" />
+   844→                <span className="text-slate-700">{f.name}</span>
+   845→              </li>
+   846→            ))}
+   847→          </ul>
+   848→        </div>
+   849→
+   850→        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-xs text-amber-800">
+   851→          <ShieldCheck className="size-4 shrink-0 text-amber-600" />
+   852→          <span>
+   853→            <strong>Garantía de devolución</strong> 7/15 días. Sin preguntas.
+   854→          </span>
+   855→        </div>
+   856→      </CardContent>
+   857→    </Card>
+   858→  );
+   859→}
+   860→
+   861→/* ------------------------------------------------------------------ */
+   862→/*  Payment layout                                                     */
+   863→/* ------------------------------------------------------------------ */
+   864→
+   865→function PaymentLayout({ plan, onBack, onSuccess }: { plan: PlanType; onBack: () => void; onSuccess: () => void }) {
+   866→  const currentUser = useAppStore(s => s.currentUser);
+   867→  const emailDefault = currentUser?.email ?? '';
+   868→
+   869→  const [method, setMethod] = useState<PaymentMethod>('tarjeta');
+   870→  const [acceptTerms, setAcceptTerms] = useState(false);
+   871→  const [saveCard, setSaveCard] = useState(true);
+   872→  const [processing, setProcessing] = useState(false);
+   873→  const [promo, setPromo] = useState<{ code: string; percent: number } | null>(null);
+   874→  const [promoApplied, setPromoApplied] = useState(false);
+   875→
+   876→  const cardForm = useForm<CardFormValues>({
+   877→    resolver: zodResolver(cardSchema),
+   878→    mode: 'onTouched',
+   879→    defaultValues: {
+   880→      cardNumber: '',
+   881→      expiry: '',
+   882→      cvc: '',
+   883→      nameOnCard: currentUser?.name ?? '',
+   884→      email: emailDefault,
+   885→    },
+   886→  });
+   887→
+   888→  const paypalForm = useForm<PaypalFormValues>({
+   889→    resolver: zodResolver(paypalSchema),
+   890→    mode: 'onTouched',
+   891→    defaultValues: { email: emailDefault },
+   892→  });
+   893→
+   894→  const transferForm = useForm<TransferFormValues>({
+   895→    resolver: zodResolver(transferSchema),
+   896→    mode: 'onTouched',
+   897→    defaultValues: { holderName: currentUser?.name ?? '' },
+   898→  });
+   899→
+   900→  const [cardNumber, setCardNumber] = useState('');
+   901→  const [expiry, setExpiry] = useState('');
+   902→  const [cvc, setCvc] = useState('');
+   903→  const brand = useMemo<CardBrand>(() => detectBrand(cardNumber), [cardNumber]);
+   904→
+   905→  const onCardNumberChange = (e: ChangeEvent<HTMLInputElement>) => {
+   906→    const formatted = formatCardNumber(e.target.value);
+   907→    setCardNumber(formatted);
+   908→    cardForm.setValue('cardNumber', formatted, { shouldValidate: true });
+   909→  };
+   910→  const onExpiryChange = (e: ChangeEvent<HTMLInputElement>) => {
+   911→    const formatted = formatExpiry(e.target.value);
+   912→    setExpiry(formatted);
+   913→    cardForm.setValue('expiry', formatted, { shouldValidate: true });
+   914→  };
+   915→  const onCvcChange = (e: ChangeEvent<HTMLInputElement>) => {
+   916→    const formatted = formatCvc(e.target.value);
+   917→    setCvc(formatted);
+   918→    cardForm.setValue('cvc', formatted, { shouldValidate: true });
+   919→  };
+   920→
+   921→  const config = PLANS[plan];
+   922→  const subtotal = config.price;
+   923→  const discount = promo ? subtotal * promo.percent : 0;
+   924→  const base = subtotal - discount;
+   925→  const iva = base * IVA_RATE;
+   926→  const total = base + iva;
+   927→
+   928→  const handleApplyPromo = (code: string) => {
+   929→    const pct = PROMO_CODES[code];
+   930→    if (!pct) {
+   931→      toast.error('Código de descuento inválido', { description: `Intenta con FTP10 o BIENVENIDA` });
+   932→      return;
+   933→    }
+   934→    setPromo({ code, percent: pct });
+   935→    setPromoApplied(true);
+   936→    toast.success(`Código ${code} aplicado`, { description: `${Math.round(pct * 100)}% de descuento` });
+   937→  };
+   938→  const handleRemovePromo = () => {
+   939→    setPromo(null);
+   940→    setPromoApplied(false);
+   941→    toast('Código de descuento removido');
+   942→  };
+   943→
+   944→  const isFormValid = useMemo(() => {
+   945→    if (!acceptTerms) return false;
+   946→    if (method === 'tarjeta') return cardForm.formState.isValid;
+   947→    if (method === 'paypal') return paypalForm.formState.isValid;
+   948→    return transferForm.formState.isValid;
+   949→  }, [acceptTerms, method, cardForm.formState.isValid, paypalForm.formState.isValid, transferForm.formState.isValid]);
+   950→
+   951→  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
+   952→    e.preventDefault();
+   953→    if (!acceptTerms) {
+   954→      toast.error('Debes aceptar los Términos y Condiciones');
+   955→      return;
+   956→    }
+   957→
+   958→    let valid = false;
+   959→    if (method === 'tarjeta') {
+   960→      valid = await cardForm.trigger();
+   961→    } else if (method === 'paypal') {
+   962→      valid = await paypalForm.trigger();
+   963→    } else {
+   964→      valid = await transferForm.trigger();
+   965→    }
+   966→    if (!valid) {
+   967→      toast.error('Revisa los campos del formulario');
+   968→      return;
+   969→    }
+   970→
+   971→    setProcessing(true);
+   972→    const methodLabel = method === 'tarjeta' ? 'tarjeta' : method === 'paypal' ? 'PayPal' : 'transferencia';
+   973→    toast.loading(`Procesando pago vía ${methodLabel}...`, { id: 'pay-toast' });
+   974→
+   975→    await new Promise(resolve => setTimeout(resolve, 2000));
+   976→
+   977→    toast.dismiss('pay-toast');
+   978→    toast.success('¡Pago completado!', {
+   979→      description: `Plan ${config.name} activado correctamente.`,
+   980→    });
+   981→    setProcessing(false);
+   982→    onSuccess();
+   983→  };
+   984→
+   985→  return (
+   986→    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+   987→      <div className="mb-6 flex flex-col items-center gap-4">
+   988→        <StepIndicator current="pago" />
+   989→      </div>
+   990→
+   991→      <form onSubmit={onSubmit} className="grid gap-6 lg:grid-cols-5">
+   992→        {/* Left: payment form (60%) */}
+   993→        <div className="lg:col-span-3">
+   994→          <Card className="border-slate-200 shadow-sm">
+   995→            <CardHeader className="border-b border-slate-100">
+   996→              <CardTitle className="text-lg text-slate-900">Información de pago</CardTitle>
+   997→              <CardDescription>Elige tu método de pago preferido y completa los datos.</CardDescription>
+   998→            </CardHeader>
+   999→            <CardContent className="space-y-5 p-5 sm:p-6">
+  1000→              <Tabs value={method} onValueChange={(v) => setMethod(v as PaymentMethod)}>
+  1001→                <TabsList className="grid w-full grid-cols-3">
+  1002→                  {PAYMENT_METHODS.map(m => (
+  1003→                    <TabsTrigger key={m.id} value={m.id} className="flex flex-col gap-1 py-2">
+  1004→                      <m.icon className="size-4" />
+  1005→                      <span className="text-xs">{m.label}</span>
+  1006→                    </TabsTrigger>
+  1007→                  ))}
+  1008→                </TabsList>
+  1009→
+  1010→                <TabsContent value="tarjeta" className="mt-5">
+  1011→                  <CardForm
+  1012→                    register={cardForm.register}
+  1013→                    errors={cardForm.formState.errors}
+  1014→                    cardNumber={cardNumber}
+  1015→                    brand={brand}
+  1016→                    onCardNumber={onCardNumberChange}
+  1017→                    expiry={expiry}
+  1018→                    cvc={cvc}
+  1019→                    onExpiry={onExpiryChange}
+  1020→                    onCvc={onCvcChange}
+  1021→                    saveCard={saveCard}
+  1022→                    setSaveCard={setSaveCard}
+  1023→                    emailDefault={emailDefault}
+  1024→                  />
+  1025→                </TabsContent>
+  1026→
+  1027→                <TabsContent value="paypal" className="mt-5">
+  1028→                  <PayPalForm
+  1029→                    register={paypalForm.register}
+  1030→                    errors={paypalForm.formState.errors}
+  1031→                    emailDefault={emailDefault}
+  1032→                  />
+  1033→                </TabsContent>
+  1034→
+  1035→                <TabsContent value="transferencia" className="mt-5">
+  1036→                  <TransferenciaForm
+  1037→                    register={transferForm.register}
+  1038→                    errors={transferForm.formState.errors}
+  1039→                  />
+  1040→                </TabsContent>
+  1041→              </Tabs>
+  1042→
+  1043→              <SecurityBadges />
+  1044→
+  1045→              <label
+  1046→                htmlFor="terms"
+  1047→                className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-200 bg-slate-50/60 p-3 text-sm text-slate-700 transition-colors hover:bg-slate-50"
+  1048→              >
+  1049→                <Checkbox
+  1050→                  id="terms"
+  1051→                  checked={acceptTerms}
+  1052→                  onCheckedChange={(v) => setAcceptTerms(v === true)}
+  1053→                  className="mt-0.5"
+  1054→                />
+  1055→                <span className="leading-relaxed">
+  1056→                  Acepto los{' '}
+  1057→                  <button type="button" onClick={onBack} className="font-medium text-emerald-700 underline-offset-2 hover:underline">
+  1058→                    Términos y Condiciones
+  1059→                  </button>{' '}
+  1060→                  y la{' '}
+  1061→                  <button type="button" onClick={onBack} className="font-medium text-emerald-700 underline-offset-2 hover:underline">
+  1062→                    Política de Privacidad
+  1063→                  </button>
+  1064→                  .
+  1065→                </span>
+  1066→              </label>
+  1067→
+  1068→              <Button
+  1069→                type="submit"
+  1070→                disabled={!isFormValid || processing}
+  1071→                className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-md hover:from-emerald-700 hover:to-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+  1072→                size="lg"
+  1073→              >
+  1074→                {processing ? (
+  1075→                  <>
+  1076→                    <Loader2 className="mr-2 size-4 animate-spin" />
+  1077→                    Procesando pago...
+  1078→                  </>
+  1079→                ) : (
+  1080→                  <>
+  1081→                    <Lock className="mr-2 size-4" />
+  1082→                    Pagar ${currency(total)} MXN
+  1083→                  </>
+  1084→                )}
+  1085→              </Button>
+  1086→
+  1087→              <p className="text-center text-[11px] text-slate-400">
+  1088→                Al confirmar el pago, tu plan se activará de inmediato. Esta es una transacción simulada con fines demostrativos.
+  1089→              </p>
+  1090→            </CardContent>
+  1091→          </Card>
+  1092→        </div>
+  1093→
+  1094→        {/* Right: order summary (40%) */}
+  1095→        <div className="lg:col-span-2">
+  1096→          <div className="lg:sticky lg:top-24">
+  1097→            <OrderSummary
+  1098→              plan={plan}
+  1099→              promo={promo}
+  1100→              promoApplied={promoApplied}
+  1101→              onApplyPromo={handleApplyPromo}
+  1102→              onRemovePromo={handleRemovePromo}
+  1103→            />
+  1104→          </div>
+  1105→        </div>
+  1106→      </form>
+  1107→    </div>
+  1108→  );
+  1109→}
+  1110→
+  1111→/* ------------------------------------------------------------------ */
+  1112→/*  Success screen                                                     */
+  1113→/* ------------------------------------------------------------------ */
+  1114→
+  1115→function SuccessScreen({ plan, onGoDashboard, onGoEditor }: { plan: PlanType; onGoDashboard: () => void; onGoEditor: () => void }) {
+  1116→  const config = PLANS[plan];
+  1117→  return (
+  1118→    <div className="mx-auto flex min-h-[70vh] max-w-2xl flex-col items-center justify-center px-4 py-12 sm:px-6">
+  1119→      <motion.div
+  1120→        initial={{ scale: 0, rotate: -20 }}
+  1121→        animate={{ scale: 1, rotate: 0 }}
+  1122→        transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+  1123→        className="relative mb-6"
+  1124→      >
+  1125→        <div className="absolute inset-0 -z-10 animate-pulse rounded-full bg-emerald-200/60 blur-2xl" />
+  1126→        <div className="flex size-24 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-xl shadow-emerald-200">
+  1127→          <motion.div
+  1128→            initial={{ scale: 0 }}
+  1129→            animate={{ scale: 1 }}
+  1130→            transition={{ type: 'spring', stiffness: 320, damping: 14, delay: 0.2 }}
+  1131→          >
+  1132→            <Check className="size-12" strokeWidth={3} />
+  1133→          </motion.div>
+  1134→        </div>
+  1135→      </motion.div>
+  1136→
+  1137→      <motion.div
+  1138→        initial={{ opacity: 0, y: 12 }}
+  1139→        animate={{ opacity: 1, y: 0 }}
+  1140→        transition={{ delay: 0.3 }}
+  1141→        className="text-center"
+  1142→      >
+  1143→        <Badge className="border-amber-200 bg-amber-50 text-amber-700">
+  1144→          <PartyPopper className="mr-1 size-3.5" />
+  1145→          Paso 3 · Confirmación
+  1146→        </Badge>
+  1147→        <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
+  1148→          ¡Pago completado!
+  1149→        </h1>
+  1150→        <p className="mt-3 text-slate-600">
+  1151→          Tu plan <strong className="text-emerald-700">{config.name}</strong> se ha activado correctamente. Disfruta de todas las funciones incluidas.
+  1152→        </p>
+  1153→      </motion.div>
+  1154→
+  1155→      <motion.div
+  1156→        initial={{ opacity: 0, y: 16 }}
+  1157→        animate={{ opacity: 1, y: 0 }}
+  1158→        transition={{ delay: 0.45 }}
+  1159→        className="mt-8 w-full"
+  1160→      >
+  1161→        <Card className="border-emerald-200 shadow-sm">
+  1162→          <CardHeader className="border-b border-slate-100 bg-gradient-to-br from-emerald-50 to-white">
+  1163→            <CardTitle className="text-base text-slate-900">Detalles de tu plan</CardTitle>
+  1164→          </CardHeader>
+  1165→          <CardContent className="space-y-3 p-5">
+  1166→            <div className="flex items-center justify-between text-sm">
+  1167→              <span className="text-slate-600">Plan</span>
+  1168→              <span className="font-semibold text-slate-900">{config.name}</span>
+  1169→            </div>
+  1170→            <div className="flex items-center justify-between text-sm">
+  1171→              <span className="text-slate-600">Precio</span>
+  1172→              <span className="font-semibold text-slate-900">${config.price} MXN / {config.period}</span>
+  1173→            </div>
+  1174→            <div className="flex items-center justify-between text-sm">
+  1175→              <span className="text-slate-600">Tarjetas virtuales</span>
+  1176→              <span className="font-semibold text-slate-900">{config.maxCards}</span>
+  1177→            </div>
+  1178→            <div className="flex items-center justify-between text-sm">
+  1179→              <span className="text-slate-600">Almacenamiento</span>
+  1180→              <span className="font-semibold text-slate-900">{config.storage} MB</span>
+  1181→            </div>
+  1182→            <Separator />
+  1183→            <div>
+  1184→              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Siguientes pasos</p>
+  1185→              <ul className="space-y-2 text-sm text-slate-700">
+  1186→                <li className="flex items-start gap-2">
+  1187→                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+  1188→                  <span>Explora tu panel de control y las nuevas secciones disponibles.</span>
+  1189→                </li>
+  1190→                <li className="flex items-start gap-2">
+  1191→                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+  1192→                  <span>Crea tu primera tarjeta digital con todas las funciones premium.</span>
+  1193→                </li>
+  1194→                <li className="flex items-start gap-2">
+  1195→                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+  1196→                  <span>Personaliza el código QR y comparte tu tarjeta con clientes.</span>
+  1197→                </li>
+  1198→              </ul>
+  1199→            </div>
+  1200→          </CardContent>
+  1201→        </Card>
+  1202→      </motion.div>
+  1203→
+  1204→      <motion.div
+  1205→        initial={{ opacity: 0, y: 16 }}
+  1206→        animate={{ opacity: 1, y: 0 }}
+  1207→        transition={{ delay: 0.6 }}
+  1208→        className="mt-6 flex w-full flex-col gap-3 sm:flex-row"
+  1209→      >
+  1210→        <Button
+  1211→          onClick={onGoDashboard}
+  1212→          variant="outline"
+  1213→          className="flex-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+  1214→          size="lg"
+  1215→        >
+  1216→          <ArrowLeft className="mr-2 size-4" />
+  1217→          Ir a mi panel
+  1218→        </Button>
+  1219→        <Button
+  1220→          onClick={onGoEditor}
+  1221→          className="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-md hover:from-emerald-700 hover:to-emerald-600"
+  1222→          size="lg"
+  1223→        >
+  1224→          Crear mi primera tarjeta
+  1225→          <ArrowRight className="ml-2 size-4" />
+  1226→        </Button>
+  1227→      </motion.div>
+  1228→    </div>
+  1229→  );
+  1230→}
+  1231→
+  1232→/* ------------------------------------------------------------------ */
+  1233→/*  Page                                                               */
+  1234→/* ------------------------------------------------------------------ */
+  1235→
+  1236→export function CheckoutPage() {
+  1237→  const navigate = useAppStore(s => s.navigate);
+  1238→  const selectedPlan = useAppStore(s => s.selectedPlanForCheckout);
+  1239→  const setSelectedPlanForCheckout = useAppStore(s => s.setSelectedPlanForCheckout);
+  1240→  const upgradePlan = useAppStore(s => s.upgradePlan);
+  1241→
+  1242→  const [success, setSuccess] = useState(false);
+  1243→  const [pickedPlan, setPickedPlan] = useState<PlanType | null>(selectedPlan);
+  1244→
+  1245→  const handlePickPlan = (plan: PlanType) => {
+  1246→    setSelectedPlanForCheckout(plan);
+  1247→    setPickedPlan(plan);
+  1248→    toast.success(`Plan ${PLANS[plan].name} seleccionado`, {
+  1249→      description: 'Continúa con el pago seguro.',
+  1250→    });
+  1251→  };
+  1252→
+  1253→  const handleSuccess = () => {
+  1254→    if (pickedPlan) {
+  1255→      upgradePlan(pickedPlan);
+  1256→    }
+  1257→    setSuccess(true);
+  1258→  };
+  1259→
+  1260→  const handleBack = () => {
+  1261→    if (success) {
+  1262→      setSuccess(false);
+  1263→      return;
+  1264→    }
+  1265→    navigate('pricing');
+  1266→  };
+  1267→
+  1268→  const activePlan = pickedPlan ?? selectedPlan;
+  1269→
+  1270→  return (
+  1271→    <div className="flex min-h-screen flex-col bg-gradient-to-b from-slate-50 to-white">
+  1272→      <CheckoutHeader onBack={handleBack} />
+  1273→
+  1274→      <main className="flex-1">
+  1275→        <AnimatePresence mode="wait">
+  1276→          {success && activePlan ? (
+  1277→            <motion.div
+  1278→              key="success"
+  1279→              initial={{ opacity: 0 }}
+  1280→              animate={{ opacity: 1 }}
+  1281→              exit={{ opacity: 0 }}
+  1282→            >
+  1283→              <SuccessScreen
+  1284→                plan={activePlan}
+  1285→                onGoDashboard={() => {
+  1286→                  setSelectedPlanForCheckout(null);
+  1287→                  navigate('dashboard');
+  1288→                }}
+  1289→                onGoEditor={() => {
+  1290→                  setSelectedPlanForCheckout(null);
+  1291→                  navigate('editor');
+  1292→                }}
+  1293→              />
+  1294→            </motion.div>
+  1295→          ) : !activePlan ? (
+  1296→            <motion.div
+  1297→              key="select"
+  1298→              initial={{ opacity: 0 }}
+  1299→              animate={{ opacity: 1 }}
+  1300→              exit={{ opacity: 0 }}
+  1301→            >
+  1302→              <PlanSelectionScreen onPick={handlePickPlan} />
+  1303→            </motion.div>
+  1304→          ) : (
+  1305→            <motion.div
+  1306→              key="pay"
+  1307→              initial={{ opacity: 0 }}
+  1308→              animate={{ opacity: 1 }}
+  1309→              exit={{ opacity: 0 }}
+  1310→            >
+  1311→              <PaymentLayout
+  1312→                plan={activePlan}
+  1313→                onBack={() => navigate('pricing')}
+  1314→                onSuccess={handleSuccess}
+  1315→              />
+  1316→            </motion.div>
+  1317→          )}
+  1318→        </AnimatePresence>
+  1319→      </main>
+  1320→
+  1321→      <footer className="mt-auto border-t border-slate-200/70 bg-white">
+  1322→        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-4 text-xs text-slate-500 sm:flex-row sm:px-6 lg:px-8">
+  1323→          <p className="inline-flex items-center gap-1.5">
+  1324→            <Lock className="size-3 text-emerald-600" />
+  1325→            Pagos procesados de forma segura · Encriptación SSL 256-bit
+  1326→          </p>
+  1327→          <p>© {new Date().getFullYear()} FTP Digital Plus · Todos los derechos reservados</p>
+  1328→        </div>
+  1329→      </footer>
+  1330→    </div>
+  1331→  );
+  1332→}
+  1333→

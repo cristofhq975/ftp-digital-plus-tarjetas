@@ -18,6 +18,7 @@ import { TermsPage, PrivacyPage, RefundsPage } from '@/components/sections/legal
 import { ProfilePage } from '@/components/sections/profile-page';
 import { BlogPage } from '@/components/sections/blog-page';
 import { BlogPostPage } from '@/components/sections/blog-post-page';
+import { ComparePage } from '@/components/sections/compare-page';
 
 function CurrentView() {
   const currentView = useAppStore(s => s.currentView);
@@ -43,6 +44,8 @@ function CurrentView() {
       return <Dashboard />;
     case 'stats':
       return <AnalyticsPage />;
+    case 'compare':
+      return <ComparePage />;
     case 'template-gallery':
       return <TemplateGallery />;
     case 'help':

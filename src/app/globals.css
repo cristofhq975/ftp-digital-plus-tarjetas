@@ -650,3 +650,36 @@
   pointer-events: none;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' /%3E%3C/svg%3E");
 }
+
+/* ============================================
+   Task 10-b — Toasts, Empty States, Loading
+   ============================================ */
+
+/* Shimmer esmeralda para loading-states.tsx */
+.ftp-shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.95 0.015 160) 0%,
+    oklch(0.92 0.025 160) 50%,
+    oklch(0.95 0.015 160) 100%
+  );
+  background-size: 200% 100%;
+  animation: ftp-shimmer-anim 1.6s ease-in-out infinite;
+}
+
+@keyframes ftp-shimmer-anim {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Dark mode: shimmer más oscuro */
+.dark .ftp-shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.28 0.01 160) 0%,
+    oklch(0.34 0.02 160) 50%,
+    oklch(0.28 0.01 160) 100%
+  );
+  background-size: 200% 100%;
+}
+

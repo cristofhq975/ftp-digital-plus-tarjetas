@@ -386,6 +386,8 @@ interface AppState {
   tourActive: boolean;
   // Blog (Task 9-a) — session-only, not persisted
   selectedBlogPost: string | null;
+  // Compare cards (Task 10-a) — session-only, not persisted
+  compareCardIds: string[];
   // Actions
   login: (email: string, password: string) => boolean;
   logout: () => void;
@@ -410,6 +412,7 @@ interface AppState {
   addTicketResponse: (ticketId: string, response: SupportTicketResponse, status?: SupportTicket['status']) => void;
   setTourActive: (active: boolean) => void;
   setSelectedBlogPost: (postId: string | null) => void;
+  setCompareCards: (cardIds: string[]) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -428,6 +431,7 @@ export const useAppStore = create<AppState>()(
       supportTickets: DEMO_SUPPORT_TICKETS,
       tourActive: false,
       selectedBlogPost: null,
+      compareCardIds: [],
 
       login: (email, password) => {
         const user = get().users.find(
@@ -595,6 +599,8 @@ export const useAppStore = create<AppState>()(
       setTourActive: (active) => set({ tourActive: active }),
 
       setSelectedBlogPost: (postId) => set({ selectedBlogPost: postId }),
+
+      setCompareCards: (cardIds) => set({ compareCardIds: cardIds }),
     }),
     {
       name: 'ftp-digital-plus-store',

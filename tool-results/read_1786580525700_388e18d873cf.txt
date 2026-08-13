@@ -1,0 +1,2002 @@
+     1→'use client';
+     2→
+     3→import { useState, useMemo, useEffect, useRef } from 'react';
+     4→import { motion, AnimatePresence } from 'framer-motion';
+     5→import {
+     6→  Plus, Edit, Eye, Copy, Trash2, ExternalLink, MoreVertical, Menu, X,
+     7→  LogOut, ChevronRight, TrendingUp, QrCode, Mail, MessageCircle,
+     8→  Check, Clock, Calendar as CalendarIcon, Package, CreditCard,
+     9→  Database, Settings as SettingsIcon, LayoutDashboard, Users, Share2,
+    10→  Sparkles, Crown, Zap, ArrowUpRight, Bell, Star, Phone, FileText,
+    11→  ShoppingCart, Wallet, Gift, Download, ShieldCheck, CheckCircle2,
+    12→  AlertCircle, CircleUser, Mailbox, LucideIcon, Briefcase, ShoppingBag,
+    13→  HelpCircle, Image as ImageIcon, Images, Activity,
+    14→  Camera, Smartphone, Upload, LifeBuoy, Search, RefreshCw,
+    15→  Compass,
+    16→} from 'lucide-react';
+    17→import { toast } from 'sonner';
+    18→import { Area, AreaChart, ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip } from 'recharts';
+    19→import { Button } from '@/components/ui/button';
+    20→import {
+    21→  Card, CardHeader, CardContent, CardTitle, CardDescription,
+    22→} from '@/components/ui/card';
+    23→import { Badge } from '@/components/ui/badge';
+    24→import { Switch } from '@/components/ui/switch';
+    25→import {
+    26→  Dialog, DialogContent, DialogHeader, DialogTitle,
+    27→  DialogTrigger, DialogFooter, DialogDescription,
+    28→} from '@/components/ui/dialog';
+    29→import { Input } from '@/components/ui/input';
+    30→import { Label } from '@/components/ui/label';
+    31→import { Separator } from '@/components/ui/separator';
+    32→import { Progress } from '@/components/ui/progress';
+    33→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+    34→import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+    35→import {
+    36→  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+    37→} from '@/components/ui/tooltip';
+    38→import {
+    39→  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
+    40→} from '@/components/ui/sheet';
+    41→import { FTPLogo } from '@/components/ftp-logo';
+    42→import { DynamicIcon } from '@/components/dynamic-icon';
+    43→import { ThemeToggle } from '@/components/theme-toggle';
+    44→import { NotificationsPanel } from '@/components/notifications-panel';
+    45→import { OnboardingWizard } from '@/components/onboarding-wizard';
+    46→import { ShareModal } from '@/components/share-modal';
+    47→import { CountUp } from '@/components/animations/count-up';
+    48→import { FavoritesWidget } from '@/components/sections/favorites';
+    49→import { GlassCard } from '@/components/visual/glass-card';
+    50→import { AuroraBackground } from '@/components/visual/improved-backgrounds';
+    51→import { useAppStore, useCurrentUserCards } from '@/lib/store';
+    52→import { PLANS, DASHBOARD_SECTIONS } from '@/lib/plans';
+    53→import { BusinessCard, PlanType, ContactMessage, Appointment } from '@/lib/types';
+    54→import { cn } from '@/lib/utils';
+    55→import { formatDate, formatDateTime } from '@/lib/card-utils';
+    56→
+    57→type SectionId =
+    58→  | 'tablero' | 'messages' | 'appointments' | 'orders'
+    59→  | 'virtual-funds' | 'affiliations' | 'storage' | 'settings';
+    60→
+    61→const PLAN_COLORS: Record<PlanType, { bg: string; text: string; ring: string; label: string }> = {
+    62→  gratis: { bg: 'bg-slate-100', text: 'text-slate-700', ring: 'ring-slate-200', label: 'Gratis' },
+    63→  basico: { bg: 'bg-emerald-100', text: 'text-emerald-700', ring: 'ring-emerald-200', label: 'Básico' },
+    64→  pro:     { bg: 'bg-amber-100', text: 'text-amber-700', ring: 'ring-amber-200', label: 'Pro' },
+    65→};
+    66→
+    67→// ============================ MAIN ============================
+    68→export function Dashboard() {
+    69→  const currentUser = useAppStore(s => s.currentUser);
+    70→  const navigate = useAppStore(s => s.navigate);
+    71→  const logout = useAppStore(s => s.logout);
+    72→  const cards = useCurrentUserCards();
+    73→  const messages = useAppStore(s => s.messages);
+    74→  const appointments = useAppStore(s => s.appointments);
+    75→
+    76→  const [activeSection, setActiveSection] = useState<SectionId>('tablero');
+    77→  const [mobileOpen, setMobileOpen] = useState(false);
+    78→  const [createOpen, setCreateOpen] = useState(false);
+    79→  const [shareCard, setShareCard] = useState<BusinessCard | null>(null);
+    80→
+    81→  const openShare = (card: BusinessCard | null) => {
+    82→    if (!card) {
+    83→      toast.info('Crea una tarjeta para compartirla');
+    84→      return;
+    85→    }
+    86→    setShareCard(card);
+    87→  };
+    88→
+    89→  if (!currentUser) {
+    90→    return (
+    91→      <div className="flex min-h-screen items-center justify-center bg-muted/30">
+    92→        <Card className="max-w-md p-6 text-center">
+    93→          <p className="text-muted-foreground">Debes iniciar sesión para ver tu panel.</p>
+    94→          <Button className="mt-4 bg-emerald-600 hover:bg-emerald-700" onClick={() => navigate('login')}>
+    95→            Iniciar Sesión
+    96→          </Button>
+    97→        </Card>
+    98→      </div>
+    99→    );
+   100→  }
+   101→
+   102→  const plan = PLANS[currentUser.plan];
+   103→  const unreadCount = messages.filter(m => !m.read).length;
+   104→
+   105→  const handleNavigate = (id: SectionId) => {
+   106→    // 'stats' and 'template-gallery' are full-page navigations
+   107→    if (id === 'stats' as any) {
+   108→      navigate('stats');
+   109→      setMobileOpen(false);
+   110→      return;
+   111→    }
+   112→    if (id === 'template-gallery' as any) {
+   113→      navigate('template-gallery');
+   114→      setMobileOpen(false);
+   115→      return;
+   116→    }
+   117→    if (id === 'help' as any) {
+   118→      navigate('help');
+   119→      setMobileOpen(false);
+   120→      return;
+   121→    }
+   122→    setActiveSection(id);
+   123→    setMobileOpen(false);
+   124→  };
+   125→
+   126→  const handleSupport = () => {
+   127→    navigate('support');
+   128→    setMobileOpen(false);
+   129→  };
+   130→
+   131→  const handleLogout = () => {
+   132→    logout();
+   133→    navigate('landing');
+   134→    toast.success('Sesión cerrada correctamente');
+   135→  };
+   136→
+   137→  return (
+   138→    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-white to-emerald-50/30">
+   139→      {/* Top mobile bar */}
+   140→      <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-white/80 px-4 py-3 backdrop-blur md:hidden">
+   141→        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+   142→          <SheetTrigger asChild>
+   143→            <Button variant="outline" size="icon" aria-label="Abrir menú">
+   144→              <Menu className="h-5 w-5" />
+   145→            </Button>
+   146→          </SheetTrigger>
+   147→          <SheetContent side="left" className="w-[85vw] max-w-[320px] p-0">
+   148→            <SidebarContent
+   149→              user={currentUser}
+   150→              cardsCount={cards.length}
+   151→              maxCards={plan.maxCards}
+   152→              unreadCount={unreadCount}
+   153→              activeSection={activeSection}
+   154→              onNavigate={handleNavigate}
+   155→              onLogout={handleLogout}
+   156→              onSupport={handleSupport}
+   157→              onShareCard={openShare}
+   158→            />
+   159→          </SheetContent>
+   160→        </Sheet>
+   161→        <div className="flex items-center gap-2">
+   162→          <FTPLogo variant="icon" className="h-7 w-7" />
+   163→          <span className="text-sm font-bold text-slate-800">FTP Digital Plus</span>
+   164→        </div>
+   165→        <div className="flex items-center gap-0.5">
+   166→          <Button
+   167→            variant="ghost"
+   168→            size="icon"
+   169→            aria-label="Buscar"
+   170→            onClick={() => window.dispatchEvent(new CustomEvent('ftp:open-global-search'))}
+   171→            className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700"
+   172→          >
+   173→            <Search className="h-5 w-5" />
+   174→          </Button>
+   175→          <ThemeToggle className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700" />
+   176→          <NotificationsPanel />
+   177→        </div>
+   178→      </header>
+   179→
+   180→      <div className="flex flex-1">
+   181→        {/* Desktop Sidebar */}
+   182→        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r bg-white lg:w-72">
+   183→          <SidebarContent
+   184→            user={currentUser}
+   185→            cardsCount={cards.length}
+   186→            maxCards={plan.maxCards}
+   187→            unreadCount={unreadCount}
+   188→            activeSection={activeSection}
+   189→            onNavigate={handleNavigate}
+   190→            onLogout={handleLogout}
+   191→            onSupport={handleSupport}
+   192→            onShareCard={openShare}
+   193→          />
+   194→        </aside>
+   195→
+   196→        {/* Main */}
+   197→        <main className="flex-1 overflow-x-hidden px-4 py-6 md:px-8 md:py-8">
+   198→          <div className="mx-auto max-w-7xl">
+   199→            {/* Pull-to-refresh hint (mobile only) */}
+   200→            <div className="mb-3 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground/70 md:hidden">
+   201→              <RefreshCw className="h-3 w-3" />
+   202→              <span>Desliza hacia abajo para actualizar</span>
+   203→            </div>
+   204→            <AnimatePresence mode="wait">
+   205→              <motion.div
+   206→                key={activeSection}
+   207→                initial={{ opacity: 0, y: 10 }}
+   208→                animate={{ opacity: 1, y: 0 }}
+   209→                exit={{ opacity: 0, y: -10 }}
+   210→                transition={{ duration: 0.25 }}
+   211→              >
+   212→                {activeSection === 'tablero' && (
+   213→                  <TableroSection
+   214→                    onCreateOpen={() => setCreateOpen(true)}
+   215→                    onShareCard={openShare}
+   216→                  />
+   217→                )}
+   218→                {activeSection === 'messages' && <MessagesSection />}
+   219→                {activeSection === 'appointments' && <AppointmentsSection />}
+   220→                {activeSection === 'orders' && <OrdersSection />}
+   221→                {activeSection === 'virtual-funds' && <VirtualFundsSection />}
+   222→                {activeSection === 'affiliations' && <AffiliationsSection />}
+   223→                {activeSection === 'storage' && <StorageSection />}
+   224→                {activeSection === 'settings' && <SettingsSection />}
+   225→              </motion.div>
+   226→            </AnimatePresence>
+   227→          </div>
+   228→        </main>
+   229→      </div>
+   230→
+   231→      {/* Footer */}
+   232→      <footer className="mt-auto border-t bg-white/70 py-4 backdrop-blur">
+   233→        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 text-xs text-muted-foreground md:flex-row md:px-8">
+   234→          <p>© {new Date().getFullYear()} FTP Digital Plus — Tarjetas de Presentación Digitales</p>
+   235→          <p className="flex items-center gap-1">
+   236→            Hecho con <Sparkles className="h-3 w-3 text-amber-500" /> en México
+   237→          </p>
+   238→        </div>
+   239→      </footer>
+   240→
+   241→      {/* Create Card Dialog */}
+   242→      <CreateCardDialog open={createOpen} onOpenChange={setCreateOpen} />
+   243→
+   244→      {/* Share Modal */}
+   245→      <ShareModal
+   246→        open={!!shareCard}
+   247→        onOpenChange={(o) => { if (!o) setShareCard(null); }}
+   248→        card={shareCard}
+   249→      />
+   250→
+   251→      {/* First-time onboarding wizard */}
+   252→      <OnboardingWizard />
+   253→    </div>
+   254→  );
+   255→}
+   256→
+   257→// ============================ SIDEBAR ============================
+   258→function SidebarContent({
+   259→  user, cardsCount, maxCards, unreadCount, activeSection, onNavigate, onLogout, onSupport,
+   260→  onShareCard,
+   261→}: {
+   262→  user: { name: string; email: string; plan: PlanType; id?: string };
+   263→  cardsCount: number;
+   264→  maxCards: number;
+   265→  unreadCount: number;
+   266→  activeSection: SectionId;
+   267→  onNavigate: (id: SectionId) => void;
+   268→  onLogout: () => void;
+   269→  onSupport: () => void;
+   270→  onShareCard: (card: BusinessCard | null) => void;
+   271→}) {
+   272→  const planColors = PLAN_COLORS[user.plan];
+   273→  const plan = PLANS[user.plan];
+   274→  const cardsUsagePercent = Math.min(100, (cardsCount / maxCards) * 100);
+   275→  // Storage is approximated for the ring (we use plan.storage and assume 35% used as a demo)
+   276→  const storageUsedPct = Math.min(100, 35);
+   277→  const primaryCard = useAppStore(s => {
+   278→    const all = s.cards;
+   279→    return all.find(c => c.userId === user.id) || null;
+   280→  });
+   281→  const favoriteIds = useAppStore(s => s.favoriteCardIds);
+   282→
+   283→  // SVG circular progress ring geometry
+   284→  const ringSize = 64;
+   285→  const ringStroke = 6;
+   286→  const radius = (ringSize - ringStroke) / 2;
+   287→  const circumference = 2 * Math.PI * radius;
+   288→  const cardsDash = (cardsUsagePercent / 100) * circumference;
+   289→
+   290→  const handlePublicCard = () => {
+   291→    if (primaryCard) {
+   292→      useAppStore.getState().selectCard(primaryCard.id);
+   293→      useAppStore.getState().navigate('public-card');
+   294→    } else {
+   295→      toast.info('No tienes tarjetas para mostrar');
+   296→    }
+   297→  };
+   298→  const handleShare = () => {
+   299→    onShareCard(primaryCard);
+   300→  };
+   301→  const handleHelp = () => {
+   302→    toast.info('Centro de ayuda', { description: 'Contáctanos en soporte@ftpdigitalplus.com' });
+   303→  };
+   304→
+   305→  return (
+   306→    <div className="flex h-full flex-col">
+   307→      {/* Logo + theme toggle */}
+   308→      <div className="flex items-center justify-between border-b px-5 py-4">
+   309→        <FTPLogo className="h-9 w-auto" />
+   310→        <ThemeToggle className="text-slate-600 hover:bg-emerald-50 hover:text-emerald-700" />
+   311→      </div>
+   312→
+   313→      {/* User info + plan progress ring */}
+   314→      <div className="border-b px-5 py-4">
+   315→        <div className="flex items-center gap-3">
+   316→          <div className="relative">
+   317→            <Avatar className="h-11 w-11 ring-2 ring-emerald-200">
+   318→              <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-emerald-700 text-sm font-bold text-white">
+   319→                {user.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+   320→              </AvatarFallback>
+   321→            </Avatar>
+   322→            {/* Online status indicator */}
+   323→            <span
+   324→              className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500"
+   325→              aria-label="En línea"
+   326→            >
+   327→              <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
+   328→            </span>
+   329→          </div>
+   330→          <div className="min-w-0 flex-1">
+   331→            <p className="truncate text-sm font-semibold text-slate-800">{user.name}</p>
+   332→            <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+   333→          </div>
+   334→        </div>
+   335→
+   336→        {/* Plan progress ring + usage */}
+   337→        <div className="mt-4 flex items-center gap-3 rounded-xl bg-gradient-to-br from-slate-50 to-emerald-50/40 p-3 ring-1 ring-slate-200/60">
+   338→          {/* Circular progress ring (SVG) */}
+   339→          <div className="relative" style={{ width: ringSize, height: ringSize }}>
+   340→            <svg width={ringSize} height={ringSize} className="-rotate-90">
+   341→              <circle
+   342→                cx={ringSize / 2}
+   343→                cy={ringSize / 2}
+   344→                r={radius}
+   345→                fill="none"
+   346→                stroke="currentColor"
+   347→                strokeWidth={ringStroke}
+   348→                className="text-slate-200"
+   349→              />
+   350→              <circle
+   351→                cx={ringSize / 2}
+   352→                cy={ringSize / 2}
+   353→                r={radius}
+   354→                fill="none"
+   355→                stroke="url(#planGrad)"
+   356→                strokeWidth={ringStroke}
+   357→                strokeDasharray={`${cardsDash} ${circumference}`}
+   358→                strokeLinecap="round"
+   359→                className="transition-all duration-500"
+   360→              />
+   361→              <defs>
+   362→                <linearGradient id="planGrad" x1="0" y1="0" x2="1" y2="1">
+   363→                  <stop offset="0%" stopColor="#059669" />
+   364→                  <stop offset="100%" stopColor="#f59e0b" />
+   365→                </linearGradient>
+   366→              </defs>
+   367→            </svg>
+   368→            <div className="absolute inset-0 flex items-center justify-center">
+   369→              <span className="text-xs font-bold text-slate-700">{cardsUsagePercent.toFixed(0)}%</span>
+   370→            </div>
+   371→          </div>
+   372→          <div className="min-w-0 flex-1">
+   373→            <p className="text-xs font-semibold text-slate-700">Uso del plan</p>
+   374→            <p className="text-[11px] text-muted-foreground">
+   375→              <CreditCard className="mr-1 inline h-3 w-3" />
+   376→              {cardsCount} / {maxCards} tarjetas
+   377→            </p>
+   378→            <p className="text-[11px] text-muted-foreground">
+   379→              <Database className="mr-1 inline h-3 w-3" />
+   380→              {storageUsedPct}% de {plan.storage} MB
+   381→            </p>
+   382→          </div>
+   383→        </div>
+   384→
+   385→        {/* Plan badge */}
+   386→        <div className={cn('mt-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ring-1', planColors.bg, planColors.text, planColors.ring)}>
+   387→          {user.plan === 'pro' && <Crown className="h-3 w-3" />}
+   388→          {user.plan === 'basico' && <Zap className="h-3 w-3" />}
+   389→          {user.plan === 'gratis' && <Sparkles className="h-3 w-3" />}
+   390→          Plan {planColors.label}
+   391→        </div>
+   392→      </div>
+   393→
+   394→      {/* Nav */}
+   395→      <nav className="flex-1 overflow-y-auto px-3 py-4 custom-scrollbar">
+   396→        <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+   397→          Menú Principal
+   398→        </p>
+   399→        <ul className="space-y-1">
+   400→          {DASHBOARD_SECTIONS.map((section) => {
+   401→            const isActive = activeSection === section.id;
+   402→            const isMessages = section.id === 'messages';
+   403→            return (
+   404→              <li key={section.id}>
+   405→                <button
+   406→                  onClick={() => onNavigate(section.id as SectionId)}
+   407→                  className={cn(
+   408→                    'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
+   409→                    isActive
+   410→                      ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/20'
+   411→                      : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'
+   412→                  )}
+   413→                >
+   414→                  <DynamicIcon name={section.icon} className={cn('h-[18px] w-[18px] shrink-0', isActive ? 'text-white' : 'text-slate-500 group-hover:text-emerald-600')} />
+   415→                  <span className="flex-1 text-left">{section.name}</span>
+   416→                  {isMessages && unreadCount > 0 && (
+   417→                    <span className={cn(
+   418→                      'rounded-full px-1.5 py-0.5 text-[10px] font-bold',
+   419→                      isActive ? 'bg-white text-emerald-700' : 'bg-amber-500 text-white'
+   420→                    )}>
+   421→                      {unreadCount}
+   422→                    </span>
+   423→                  )}
+   424→                  {section.id === 'tablero' && favoriteIds.length > 0 && !isActive && (
+   425→                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+   426→                  )}
+   427→                  {isActive && <ChevronRight className="h-4 w-4" />}
+   428→                </button>
+   429→              </li>
+   430→            );
+   431→          })}
+   432→        </ul>
+   433→      </nav>
+   434→
+   435→      {/* Quick action buttons */}
+   436→      <div className="border-t px-3 py-3">
+   437→        <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+   438→          Acciones Rápidas
+   439→        </p>
+   440→        <div className="grid grid-cols-3 gap-1.5">
+   441→          <TooltipProvider>
+   442→            <Tooltip>
+   443→              <TooltipTrigger asChild>
+   444→                <Button
+   445→                  variant="outline"
+   446→                  size="sm"
+   447→                  onClick={handlePublicCard}
+   448→                  className="flex flex-col items-center gap-0.5 border-slate-200 py-2 text-[10px] text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+   449→                >
+   450→                  <ExternalLink className="h-4 w-4" />
+   451→                  <span className="hidden lg:inline">Mi Tarjeta</span>
+   452→                  <span className="lg:hidden">Ver</span>
+   453→                </Button>
+   454→              </TooltipTrigger>
+   455→              <TooltipContent>Ver mi tarjeta pública</TooltipContent>
+   456→            </Tooltip>
+   457→          </TooltipProvider>
+   458→          <TooltipProvider>
+   459→            <Tooltip>
+   460→              <TooltipTrigger asChild>
+   461→                <Button
+   462→                  variant="outline"
+   463→                  size="sm"
+   464→                  onClick={handleShare}
+   465→                  className="flex flex-col items-center gap-0.5 border-slate-200 py-2 text-[10px] text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+   466→                >
+   467→                  <Share2 className="h-4 w-4" />
+   468→                  <span>Compartir</span>
+   469→                </Button>
+   470→              </TooltipTrigger>
+   471→              <TooltipContent>Compartir enlace</TooltipContent>
+   472→            </Tooltip>
+   473→          </TooltipProvider>
+   474→          <TooltipProvider>
+   475→            <Tooltip>
+   476→              <TooltipTrigger asChild>
+   477→                <Button
+   478→                  variant="outline"
+   479→                  size="sm"
+   480→                  onClick={handleHelp}
+   481→                  className="flex flex-col items-center gap-0.5 border-slate-200 py-2 text-[10px] text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+   482→                >
+   483→                  <HelpCircle className="h-4 w-4" />
+   484→                  <span>Ayuda</span>
+   485→                </Button>
+   486→              </TooltipTrigger>
+   487→              <TooltipContent>Centro de ayuda</TooltipContent>
+   488→            </Tooltip>
+   489→          </TooltipProvider>
+   490→        </div>
+   491→      </div>
+   492→
+   493→      {/* Logout + Soporte + Perfil */}
+   494→      <div className="space-y-1.5 border-t p-3">
+   495→        <Button
+   496→          variant="ghost"
+   497→          onClick={() => useAppStore.getState().navigate('profile')}
+   498→          className="w-full justify-start gap-3 text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-slate-200 dark:hover:bg-emerald-950/40"
+   499→        >
+   500→          <CircleUser className="h-[18px] w-[18px]" />
+   501→          Mi Perfil
+   502→        </Button>
+   503→        <Button
+   504→          variant="ghost"
+   505→          onClick={onSupport}
+   506→          className="w-full justify-start gap-3 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+   507→        >
+   508→          <LifeBuoy className="h-[18px] w-[18px]" />
+   509→          Soporte
+   510→        </Button>
+   511→        <Button
+   512→          variant="ghost"
+   513→          onClick={onLogout}
+   514→          className="w-full justify-start gap-3 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+   515→        >
+   516→          <LogOut className="h-[18px] w-[18px]" />
+   517→          Cerrar Sesión
+   518→        </Button>
+   519→      </div>
+   520→    </div>
+   521→  );
+   522→}
+   523→
+   524→// ============================ TABLERO ============================
+   525→
+   526→const DAILY_TIPS = [
+   527→  {
+   528→    title: 'Personaliza tu QR',
+   529→    text: 'Cambia el color y la forma de tu QR para que combine con tu marca. ¡Destaca entre la competencia!',
+   530→  },
+   531→  {
+   532→    title: 'Activa el horario',
+   533→    text: 'Configurar tu horario de atención ayuda a tus clientes a saber cuándo pueden contactarte.',
+   534→  },
+   535→  {
+   536→    title: 'Agrega testimonios',
+   537→    text: 'Las opiniones de clientes satisfechos aumentan la confianza y conversión de nuevos visitantes.',
+   538→  },
+   539→  {
+   540→    title: 'Comparte en redes',
+   541→    text: 'Coloca el enlace de tu tarjeta en tu biografía de Instagram, Facebook y WhatsApp Business.',
+   542→  },
+   543→  {
+   544→    title: 'Revisa tus estadísticas',
+   545→    text: 'Monitorea qué tarjetas reciben más visitas y ajusta tu estrategia de contenido.',
+   546→  },
+   547→];
+   548→
+   549→const MOCK_ACTIVITIES = [
+   550→  {
+   551→    id: 'a1',
+   552→    type: 'card_created',
+   553→    title: 'Nueva tarjeta creada',
+   554→    description: 'Restaurante El Sabor',
+   555→    timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+   556→    icon: Plus,
+   557→    color: 'emerald',
+   558→  },
+   559→  {
+   560→    id: 'a2',
+   561→    type: 'message_received',
+   562→    title: 'Nuevo mensaje recibido',
+   563→    description: 'Patricia López te contactó',
+   564→    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+   565→    icon: Mail,
+   566→    color: 'amber',
+   567→  },
+   568→  {
+   569→    id: 'a3',
+   570→    type: 'qr_scanned',
+   571→    title: 'QR escaneado',
+   572→    description: 'Tu tarjeta recibió un nuevo escaneo',
+   573→    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+   574→    icon: QrCode,
+   575→    color: 'teal',
+   576→  },
+   577→  {
+   578→    id: 'a4',
+   579→    type: 'view',
+   580→    title: 'Nueva visita',
+   581→    description: 'Alguien vio tu tarjeta pública',
+   582→    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
+   583→    icon: Eye,
+   584→    color: 'emerald',
+   585→  },
+   586→  {
+   587→    id: 'a5',
+   588→    type: 'appointment',
+   589→    title: 'Cita agendada',
+   590→    description: 'Jorge Ruiz agendó una cita',
+   591→    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+   592→    icon: CalendarIcon,
+   593→    color: 'amber',
+   594→  },
+   595→];
+   596→
+   597→function getRelativeTime(iso: string): string {
+   598→  const now = Date.now();
+   599→  const diff = now - new Date(iso).getTime();
+   600→  const minutes = Math.floor(diff / (1000 * 60));
+   601→  if (minutes < 1) return 'hace un momento';
+   602→  if (minutes < 60) return `hace ${minutes} min`;
+   603→  const hours = Math.floor(minutes / 60);
+   604→  if (hours < 24) return `hace ${hours} h`;
+   605→  const days = Math.floor(hours / 24);
+   606→  if (days === 1) return 'ayer';
+   607→  return `hace ${days} días`;
+   608→}
+   609→
+   610→function Sparkline({ data, color }: { data: number[]; color: string }) {
+   611→  const chartData = data.map((v, i) => ({ i, v }));
+   612→  return (
+   613→    <div className="h-10 w-full">
+   614→      <ResponsiveContainer width="100%" height="100%">
+   615→        <AreaChart data={chartData} margin={{ top: 2, bottom: 2, left: 0, right: 0 }}>
+   616→          <defs>
+   617→            <linearGradient id={`sparkGrad-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+   618→              <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+   619→              <stop offset="100%" stopColor={color} stopOpacity={0} />
+   620→            </linearGradient>
+   621→          </defs>
+   622→          <Area
+   623→            type="monotone"
+   624→            dataKey="v"
+   625→            stroke={color}
+   626→            strokeWidth={2}
+   627→            fill={`url(#sparkGrad-${color.replace('#', '')})`}
+   628→            isAnimationActive={true}
+   629→            animationDuration={900}
+   630→          />
+   631→        </AreaChart>
+   632→      </ResponsiveContainer>
+   633→    </div>
+   634→  );
+   635→}
+   636→
+   637→function TableroSection({
+   638→  onCreateOpen, onShareCard,
+   639→}: {
+   640→  onCreateOpen: () => void;
+   641→  onShareCard: (card: BusinessCard | null) => void;
+   642→}) {
+   643→  const currentUser = useAppStore(s => s.currentUser)!;
+   644→  const cards = useCurrentUserCards();
+   645→  const messages = useAppStore(s => s.messages);
+   646→  const selectCard = useAppStore(s => s.selectCard);
+   647→  const navigate = useAppStore(s => s.navigate);
+   648→  const deleteCard = useAppStore(s => s.deleteCard);
+   649→  const toggleCardActive = useAppStore(s => s.toggleCardActive);
+   650→  const toggleFavorite = useAppStore(s => s.toggleFavorite);
+   651→  const favoriteIds = useAppStore(s => s.favoriteCardIds);
+   652→
+   653→  const plan = PLANS[currentUser.plan];
+   654→  const totalViews = cards.reduce((sum, c) => sum + c.views, 0);
+   655→  const totalQrScans = cards.reduce((sum, c) => sum + c.qrScans, 0);
+   656→  const unreadCount = messages.filter(m => !m.read).length;
+   657→  const canCreateMore = cards.length < plan.maxCards;
+   658→
+   659→  // Pick a random tip on mount, rotate every 12s
+   660→  const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * DAILY_TIPS.length));
+   661→  useEffect(() => {
+   662→    const interval = setInterval(() => {
+   663→      setTipIndex(prev => (prev + 1) % DAILY_TIPS.length);
+   664→    }, 12000);
+   665→    return () => clearInterval(interval);
+   666→  }, []);
+   667→
+   668→  const handleEdit = (card: BusinessCard) => {
+   669→    selectCard(card.id);
+   670→    navigate('editor');
+   671→  };
+   672→  const handleView = (card: BusinessCard) => {
+   673→    selectCard(card.id);
+   674→    navigate('public-card');
+   675→  };
+   676→  const handleCopy = (card: BusinessCard) => {
+   677→    const link = `ftpdigitalplus.com/t/${card.linkName}`;
+   678→    navigator.clipboard?.writeText(link);
+   679→    toast.success('Enlace copiado', { description: link });
+   680→  };
+   681→  const handleDelete = (card: BusinessCard) => {
+   682→    deleteCard(card.id);
+   683→    toast.success(`Tarjeta "${card.cardName}" eliminada`);
+   684→  };
+   685→  const handleToggleFav = (card: BusinessCard) => {
+   686→    toggleFavorite(card.id);
+   687→    const isFav = favoriteIds.includes(card.id);
+   688→    toast.success(
+   689→      isFav ? 'Quitada de favoritos' : 'Agregada a favoritos',
+   690→      { description: card.cardName }
+   691→    );
+   692→  };
+   693→  const setSelectedPlanForCheckout = useAppStore(s => s.setSelectedPlanForCheckout);
+   694→  const handleUpgrade = () => {
+   695→    const next: PlanType = currentUser.plan === 'gratis' ? 'basico' : 'pro';
+   696→    setSelectedPlanForCheckout(next);
+   697→    navigate('checkout');
+   698→  };
+   699→
+   700→  // Mock sparkline data (deterministic-ish per mount, varies by stat)
+   701→  const sparkData = useMemo(() => {
+   702→    const seed = (n: number, max: number) =>
+   703→      Array.from({ length: 12 }, (_, i) => Math.max(0, Math.round(max * (0.4 + 0.5 * Math.sin(i * 0.7 + n)))));
+   704→    return {
+   705→      cards: seed(1, 5),
+   706→      views: seed(2, 200),
+   707→      qr: seed(3, 100),
+   708→      messages: seed(4, 8),
+   709→    };
+   710→  }, []);
+   711→
+   712→  const stats = [
+   713→    {
+   714→      label: 'Total de tarjetas',
+   715→      value: cards.length,
+   716→      sub: `de ${plan.maxCards} disponibles`,
+   717→      icon: CreditCard,
+   718→      color: 'emerald',
+   719→      gradient: 'from-emerald-500 to-emerald-700',
+   720→      spark: sparkData.cards,
+   721→      sparkColor: '#059669',
+   722→    },
+   723→    {
+   724→      label: 'Total de visitas',
+   725→      value: totalViews,
+   726→      sub: 'en todas las tarjetas',
+   727→      icon: Eye,
+   728→      color: 'amber',
+   729→      gradient: 'from-amber-500 to-orange-600',
+   730→      spark: sparkData.views,
+   731→      sparkColor: '#f59e0b',
+   732→    },
+   733→    {
+   734→      label: 'Escaneos QR',
+   735→      value: totalQrScans,
+   736→      sub: 'total acumulado',
+   737→      icon: QrCode,
+   738→      color: 'emerald',
+   739→      gradient: 'from-teal-500 to-emerald-600',
+   740→      spark: sparkData.qr,
+   741→      sparkColor: '#10b981',
+   742→    },
+   743→    {
+   744→      label: 'Mensajes sin leer',
+   745→      value: unreadCount,
+   746→      sub: unreadCount > 0 ? 'requieren atención' : 'todo al día',
+   747→      icon: Mail,
+   748→      color: unreadCount > 0 ? 'rose' : 'emerald',
+   749→      gradient: unreadCount > 0 ? 'from-rose-500 to-pink-600' : 'from-slate-500 to-slate-700',
+   750→      spark: sparkData.messages,
+   751→      sparkColor: unreadCount > 0 ? '#f43f5e' : '#64748b',
+   752→    },
+   753→  ];
+   754→
+   755→  const activityColors: Record<string, { bg: string; text: string }> = {
+   756→    emerald: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+   757→    amber: { bg: 'bg-amber-100', text: 'text-amber-700' },
+   758→    teal: { bg: 'bg-teal-100', text: 'text-teal-700' },
+   759→    rose: { bg: 'bg-rose-100', text: 'text-rose-700' },
+   760→  };
+   761→
+   762→  return (
+   763→    <div className="space-y-6">
+   764→      {/* Welcome header with aurora background + daily tip */}
+   765→      <div className="relative overflow-hidden rounded-2xl p-6 text-white shadow-xl md:p-8">
+   766→        {/* Aurora background — Task 9-b */}
+   767→        <AuroraBackground />
+   768→        <div className="relative">
+   769→          <div className="flex flex-wrap items-center justify-between gap-4">
+   770→            <div>
+   771→              <p className="text-sm font-medium text-emerald-100">¡Bienvenido de vuelta!</p>
+   772→              <h1 className="mt-1 text-2xl font-bold md:text-3xl">
+   773→                Hola, {currentUser.name.split(' ')[0]} <span className="inline-block animate-[wave_1.5s_ease-in-out_infinite] origin-[70%_70%]">👋</span>
+   774→              </h1>
+   775→              <p className="mt-2 max-w-lg text-sm text-emerald-100">
+   776→                Gestiona tus tarjetas digitales, revisa estadísticas y mantén tu presencia al día.
+   777→              </p>
+   778→            </div>
+   779→            <div className="flex flex-wrap items-center gap-2">
+   780→              <button
+   781→                type="button"
+   782→                onClick={() => window.dispatchEvent(new CustomEvent('ftp:open-global-search'))}
+   783→                className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-medium text-emerald-50 backdrop-blur transition hover:bg-white/25"
+   784→                aria-label="Abrir búsqueda global"
+   785→              >
+   786→                <Search className="h-3.5 w-3.5" />
+   787→                <span className="hidden sm:inline">Buscar…</span>
+   788→                <kbd className="rounded border border-white/30 bg-white/10 px-1.5 py-0.5 font-mono text-[10px] text-emerald-50">
+   789→                  /
+   790→                </kbd>
+   791→              </button>
+   792→              <button
+   793→                type="button"
+   794→                onClick={() => useAppStore.getState().setTourActive(true)}
+   795→                className="flex items-center gap-1.5 rounded-full bg-amber-400/90 px-3 py-1.5 text-xs font-semibold text-amber-950 shadow-sm backdrop-blur transition hover:bg-amber-300"
+   796→                aria-label="Ver tour guiado de la plataforma"
+   797→              >
+   798→                <Compass className="h-3.5 w-3.5" />
+   799→                <span className="hidden sm:inline">Ver Tour</span>
+   800→                <span className="sm:hidden">Tour</span>
+   801→              </button>
+   802→              <div className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-sm font-semibold backdrop-blur">
+   803→                {currentUser.plan === 'pro' && <Crown className="h-4 w-4 text-amber-300" />}
+   804→                {currentUser.plan === 'basico' && <Zap className="h-4 w-4 text-amber-300" />}
+   805→                {currentUser.plan === 'gratis' && <Sparkles className="h-4 w-4 text-amber-300" />}
+   806→                Plan {plan.name}
+   807→              </div>
+   808→            </div>
+   809→          </div>
+   810→
+   811→          {/* Daily rotating tip */}
+   812→          <AnimatePresence mode="wait">
+   813→            <motion.div
+   814→              key={tipIndex}
+   815→              initial={{ opacity: 0, y: 8 }}
+   816→              animate={{ opacity: 1, y: 0 }}
+   817→              exit={{ opacity: 0, y: -8 }}
+   818→              transition={{ duration: 0.4 }}
+   819→              className="mt-5 flex items-start gap-3 rounded-xl bg-white/15 px-4 py-3 backdrop-blur ring-1 ring-white/20"
+   820→            >
+   821→              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-300 to-amber-500 text-amber-900 shadow-md">
+   822→                <Sparkles className="h-4 w-4" />
+   823→              </div>
+   824→              <div className="flex-1">
+   825→                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200">
+   826→                  Consejo del día
+   827→                  <span className="rounded-full bg-amber-400/30 px-1.5 py-0.5 text-[10px]">
+   828→                    {tipIndex + 1}/{DAILY_TIPS.length}
+   829→                  </span>
+   830→                </p>
+   831→                <p className="mt-0.5 text-sm font-semibold text-white">{DAILY_TIPS[tipIndex].title}</p>
+   832→                <p className="mt-0.5 text-xs text-emerald-50">{DAILY_TIPS[tipIndex].text}</p>
+   833→              </div>
+   834→            </motion.div>
+   835→          </AnimatePresence>
+   836→
+   837→          {!canCreateMore && (
+   838→            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg bg-amber-500/20 px-4 py-2.5 text-sm ring-1 ring-amber-300/40">
+   839→              <AlertCircle className="h-4 w-4 text-amber-200" />
+   840→              <span className="flex-1">Has alcanzado el límite de tarjetas de tu plan.</span>
+   841→              <Button size="sm" variant="secondary" onClick={handleUpgrade} className="bg-amber-400 text-amber-900 hover:bg-amber-300">
+   842→                <Crown className="mr-1 h-3.5 w-3.5" /> Mejorar Plan
+   843→              </Button>
+   844→            </div>
+   845→          )}
+   846→        </div>
+   847→      </div>
+   848→
+   849→      {/* Stats cards with sparklines — glassmorphism (Task 9-b) */}
+   850→      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+   851→        {stats.map((stat, i) => (
+   852→          <motion.div
+   853→            key={stat.label}
+   854→            initial={{ opacity: 0, y: 20 }}
+   855→            animate={{ opacity: 1, y: 0 }}
+   856→            transition={{ delay: i * 0.07 }}
+   857→          >
+   858→            <GlassCard
+   859→              variant="light"
+   860→              hover
+   861→              className="h-full overflow-hidden p-5"
+   862→            >
+   863→              <div className="flex items-start justify-between">
+   864→                <div className={cn('flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md', stat.gradient)}>
+   865→                  <stat.icon className="h-5 w-5" />
+   866→                </div>
+   867→                {i === 0 && !canCreateMore && (
+   868→                  <Badge variant="secondary" className="bg-amber-100 text-amber-700">Máx</Badge>
+   869→                )}
+   870→              </div>
+   871→              <p className="mt-4 text-3xl font-bold text-slate-800">
+   872→                <CountUp value={stat.value} duration={1200} />
+   873→              </p>
+   874→              <p className="text-sm font-medium text-slate-600">{stat.label}</p>
+   875→              <p className="mt-1 text-xs text-muted-foreground">{stat.sub}</p>
+   876→              {/* Sparkline mini chart */}
+   877→              <div className="mt-3 -mb-1">
+   878→                <Sparkline data={stat.spark} color={stat.sparkColor} />
+   879→              </div>
+   880→            </GlassCard>
+   881→          </motion.div>
+   882→        ))}
+   883→      </div>
+   884→
+   885→      {/* Favorites Widget + Recent Activity (2-column on xl) */}
+   886→      <div className="grid gap-6 xl:grid-cols-2">
+   887→        <FavoritesWidget onViewAll={() => onCreateOpen()} />
+   888→        {/* Recent activity timeline */}
+   889→        <Card className="border-slate-200/60 shadow-sm">
+   890→          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+   891→            <CardTitle className="flex items-center gap-2 text-base">
+   892→              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-sm">
+   893→                <Activity className="h-4 w-4" />
+   894→              </div>
+   895→              Actividad Reciente
+   896→            </CardTitle>
+   897→            <Badge variant="secondary" className="bg-slate-100 text-slate-600">Últimas 24 h</Badge>
+   898→          </CardHeader>
+   899→          <CardContent className="pt-0">
+   900→            <ol className="relative max-h-80 space-y-3 overflow-y-auto pr-1 custom-scrollbar md:max-h-none md:overflow-visible">
+   901→              {MOCK_ACTIVITIES.map((act, i) => {
+   902→                const cfg = activityColors[act.color] || activityColors.emerald;
+   903→                return (
+   904→                  <motion.li
+   905→                    key={act.id}
+   906→                    initial={{ opacity: 0, x: -10 }}
+   907→                    animate={{ opacity: 1, x: 0 }}
+   908→                    transition={{ delay: i * 0.06 }}
+   909→                    className="relative flex items-start gap-3"
+   910→                  >
+   911→                    {/* Timeline line */}
+   912→                    {i !== MOCK_ACTIVITIES.length - 1 && (
+   913→                      <span className="absolute left-[18px] top-9 h-[calc(100%-12px)] w-px bg-slate-200" aria-hidden />
+   914→                    )}
+   915→                    <div className={cn('relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-4 ring-white', cfg.bg, cfg.text)}>
+   916→                      <act.icon className="h-4 w-4" />
+   917→                    </div>
+   918→                    <div className="min-w-0 flex-1 pt-0.5">
+   919→                      <p className="text-sm font-semibold text-slate-800">{act.title}</p>
+   920→                      <p className="truncate text-xs text-muted-foreground">{act.description}</p>
+   921→                      <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
+   922→                        <Clock className="h-3 w-3" />
+   923→                        {getRelativeTime(act.timestamp)}
+   924→                      </p>
+   925→                    </div>
+   926→                  </motion.li>
+   927→                );
+   928→              })}
+   929→            </ol>
+   930→          </CardContent>
+   931→        </Card>
+   932→      </div>
+   933→
+   934→      {/* My cards section */}
+   935→      <Card className="border-slate-200/60 shadow-sm">
+   936→        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+   937→          <div>
+   938→            <CardTitle className="flex items-center gap-2 text-lg">
+   939→              <CreditCard className="h-5 w-5 text-emerald-600" />
+   940→              Mis Tarjetas
+   941→            </CardTitle>
+   942→            <CardDescription className="mt-1">
+   943→              {cards.length > 0
+   944→                ? `${cards.length} tarjeta${cards.length !== 1 ? 's' : ''} • ${canCreateMore ? `Puedes crear ${plan.maxCards - cards.length} más` : 'Límite alcanzado'}`
+   945→                : 'Aún no tienes tarjetas, crea tu primera'}
+   946→            </CardDescription>
+   947→          </div>
+   948→          <Button
+   949→            onClick={onCreateOpen}
+   950→            disabled={!canCreateMore}
+   951→            className={cn(
+   952→              'button-press shrink-0',
+   953→              canCreateMore
+   954→                ? 'bg-emerald-600 hover:bg-emerald-700'
+   955→                : 'bg-slate-300 text-slate-500'
+   956→            )}
+   957→          >
+   958→            {canCreateMore ? <Plus className="h-4 w-4" /> : <Crown className="h-4 w-4" />}
+   959→            <span className="hidden sm:inline">Crear Nueva Tarjeta</span>
+   960→            <span className="sm:hidden">Crear</span>
+   961→          </Button>
+   962→        </CardHeader>
+   963→        <CardContent>
+   964→          {cards.length === 0 ? (
+   965→            <EmptyState
+   966→              icon={CreditCard}
+   967→              title="No tienes tarjetas todavía"
+   968→              description="Crea tu primera tarjeta digital y comienza a compartirla con tus clientes."
+   969→              action={
+   970→                <Button onClick={onCreateOpen} disabled={!canCreateMore} className="bg-emerald-600 hover:bg-emerald-700">
+   971→                  <Plus className="h-4 w-4" /> Crear mi primera tarjeta
+   972→                </Button>
+   973→              }
+   974→            />
+   975→          ) : (
+   976→            <div className="grid gap-4 md:grid-cols-2 stagger-children">
+   977→              <AnimatePresence>
+   978→                {cards.map((card, idx) => (
+   979→                  <motion.div
+   980→                    key={card.id}
+   981→                    layout
+   982→                    initial={{ opacity: 0, scale: 0.95 }}
+   983→                    animate={{ opacity: 1, scale: 1 }}
+   984→                    exit={{ opacity: 0, scale: 0.95 }}
+   985→                    transition={{ delay: idx * 0.05 }}
+   986→                  >
+   987→                    <CardItem
+   988→                      card={card}
+   989→                      isFavorite={favoriteIds.includes(card.id)}
+   990→                      onEdit={() => handleEdit(card)}
+   991→                      onView={() => handleView(card)}
+   992→                      onCopy={() => handleCopy(card)}
+   993→                      onShare={() => onShareCard(card)}
+   994→                      onDelete={() => handleDelete(card)}
+   995→                      onToggle={() => toggleCardActive(card.id)}
+   996→                      onToggleFav={() => handleToggleFav(card)}
+   997→                    />
+   998→                  </motion.div>
+   999→                ))}
+  1000→              </AnimatePresence>
+  1001→            </div>
+  1002→          )}
+  1003→        </CardContent>
+  1004→      </Card>
+  1005→
+  1006→      {/* Plan info card */}
+  1007→      <PlanInfoCard onUpgrade={handleUpgrade} />
+  1008→    </div>
+  1009→  );
+  1010→}
+  1011→
+  1012→// ============================ CARD ITEM ============================
+  1013→function CardItem({
+  1014→  card, onEdit, onView, onCopy, onShare, onDelete, onToggle, onToggleFav, isFavorite,
+  1015→}: {
+  1016→  card: BusinessCard;
+  1017→  onEdit: () => void;
+  1018→  onView: () => void;
+  1019→  onCopy: () => void;
+  1020→  onShare: () => void;
+  1021→  onDelete: () => void;
+  1022→  onToggle: () => void;
+  1023→  onToggleFav: () => void;
+  1024→  isFavorite: boolean;
+  1025→}) {
+  1026→  const initials = card.cardName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+  1027→
+  1028→  return (
+  1029→    <div className="group relative overflow-hidden rounded-xl border border-slate-200/70 bg-white shadow-sm transition-all hover:shadow-md">
+  1030→      {/* Top color bar */}
+  1031→      <div className="h-1.5 w-full" style={{ background: `linear-gradient(90deg, ${card.primaryColor}, ${card.secondaryColor})` }} />
+  1032→
+  1033→      {/* Favorite star toggle - top right */}
+  1034→      <button
+  1035→        type="button"
+  1036→        onClick={onToggleFav}
+  1037→        aria-label={isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+  1038→        className={cn(
+  1039→          'absolute right-3 top-3 z-10 rounded-full p-1.5 shadow-sm backdrop-blur transition-all hover:scale-110 active:scale-95',
+  1040→          isFavorite ? 'bg-amber-100 text-amber-500' : 'bg-white/80 text-slate-400 hover:text-amber-500'
+  1041→        )}
+  1042→      >
+  1043→        <Star className={cn('h-4 w-4', isFavorite && 'fill-amber-400')} />
+  1044→      </button>
+  1045→
+  1046→      <div className="p-5">
+  1047→        <div className="flex items-start gap-3">
+  1048→          {/* Thumbnail preview / colored avatar */}
+  1049→          <div
+  1050→            className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl text-base font-bold text-white shadow-md ring-1 ring-black/5"
+  1051→            style={{ background: `linear-gradient(135deg, ${card.primaryColor}, ${card.secondaryColor})` }}
+  1052→          >
+  1053→            {card.profilePhoto ? (
+  1054→              <img src={card.profilePhoto} alt={card.cardName} className="h-full w-full object-cover" />
+  1055→            ) : (
+  1056→              <span>{initials}</span>
+  1057→            )}
+  1058→            {/* Mini FTP badge overlay */}
+  1059→            <span className="absolute -bottom-px -right-px rounded-tl-md bg-black/30 px-1 py-0.5 text-[7px] font-bold uppercase tracking-wider text-white/90 backdrop-blur">
+  1060→              FTP+
+  1061→            </span>
+  1062→          </div>
+  1063→          <div className="min-w-0 flex-1 pr-6">
+  1064→            <div className="flex items-center gap-2">
+  1065→              <h3 className="truncate font-semibold text-slate-800">{card.cardName}</h3>
+  1066→              <Badge
+  1067→                variant="secondary"
+  1068→                className={cn(
+  1069→                  'shrink-0 text-[10px]',
+  1070→                  card.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+  1071→                )}
+  1072→              >
+  1073→                {card.isActive ? '● Activa' : '○ Inactiva'}
+  1074→              </Badge>
+  1075→            </div>
+  1076→            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+  1077→              ftpdigitalplus.com/t/<span className="font-medium text-emerald-700">{card.linkName}</span>
+  1078→            </p>
+  1079→            {card.description && (
+  1080→              <p className="mt-1 line-clamp-1 text-xs text-slate-500">{card.description}</p>
+  1081→            )}
+  1082→          </div>
+  1083→        </div>
+  1084→
+  1085→        {/* Stats inline with icons */}
+  1086→        <div className="mt-4 grid grid-cols-3 gap-2">
+  1087→          <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2">
+  1088→            <Eye className="h-4 w-4 shrink-0 text-emerald-500" />
+  1089→            <div className="min-w-0">
+  1090→              <p className="text-[10px] text-muted-foreground">Visitas</p>
+  1091→              <p className="text-sm font-semibold text-slate-800">{card.views.toLocaleString('es-MX')}</p>
+  1092→            </div>
+  1093→          </div>
+  1094→          <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2">
+  1095→            <QrCode className="h-4 w-4 shrink-0 text-amber-500" />
+  1096→            <div className="min-w-0">
+  1097→              <p className="text-[10px] text-muted-foreground">QR</p>
+  1098→              <p className="text-sm font-semibold text-slate-800">{card.qrScans.toLocaleString('es-MX')}</p>
+  1099→            </div>
+  1100→          </div>
+  1101→          <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2">
+  1102→            <Briefcase className="h-4 w-4 shrink-0 text-teal-500" />
+  1103→            <div className="min-w-0">
+  1104→              <p className="text-[10px] text-muted-foreground">Servicios</p>
+  1105→              <p className="text-sm font-semibold text-slate-800">{card.services.length}</p>
+  1106→            </div>
+  1107→          </div>
+  1108→        </div>
+  1109→
+  1110→        <Separator className="my-4" />
+  1111→
+  1112→        {/* Actions */}
+  1113→        <div className="flex items-center justify-between gap-2">
+  1114→          <div className="flex items-center gap-2">
+  1115→            <TooltipProvider>
+  1116→              <Tooltip>
+  1117→                <TooltipTrigger asChild>
+  1118→                  <Button variant="outline" size="sm" onClick={onEdit} className="button-press h-9 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800">
+  1119→                    <Edit className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Editar</span>
+  1120→                  </Button>
+  1121→                </TooltipTrigger>
+  1122→                <TooltipContent>Editar tarjeta</TooltipContent>
+  1123→              </Tooltip>
+  1124→            </TooltipProvider>
+  1125→            <TooltipProvider>
+  1126→              <Tooltip>
+  1127→                <TooltipTrigger asChild>
+  1128→                  <Button variant="outline" size="icon" onClick={onView} className="button-press h-9 w-9">
+  1129→                    <Eye className="h-3.5 w-3.5" />
+  1130→                  </Button>
+  1131→                </TooltipTrigger>
+  1132→                <TooltipContent>Ver tarjeta pública</TooltipContent>
+  1133→              </Tooltip>
+  1134→            </TooltipProvider>
+  1135→            <TooltipProvider>
+  1136→              <Tooltip>
+  1137→                <TooltipTrigger asChild>
+  1138→                  <Button
+  1139→                    variant="outline"
+  1140→                    size="icon"
+  1141→                    onClick={onShare}
+  1142→                    className="button-press h-9 w-9 border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+  1143→                  >
+  1144→                    <Share2 className="h-3.5 w-3.5" />
+  1145→                  </Button>
+  1146→                </TooltipTrigger>
+  1147→                <TooltipContent>Compartir tarjeta</TooltipContent>
+  1148→              </Tooltip>
+  1149→            </TooltipProvider>
+  1150→            <TooltipProvider>
+  1151→              <Tooltip>
+  1152→                <TooltipTrigger asChild>
+  1153→                  <Button variant="outline" size="icon" onClick={onCopy} className="button-press h-9 w-9">
+  1154→                    <Copy className="h-3.5 w-3.5" />
+  1155→                  </Button>
+  1156→                </TooltipTrigger>
+  1157→                <TooltipContent>Copiar enlace</TooltipContent>
+  1158→              </Tooltip>
+  1159→            </TooltipProvider>
+  1160→          </div>
+  1161→
+  1162→          <div className="flex items-center gap-2">
+  1163→            <AlertDialogWrap onDelete={onDelete} cardName={card.cardName} />
+  1164→            {/* Active toggle */}
+  1165→            <div className="flex items-center gap-1.5">
+  1166→              <span className="text-[10px] font-medium text-muted-foreground">Activa</span>
+  1167→              <Switch checked={card.isActive} onCheckedChange={onToggle} />
+  1168→            </div>
+  1169→          </div>
+  1170→        </div>
+  1171→      </div>
+  1172→    </div>
+  1173→  );
+  1174→}
+  1175→
+  1176→// Small inline alert dialog using Dialog
+  1177→function AlertDialogWrap({ onDelete, cardName }: { onDelete: () => void; cardName: string }) {
+  1178→  const [open, setOpen] = useState(false);
+  1179→  return (
+  1180→    <Dialog open={open} onOpenChange={setOpen}>
+  1181→      <DialogTrigger asChild>
+  1182→        <Button variant="outline" size="icon" className="button-press h-9 w-9 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700">
+  1183→          <Trash2 className="h-3.5 w-3.5" />
+  1184→        </Button>
+  1185→      </DialogTrigger>
+  1186→      <DialogContent className="sm:max-w-sm">
+  1187→        <DialogHeader>
+  1188→          <DialogTitle className="flex items-center gap-2 text-rose-700">
+  1189→            <AlertCircle className="h-5 w-5" /> Eliminar tarjeta
+  1190→          </DialogTitle>
+  1191→          <DialogDescription>
+  1192→            ¿Seguro que deseas eliminar <strong className="text-slate-700">{cardName}</strong>? Esta acción no se puede deshacer.
+  1193→          </DialogDescription>
+  1194→        </DialogHeader>
+  1195→        <DialogFooter className="gap-2 sm:gap-2">
+  1196→          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+  1197→          <Button
+  1198→            variant="destructive"
+  1199→            onClick={() => { onDelete(); setOpen(false); }}
+  1200→            className="bg-rose-600 hover:bg-rose-700"
+  1201→          >
+  1202→            <Trash2 className="h-4 w-4" /> Eliminar
+  1203→          </Button>
+  1204→        </DialogFooter>
+  1205→      </DialogContent>
+  1206→    </Dialog>
+  1207→  );
+  1208→}
+  1209→
+  1210→// ============================ PLAN INFO CARD ============================
+  1211→function PlanInfoCard({ onUpgrade }: { onUpgrade: () => void }) {
+  1212→  const currentUser = useAppStore(s => s.currentUser)!;
+  1213→  const cards = useCurrentUserCards();
+  1214→  const plan = PLANS[currentUser.plan];
+  1215→  const planColors = PLAN_COLORS[currentUser.plan];
+  1216→  const usagePercent = Math.min(100, (cards.length / plan.maxCards) * 100);
+  1217→
+  1218→  const isPro = currentUser.plan === 'pro';
+  1219→
+  1220→  return (
+  1221→    <Card className="overflow-hidden border-slate-200/60 shadow-sm">
+  1222→      <div className={cn('flex items-center justify-between px-6 py-4', planColors.bg)}>
+  1223→        <div className="flex items-center gap-3">
+  1224→          {currentUser.plan === 'pro' && <Crown className="h-6 w-6 text-amber-600" />}
+  1225→          {currentUser.plan === 'basico' && <Zap className="h-6 w-6 text-emerald-600" />}
+  1226→          {currentUser.plan === 'gratis' && <Sparkles className="h-6 w-6 text-slate-600" />}
+  1227→          <div>
+  1228→            <p className="text-sm font-medium text-muted-foreground">Tu plan actual</p>
+  1229→            <p className={cn('text-lg font-bold', planColors.text)}>Plan {plan.name}</p>
+  1230→          </div>
+  1231→        </div>
+  1232→        <div className="text-right">
+  1233→          <p className={cn('text-2xl font-bold', planColors.text)}>
+  1234→            ${plan.price.toLocaleString('es-MX')}
+  1235→          </p>
+  1236→          <p className="text-xs text-muted-foreground">{plan.period}</p>
+  1237→        </div>
+  1238→      </div>
+  1239→      <CardContent className="p-6">
+  1240→        <div className="grid gap-6 md:grid-cols-2">
+  1241→          <div className="space-y-4">
+  1242→            <div>
+  1243→              <div className="flex items-center justify-between text-sm">
+  1244→                <span className="font-medium text-slate-700">Tarjetas usadas</span>
+  1245→                <span className="text-muted-foreground">{cards.length} / {plan.maxCards}</span>
+  1246→              </div>
+  1247→              <Progress value={usagePercent} className="mt-2 h-2 bg-slate-100" />
+  1248→            </div>
+  1249→            <div className="grid grid-cols-2 gap-3 text-sm">
+  1250→              <InfoTile label="Almacenamiento" value={`${plan.storage} MB`} />
+  1251→              <InfoTile label="Tarjeta web" value={plan.hasWebCard ? 'Sí' : 'No'} />
+  1252→              <InfoTile label="Marca de agua" value={plan.hasWatermark ? 'Sí' : 'Sin marca'} />
+  1253→              <InfoTile label="QR permanente" value={plan.qrExpires ? '7 días' : 'Permanente'} />
+  1254→            </div>
+  1255→          </div>
+  1256→          <div className="flex flex-col justify-between gap-4 rounded-xl bg-gradient-to-br from-slate-50 to-emerald-50/50 p-4 ring-1 ring-slate-200/50">
+  1257→            <div>
+  1258→              <p className="text-sm font-semibold text-slate-800">
+  1259→                {isPro ? '¡Estás al máximo potencial! 🎉' : '¿Necesitas más funciones?'}
+  1260→              </p>
+  1261→              <p className="mt-1 text-xs text-muted-foreground">
+  1262→                {isPro
+  1263→                  ? 'Tienes acceso a todas las funciones premium de FTP Digital Plus.'
+  1264→                  : `Mejora a ${currentUser.plan === 'gratis' ? 'Básico o Pro' : 'Pro'} y desbloquea más tarjetas, funciones y capacidad.`}
+  1265→              </p>
+  1266→            </div>
+  1267→            {!isPro && (
+  1268→              <Button onClick={onUpgrade} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md hover:from-amber-600 hover:to-orange-600">
+  1269→                <Crown className="h-4 w-4" /> Mejorar Plan
+  1270→                <ArrowUpRight className="h-4 w-4" />
+  1271→              </Button>
+  1272→            )}
+  1273→          </div>
+  1274→        </div>
+  1275→      </CardContent>
+  1276→    </Card>
+  1277→  );
+  1278→}
+  1279→
+  1280→function InfoTile({ label, value }: { label: string; value: string }) {
+  1281→  return (
+  1282→    <div className="rounded-lg border border-slate-200/60 bg-slate-50/50 px-3 py-2">
+  1283→      <p className="text-[11px] text-muted-foreground">{label}</p>
+  1284→      <p className="text-sm font-semibold text-slate-800">{value}</p>
+  1285→    </div>
+  1286→  );
+  1287→}
+  1288→
+  1289→// ============================ CREATE CARD DIALOG ============================
+  1290→function CreateCardDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  1291→  const createCard = useAppStore(s => s.createCard);
+  1292→  const selectCard = useAppStore(s => s.selectCard);
+  1293→  const navigate = useAppStore(s => s.navigate);
+  1294→  const cards = useCurrentUserCards();
+  1295→  const currentUser = useAppStore(s => s.currentUser)!;
+  1296→  const plan = PLANS[currentUser.plan];
+  1297→
+  1298→  const [linkName, setLinkName] = useState('');
+  1299→  const [cardName, setCardName] = useState('');
+  1300→  const [error, setError] = useState('');
+  1301→
+  1302→  const canCreate = cards.length < plan.maxCards;
+  1303→
+  1304→  const reset = () => {
+  1305→    setLinkName('');
+  1306→    setCardName('');
+  1307→    setError('');
+  1308→  };
+  1309→
+  1310→  const handleSubmit = () => {
+  1311→    const trimmedLink = linkName.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  1312→    const trimmedName = cardName.trim();
+  1313→
+  1314→    if (!trimmedLink || !trimmedName) {
+  1315→      setError('Completa todos los campos');
+  1316→      return;
+  1317→    }
+  1318→    if (trimmedLink.length < 3) {
+  1319→      setError('El enlace debe tener al menos 3 caracteres');
+  1320→      return;
+  1321→    }
+  1322→    const exists = useAppStore.getState().cards.some(c => c.linkName === trimmedLink);
+  1323→    if (exists) {
+  1324→      setError('Ese enlace ya está en uso. Prueba con otro.');
+  1325→      return;
+  1326→    }
+  1327→
+  1328→    const newId = createCard(trimmedLink, trimmedName);
+  1329→    if (!newId) {
+  1330→      setError('No se pudo crear la tarjeta. Límite alcanzado.');
+  1331→      return;
+  1332→    }
+  1333→    toast.success('¡Tarjeta creada!', { description: `ftpdigitalplus.com/t/${trimmedLink}` });
+  1334→    reset();
+  1335→    onOpenChange(false);
+  1336→    selectCard(newId);
+  1337→    navigate('editor');
+  1338→  };
+  1339→
+  1340→  return (
+  1341→    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) reset(); }}>
+  1342→      <DialogContent className="sm:max-w-md">
+  1343→        <DialogHeader>
+  1344→          <DialogTitle className="flex items-center gap-2">
+  1345→            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+  1346→              <Plus className="h-4 w-4" />
+  1347→            </div>
+  1348→            Crear Nueva Tarjeta
+  1349→          </DialogTitle>
+  1350→          <DialogDescription>
+  1351→            Define el nombre y enlace único de tu nueva tarjeta digital.
+  1352→          </DialogDescription>
+  1353→        </DialogHeader>
+  1354→
+  1355→        {!canCreate ? (
+  1356→          <div className="rounded-lg bg-amber-50 p-4 text-center ring-1 ring-amber-200">
+  1357→            <Crown className="mx-auto h-8 w-8 text-amber-500" />
+  1358→            <p className="mt-2 text-sm font-semibold text-amber-800">Límite de plan alcanzado</p>
+  1359→            <p className="mt-1 text-xs text-amber-700">
+  1360→              Tu plan {plan.name} permite {plan.maxCards} tarjeta{plan.maxCards !== 1 ? 's' : ''}. Mejora para crear más.
+  1361→            </p>
+  1362→          </div>
+  1363→        ) : (
+  1364→          <div className="space-y-4">
+  1365→            <div className="space-y-2">
+  1366→              <Label htmlFor="card-name" className="text-sm font-medium">Nombre de la tarjeta</Label>
+  1367→              <Input
+  1368→                id="card-name"
+  1369→                placeholder="Ej: Juan Pérez, Mi Negocio, Dra. González"
+  1370→                value={cardName}
+  1371→                onChange={(e) => { setCardName(e.target.value); setError(''); }}
+  1372→                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+  1373→              />
+  1374→              <p className="text-xs text-muted-foreground">Así aparecerá en la tarjeta y en la lista.</p>
+  1375→            </div>
+  1376→            <div className="space-y-2">
+  1377→              <Label htmlFor="link-name" className="text-sm font-medium">Enlace único</Label>
+  1378→              <div className="flex items-center rounded-md border bg-slate-50 px-3">
+  1379→                <span className="text-sm text-muted-foreground">ftpdigitalplus.com/t/</span>
+  1380→                <Input
+  1381→                  id="link-name"
+  1382→                  placeholder="mi-enlace"
+  1383→                  value={linkName}
+  1384→                  onChange={(e) => { setLinkName(e.target.value); setError(''); }}
+  1385→                  onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+  1386→                  className="border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
+  1387→                />
+  1388→              </div>
+  1389→              <p className="text-xs text-muted-foreground">Solo letras minúsculas, números y guiones.</p>
+  1390→            </div>
+  1391→            {error && (
+  1392→              <div className="flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 ring-1 ring-rose-200">
+  1393→                <AlertCircle className="h-4 w-4 shrink-0" /> {error}
+  1394→              </div>
+  1395→            )}
+  1396→          </div>
+  1397→        )}
+  1398→
+  1399→        <DialogFooter>
+  1400→          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+  1401→          {canCreate && (
+  1402→            <Button onClick={handleSubmit} className="bg-emerald-600 hover:bg-emerald-700">
+  1403→              <Plus className="h-4 w-4" /> Crear Tarjeta
+  1404→            </Button>
+  1405→          )}
+  1406→        </DialogFooter>
+  1407→      </DialogContent>
+  1408→    </Dialog>
+  1409→  );
+  1410→}
+  1411→
+  1412→// ============================ MESSAGES ============================
+  1413→function MessagesSection() {
+  1414→  const messages = useAppStore(s => s.messages);
+  1415→  const markMessageRead = useAppStore(s => s.markMessageRead);
+  1416→  const currentUser = useAppStore(s => s.currentUser)!;
+  1417→  const cards = useCurrentUserCards();
+  1418→
+  1419→  // Filter messages relevant to this user's cards (for demo: show all)
+  1420→  const userMessages = messages; // demo: show all
+  1421→  const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
+  1422→
+  1423→  const filtered = useMemo(() => {
+  1424→    const sorted = [...userMessages].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  1425→    if (filter === 'unread') return sorted.filter(m => !m.read);
+  1426→    if (filter === 'read') return sorted.filter(m => m.read);
+  1427→    return sorted;
+  1428→  }, [userMessages, filter]);
+  1429→
+  1430→  const unreadCount = userMessages.filter(m => !m.read).length;
+  1431→
+  1432→  const handleMarkRead = (id: string) => {
+  1433→    markMessageRead(id);
+  1434→    toast.success('Mensaje marcado como leído');
+  1435→  };
+  1436→
+  1437→  const handleReply = (msg: ContactMessage) => {
+  1438→    const wa = msg.phone ? `https://wa.me/${msg.phone.replace(/[^0-9]/g, '')}` : '#';
+  1439→    if (msg.phone) {
+  1440→      window.open(wa, '_blank');
+  1441→    } else {
+  1442→      window.open(`mailto:${msg.email}`, '_blank');
+  1443→    }
+  1444→  };
+  1445→
+  1446→  return (
+  1447→    <div className="space-y-6">
+  1448→      <SectionHeader
+  1449→        title="Consultas"
+  1450→        description="Mensajes recibidos desde el formulario de contacto de tus tarjetas."
+  1451→        icon={Mail}
+  1452→        accent="emerald"
+  1453→      />
+  1454→
+  1455→      <div className="flex flex-wrap items-center justify-between gap-3">
+  1456→        <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+  1457→          <TabsList>
+  1458→            <TabsTrigger value="all">Todos ({userMessages.length})</TabsTrigger>
+  1459→            <TabsTrigger value="unread">Sin leer ({unreadCount})</TabsTrigger>
+  1460→            <TabsTrigger value="read">Leídos</TabsTrigger>
+  1461→          </TabsList>
+  1462→        </Tabs>
+  1463→      </div>
+  1464→
+  1465→      {filtered.length === 0 ? (
+  1466→        <EmptyState
+  1467→          icon={Mailbox}
+  1468→          title="No hay mensajes"
+  1469→          description="Cuando alguien te contacte desde tus tarjetas, los mensajes aparecerán aquí."
+  1470→        />
+  1471→      ) : (
+  1472→        <div className="space-y-3">
+  1473→          <AnimatePresence>
+  1474→            {filtered.map((msg, i) => (
+  1475→              <motion.div
+  1476→                key={msg.id}
+  1477→                layout
+  1478→                initial={{ opacity: 0, y: 10 }}
+  1479→                animate={{ opacity: 1, y: 0 }}
+  1480→                exit={{ opacity: 0, x: -20 }}
+  1481→                transition={{ delay: i * 0.04 }}
+  1482→              >
+  1483→                <Card className={cn(
+  1484→                  'transition-all hover:shadow-md',
+  1485→                  msg.read ? 'border-slate-200/60 bg-white' : 'border-emerald-200 bg-emerald-50/40'
+  1486→                )}>
+  1487→                  <CardContent className="p-4 md:p-5">
+  1488→                    <div className="flex flex-col gap-4 md:flex-row md:items-start">
+  1489→                      <Avatar className="h-11 w-11 shrink-0 ring-2 ring-slate-100">
+  1490→                        <AvatarFallback className={cn(
+  1491→                          'text-sm font-bold text-white',
+  1492→                          msg.read ? 'bg-slate-400' : 'bg-gradient-to-br from-emerald-500 to-emerald-700'
+  1493→                        )}>
+  1494→                          {msg.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+  1495→                        </AvatarFallback>
+  1496→                      </Avatar>
+  1497→                      <div className="min-w-0 flex-1">
+  1498→                        <div className="flex flex-wrap items-center gap-2">
+  1499→                          <h3 className="font-semibold text-slate-800">{msg.name}</h3>
+  1500→                          {!msg.read && (
+  1501→                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Nuevo</Badge>
+  1502→                          )}
+  1503→                          <span className="text-xs text-muted-foreground">•</span>
+  1504→                          <span className="text-xs text-muted-foreground">{formatDate(msg.date)}</span>
+  1505→                        </div>
+  1506→                        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+  1507→                          <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {msg.email}</span>
+  1508→                          {msg.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {msg.phone}</span>}
+  1509→                        </div>
+  1510→                        <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+  1511→                          “{msg.message}”
+  1512→                        </p>
+  1513→                        <div className="mt-3 flex flex-wrap items-center gap-2">
+  1514→                          {!msg.read && (
+  1515→                            <Button size="sm" variant="outline" onClick={() => handleMarkRead(msg.id)} className="border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+  1516→                              <Check className="h-3.5 w-3.5" /> Marcar como leído
+  1517→                            </Button>
+  1518→                          )}
+  1519→                          <Button size="sm" variant="outline" onClick={() => handleReply(msg)}>
+  1520→                            <MessageCircle className="h-3.5 w-3.5" /> Responder
+  1521→                          </Button>
+  1522→                          <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard?.writeText(msg.email); toast.success('Correo copiado'); }}>
+  1523→                            <Copy className="h-3.5 w-3.5" /> Copiar correo
+  1524→                          </Button>
+  1525→                        </div>
+  1526→                      </div>
+  1527→                    </div>
+  1528→                  </CardContent>
+  1529→                </Card>
+  1530→              </motion.div>
+  1531→            ))}
+  1532→          </AnimatePresence>
+  1533→        </div>
+  1534→      )}
+  1535→    </div>
+  1536→  );
+  1537→}
+  1538→
+  1539→// ============================ APPOINTMENTS ============================
+  1540→function AppointmentsSection() {
+  1541→  const appointments = useAppStore(s => s.appointments);
+  1542→
+  1543→  const sorted = [...appointments].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  1544→  const pending = sorted.filter(a => a.status === 'pending');
+  1545→  const confirmed = sorted.filter(a => a.status === 'confirmed');
+  1546→  const cancelled = sorted.filter(a => a.status === 'cancelled');
+  1547→
+  1548→  const statusConfig = {
+  1549→    pending:   { label: 'Pendiente',  bg: 'bg-amber-100',   text: 'text-amber-700',   dot: 'bg-amber-500' },
+  1550→    confirmed: { label: 'Confirmada', bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  1551→    cancelled: { label: 'Cancelada',  bg: 'bg-rose-100',    text: 'text-rose-700',    dot: 'bg-rose-500' },
+  1552→  };
+  1553→
+  1554→  return (
+  1555→    <div className="space-y-6">
+  1556→      <SectionHeader
+  1557→        title="Equipo / Citas"
+  1558→        description="Citas agendadas a través de tus tarjetas digitales."
+  1559→        icon={CalendarIcon}
+  1560→        accent="emerald"
+  1561→      />
+  1562→
+  1563→      {/* Summary */}
+  1564→      <div className="grid grid-cols-3 gap-3">
+  1565→        <SummaryTile label="Pendientes" value={pending.length} icon={Clock} color="amber" />
+  1566→        <SummaryTile label="Confirmadas" value={confirmed.length} icon={CheckCircle2} color="emerald" />
+  1567→        <SummaryTile label="Canceladas" value={cancelled.length} icon={X} color="rose" />
+  1568→      </div>
+  1569→
+  1570→      {sorted.length === 0 ? (
+  1571→        <EmptyState
+  1572→          icon={CalendarIcon}
+  1573→          title="No hay citas agendadas"
+  1574→          description="Cuando alguien agende una cita desde tus tarjetas, aparecerá aquí."
+  1575→        />
+  1576→      ) : (
+  1577→        <div className="space-y-3">
+  1578→          <AnimatePresence>
+  1579→            {sorted.map((appt, i) => {
+  1580→              const cfg = statusConfig[appt.status];
+  1581→              return (
+  1582→                <motion.div
+  1583→                  key={appt.id}
+  1584→                  layout
+  1585→                  initial={{ opacity: 0, y: 10 }}
+  1586→                  animate={{ opacity: 1, y: 0 }}
+  1587→                  transition={{ delay: i * 0.05 }}
+  1588→                >
+  1589→                  <Card className="overflow-hidden border-slate-200/60 shadow-sm transition-all hover:shadow-md">
+  1590→                    <div className="flex">
+  1591→                      {/* Date block */}
+  1592→                      <div className="flex w-20 shrink-0 flex-col items-center justify-center bg-gradient-to-br from-emerald-500 to-emerald-700 p-3 text-white">
+  1593→                        <span className="text-[10px] font-medium uppercase tracking-wide text-emerald-100">
+  1594→                          {new Date(appt.date).toLocaleDateString('es-MX', { month: 'short' })}
+  1595→                        </span>
+  1596→                        <span className="text-2xl font-bold leading-none">{new Date(appt.date).getDate()}</span>
+  1597→                        <span className="mt-1 text-xs text-emerald-100">{appt.time}</span>
+  1598→                      </div>
+  1599→                      <CardContent className="flex-1 p-4 md:p-5">
+  1600→                        <div className="flex flex-wrap items-start justify-between gap-3">
+  1601→                          <div>
+  1602→                            <div className="flex items-center gap-2">
+  1603→                              <h3 className="font-semibold text-slate-800">{appt.clientName}</h3>
+  1604→                              <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold', cfg.bg, cfg.text)}>
+  1605→                                <span className={cn('h-1.5 w-1.5 rounded-full', cfg.dot)} />
+  1606→                                {cfg.label}
+  1607→                              </span>
+  1608→                            </div>
+  1609→                            <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+  1610→                              <Mail className="h-3 w-3" /> {appt.clientEmail}
+  1611→                            </p>
+  1612→                            <p className="mt-1 text-xs text-muted-foreground">
+  1613→                              {formatDate(appt.date)} a las {appt.time}
+  1614→                            </p>
+  1615→                          </div>
+  1616→                          <div className="flex gap-2">
+  1617→                            <Button size="sm" variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+  1618→                              <CalendarIcon className="h-3.5 w-3.5" /> Ver detalles
+  1619→                            </Button>
+  1620→                          </div>
+  1621→                        </div>
+  1622→                      </CardContent>
+  1623→                    </div>
+  1624→                  </Card>
+  1625→                </motion.div>
+  1626→              );
+  1627→            })}
+  1628→          </AnimatePresence>
+  1629→        </div>
+  1630→      )}
+  1631→    </div>
+  1632→  );
+  1633→}
+  1634→
+  1635→function SummaryTile({ label, value, icon: Icon, color }: { label: string; value: number; icon: LucideIcon; color: 'emerald' | 'amber' | 'rose' }) {
+  1636→  const colors = {
+  1637→    emerald: 'from-emerald-500 to-emerald-700',
+  1638→    amber: 'from-amber-500 to-orange-600',
+  1639→    rose: 'from-rose-500 to-pink-600',
+  1640→  };
+  1641→  return (
+  1642→    <Card className="border-slate-200/60 shadow-sm">
+  1643→      <CardContent className="flex items-center gap-3 p-4">
+  1644→        <div className={cn('flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br text-white shadow', colors[color])}>
+  1645→          <Icon className="h-4 w-4" />
+  1646→        </div>
+  1647→        <div>
+  1648→          <p className="text-2xl font-bold text-slate-800">{value}</p>
+  1649→          <p className="text-xs text-muted-foreground">{label}</p>
+  1650→        </div>
+  1651→      </CardContent>
+  1652→    </Card>
+  1653→  );
+  1654→}
+  1655→
+  1656→// ============================ ORDERS ============================
+  1657→function OrdersSection() {
+  1658→  return (
+  1659→    <div className="space-y-6">
+  1660→      <SectionHeader
+  1661→        title="Pedidos"
+  1662→        description="Gestiona las solicitudes de productos que recibas en tus tarjetas."
+  1663→        icon={Package}
+  1664→        accent="emerald"
+  1665→      />
+  1666→      <Card className="border-slate-200/60 shadow-sm">
+  1667→        <CardContent className="p-12">
+  1668→          <EmptyState
+  1669→            icon={ShoppingCart}
+  1670→            title="Próximamente: Gestión de pedidos de productos"
+  1671→            description="Estamos trabajando en esta función. Pronto podrás gestionar todos los pedidos de productos de tus tarjetas digitales desde aquí: estados, pagos, envíos y más."
+  1672→            large
+  1673→            action={
+  1674→              <Button variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+  1675→                <Bell className="h-4 w-4" /> Notificarme al lanzar
+  1676→              </Button>
+  1677→            }
+  1678→          />
+  1679→        </CardContent>
+  1680→      </Card>
+  1681→    </div>
+  1682→  );
+  1683→}
+  1684→
+  1685→// ============================ VIRTUAL FUNDS (NFC) ============================
+  1686→function VirtualFundsSection() {
+  1687→  const cards = useCurrentUserCards();
+  1688→  const primaryCard = cards[0];
+  1689→  const primary = primaryCard?.primaryColor || '#059669';
+  1690→  const secondary = primaryCard?.secondaryColor || '#10b981';
+  1691→
+  1692→  const designs = useMemo(() => [
+  1693→    {
+  1694→      id: 'd1', name: 'Esmeralda Clásico', orientation: 'horizontal',
+  1695→      bg: `linear-gradient(135deg, ${primary}, ${secondary})`,
+  1696→      text: 'white',
+  1697→    },
+  1698→    {
+  1699→      id: 'd2', name: 'Oro Lujo', orientation: 'horizontal',
+  1700→      bg: `linear-gradient(135deg, #f59e0b, #fbbf24, #f59e0b)`,
+  1701→      text: 'white',
+  1702→    },
+  1703→    {
+  1704→      id: 'd3', name: 'Esmeralda Vertical', orientation: 'vertical',
+  1705→      bg: `linear-gradient(180deg, ${secondary}, ${primary})`,
+  1706→      text: 'white',
+  1707→    },
+  1708→    {
+  1709→      id: 'd4', name: 'Geométrico Oscuro', orientation: 'horizontal',
+  1710→      bg: `linear-gradient(120deg, #0f172a 0%, ${primary} 60%, #0f172a 100%)`,
+  1711→      text: 'white',
+  1712→    },
+  1713→    {
+  1714→      id: 'd5', name: 'Dorado Vertical', orientation: 'vertical',
+  1715→      bg: `linear-gradient(180deg, #fbbf24, #d97706)`,
+  1716→      text: 'white',
+  1717→    },
+  1718→    {
+  1719→      id: 'd6', name: 'Mármol Esmeralda', orientation: 'horizontal',
+  1720→      bg: `radial-gradient(circle at 30% 30%, ${secondary}40, transparent), radial-gradient(circle at 70% 70%, ${primary}40, transparent), linear-gradient(135deg, #f8fafc, #ecfdf5)`,
+  1721→      text: 'slate-800',
+  1722→    },
+  1723→  ], [primary, secondary]);
+  1724→
+  1725→  const handleDownload = (name: string) => {
+  1726→    toast.success('Descargando diseño...', { description: `${name}.png se está generando` });
+  1727→  };
+  1728→
+  1729→  return (
+  1730→    <div className="space-y-6">
+  1731→      <SectionHeader
+  1732→        title="Fondos Virtuales NFC"
+  1733→        description="Diseños listos para descargar y configurar en tus tarjetas NFC físicas."
+  1734→        icon={CreditCard}
+  1735→        accent="emerald"
+  1736→      />
+  1737→
+  1738→      <Card className="border-emerald-200/60 bg-gradient-to-br from-emerald-50/50 to-amber-50/30 shadow-sm">
+  1739→        <CardContent className="flex flex-wrap items-center gap-3 p-4">
+  1740→          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+  1741→            <Sparkles className="h-5 w-5" />
+  1742→          </div>
+  1743→          <div className="flex-1">
+  1744→            <p className="text-sm font-semibold text-slate-800">Personaliza tus tarjetas NFC</p>
+  1745→            <p className="text-xs text-muted-foreground">
+  1746→              Descarga estos fondos, grábalos en tu tarjeta NFC y compártelos con tus clientes.
+  1747→              {primaryCard && ` Usando colores de "${primaryCard.cardName}".`}
+  1748→            </p>
+  1749→          </div>
+  1750→        </CardContent>
+  1751→      </Card>
+  1752→
+  1753→      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+  1754→        {designs.map((d, i) => (
+  1755→          <motion.div
+  1756→            key={d.id}
+  1757→            initial={{ opacity: 0, scale: 0.95 }}
+  1758→            animate={{ opacity: 1, scale: 1 }}
+  1759→            transition={{ delay: i * 0.06 }}
+  1760→          >
+  1761→            <Card className="group overflow-hidden border-slate-200/60 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg">
+  1762→              {/* Card preview */}
+  1763→              <div
+  1764→                className={cn(
+  1765→                  'relative flex items-center justify-center p-6',
+  1766→                  d.orientation === 'horizontal' ? 'aspect-[1.586/1]' : 'aspect-[1/1.586]'
+  1767→                )}
+  1768→                style={{ background: d.bg }}
+  1769→              >
+  1770→                {/* Chip decoration */}
+  1771→                <div className="absolute left-4 top-4 h-6 w-8 rounded-md bg-amber-300/80 shadow-inner" />
+  1772→                {/* NFC icon */}
+  1773→                <div className={cn(
+  1774→                  'flex flex-col items-center gap-1 opacity-90',
+  1775→                  d.text === 'white' ? 'text-white' : 'text-slate-800'
+  1776→                )}>
+  1777→                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 backdrop-blur">
+  1778→                    <span className="text-lg font-bold">NFC</span>
+  1779→                  </div>
+  1780→                </div>
+  1781→                {/* Brand text */}
+  1782→                <div className={cn(
+  1783→                  'absolute bottom-4 right-4 text-right',
+  1784→                  d.text === 'white' ? 'text-white' : 'text-slate-800'
+  1785→                )}>
+  1786→                  <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">FTP Digital</p>
+  1787→                  <p className="text-xs font-bold">Plus</p>
+  1788→                </div>
+  1789→                {/* Hover overlay */}
+  1790→                <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/30 group-hover:opacity-100">
+  1791→                  <Button size="sm" onClick={() => handleDownload(d.name)} className="bg-white text-slate-800 hover:bg-white/90">
+  1792→                    <Download className="h-3.5 w-3.5" /> Descargar
+  1793→                  </Button>
+  1794→                </div>
+  1795→              </div>
+  1796→              <CardContent className="flex items-center justify-between p-3">
+  1797→                <div>
+  1798→                  <p className="text-sm font-semibold text-slate-800">{d.name}</p>
+  1799→                  <p className="text-xs text-muted-foreground capitalize">{d.orientation}</p>
+  1800→                </div>
+  1801→                <Badge variant="secondary" className="bg-slate-100 text-slate-600">PNG</Badge>
+  1802→              </CardContent>
+  1803→            </Card>
+  1804→          </motion.div>
+  1805→        ))}
+  1806→      </div>
+  1807→    </div>
+  1808→  );
+  1809→}
+  1810→
+  1811→// ============================ AFFILIATIONS ============================
+  1812→function AffiliationsSection() {
+  1813→  const cards = useCurrentUserCards();
+  1814→  const navigate = useAppStore(s => s.navigate);
+  1815→  const currentUser = useAppStore(s => s.currentUser)!;
+  1816→  const setSelectedPlanForCheckout = useAppStore(s => s.setSelectedPlanForCheckout);
+  1817→  const plan = PLANS[currentUser.plan];
+  1818→  const hasAffiliation = plan.features.some(f => f.name.toLowerCase().includes('afiliación') && f.included);
+  1819→
+  1820→  const handleUpgrade = () => {
+  1821→    const next: PlanType = currentUser.plan === 'gratis' ? 'basico' : 'pro';
+  1822→    setSelectedPlanForCheckout(next);
+  1823→    navigate('checkout');
+  1824→  };
+  1825→
+  1826→  const affiliateCode = cards[0]?.affiliateCode || `FTP-${currentUser.name.split(' ')[0].toUpperCase()}-${currentUser.id.slice(-4).toUpperCase()}`;
+  1827→  const clicks = cards.reduce((sum, c) => sum + c.affiliateClicks, 0);
+  1828→  const referralLink = `ftpdigitalplus.com/r/${affiliateCode}`;
+  1829→
+  1830→  const [copied, setCopied] = useState(false);
+  1831→  const handleCopy = () => {
+  1832→    navigator.clipboard?.writeText(`https://${referralLink}`);
+  1833→    setCopied(true);
+  1834→    toast.success('Enlace de referido copiado');
+  1835→    setTimeout(() => setCopied(false), 2000);
+  1836→  };
+  1837→
+  1838→  if (!hasAffiliation) {
+  1839→    return (
+  1840→      <div className="space-y-6">
+  1841→        <SectionHeader title="Afiliaciones" description="Programa de afiliados de FTP Digital Plus." icon={Users} accent="emerald" />
+  1842→        <Card className="border-amber-200/60 bg-gradient-to-br from-amber-50/50 to-orange-50/30 shadow-sm">
+  1843→          <CardContent className="p-8">
+  1844→            <EmptyState
+  1845→              icon={Gift}
+  1846→              title="Función exclusiva de planes Básico y Pro"
+  1847→              description="Únete al programa de afiliados y gana comisiones por cada referido que contrate un plan de pago."
+  1848→              action={
+  1849→                <Button onClick={handleUpgrade} className="bg-emerald-600 hover:bg-emerald-700">
+  1850→                  <Crown className="h-4 w-4" /> Mejorar Plan
+  1851→                </Button>
+  1852→              }
+  1853→            />
+  1854→          </CardContent>
+  1855→        </Card>
+  1856→      </div>
+  1857→    );
+  1858→  }
+  1859→
+  1860→  const benefits = [
+  1861→    { label: 'Comisión por referido', value: '15%', icon: Wallet },
+  1862→    { label: 'Clics totales', value: clicks.toString(), icon: TrendingUp },
+  1863→    { label: 'Tarjetas con afiliación', value: cards.filter(c => c.affiliateCode).length.toString(), icon: CreditCard },
+  1864→  ];
+  1865→
+  1866→  return (
+  1867→    <div className="space-y-6">
+  1868→      <SectionHeader
+  1869→        title="Afiliaciones"
+  1870→        description="Invita a otros a usar FTP Digital Plus y gana comisiones."
+  1871→        icon={Users}
+  1872→        accent="emerald"
+  1873→      />
+  1874→
+  1875→      <div className="grid gap-4 md:grid-cols-3">
+  1876→        {benefits.map((b) => (
+  1877→          <Card key={b.label} className="border-slate-200/60 shadow-sm">
+  1878→            <CardContent className="flex items-center gap-3 p-5">
+  1879→              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-md">
+  1880→                <b.icon className="h-5 w-5" />
+  1881→              </div>
+  1882→              <div>
+  1883→                <p className="text-2xl font-bold text-slate-800">{b.value}</p>
+  1884→                <p className="text-xs text-muted-foreground">{b.label}</p>
+  1885→              </div>
+  1886→            </CardContent>
+  1887→          </Card>
+  1888→        ))}
+  1889→      </div>
+  1890→
+  1891→      <Card className="overflow-hidden border-slate-200/60 shadow-sm">
+  1892→        <CardHeader className="bg-gradient-to-r from-emerald-50 to-amber-50/50 pb-4">
+  1893→          <CardTitle className="flex items-center gap-2 text-lg">
+  1894→            <Gift className="h-5 w-5 text-emerald-600" /> Tu enlace de referido
+  1895→          </CardTitle>
+  1896→          <CardDescription>Comparte este enlace. Cada vez que alguien contrate un plan, ganas comisión.</CardDescription>
+  1897→        </CardHeader>
+  1898→        <CardContent className="space-y-4 p-6">
+  1899→          <div className="flex items-center gap-3">
+  1900→            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-amber-400">
+  1901→              <CreditCard className="h-5 w-5" />
+  1902→            </div>
+  1903→            <div className="min-w-0 flex-1">
+  1904→              <p className="text-xs text-muted-foreground">Tu código de afiliado</p>
+  1905→              <p className="font-mono text-lg font-bold text-slate-800">{affiliateCode}</p>
+  1906→            </div>
+  1907→            <Button variant="outline" size="sm" onClick={() => { navigator.clipboard?.writeText(affiliateCode); toast.success('Código copiado'); }}>
+  1908→              <Copy className="h-3.5 w-3.5" /> Copiar
+  1909→            </Button>
+  1910→          </div>
+  1911→
+  1912→          <Separator />
+  1913→
+  1914→          <div>
+  1915→            <Label className="text-sm font-medium">Enlace de referido</Label>
+  1916→            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+  1917→              <div className="flex flex-1 items-center rounded-md border bg-slate-50 px-3 py-2.5">
+  1918→                <span className="truncate text-sm text-slate-700">{referralLink}</span>
+  1919→              </div>
+  1920→              <Button onClick={handleCopy} className={cn('shrink-0', copied ? 'bg-emerald-700' : 'bg-emerald-600 hover:bg-emerald-700')}>
+  1921→                {copied ? <><Check className="h-4 w-4" /> Copiado</> : <><Copy className="h-4 w-4" /> Copiar enlace</>}
+  1922→              </Button>
+  1923→            </div>
+  1924→          </div>
+  1925→
+  1926→          <div className="grid gap-3 sm:grid-cols-3">
+  1927→            <ShareButton network="WhatsApp" icon={MessageCircle} color="bg-[#25D366]" />
+  1928→            <ShareButton network="Facebook" icon={Share2} color="bg-[#1877F2]" />
+  1929→            <ShareButton network="Email" icon={Mail} color="bg-slate-600" />
+  1930→          </div>
+  1931→        </CardContent>
+  1932→      </Card>
+  1933→
+  1934→      <Card className="border-slate-200/60 bg-gradient-to-br from-amber-50/30 to-white shadow-sm">
+  1935→        <CardContent className="p-5">
+  1936→          <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+  1937→            <TrendingUp className="h-4 w-4 text-emerald-600" /> ¿Cómo funciona?
+  1938→          </h3>
+  1939→          <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+  1940→            <li className="flex gap-2"><span className="font-bold text-emerald-600">1.</span> Comparte tu enlace de referido.</li>
+  1941→            <li className="flex gap-2"><span className="font-bold text-emerald-600">2.</span> Alguien se registra y contrata un plan de pago.</li>
+  1942→            <li className="flex gap-2"><span className="font-bold text-emerald-600">3.</span> Recibes el 15% de comisión automáticamente.</li>
+  1943→          </ol>
+  1944→        </CardContent>
+  1945→      </Card>
+  1946→    </div>
+  1947→  );
+  1948→}
+  1949→
+  1950→function ShareButton({ network, icon: Icon, color }: { network: string; icon: LucideIcon; color: string }) {
+  1951→  return (
+  1952→    <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-slate-50">
+  1953→      <span className={cn('flex h-5 w-5 items-center justify-center rounded text-white', color)}>
+  1954→        <Icon className="h-3 w-3" />
+  1955→      </span>
+  1956→      {network}
+  1957→    </Button>
+  1958→  );
+  1959→}
+  1960→
+  1961→// ============================ STORAGE ============================
+  1962→function StorageSection() {
+  1963→  const cards = useCurrentUserCards();
+  1964→  const currentUser = useAppStore(s => s.currentUser)!;
+  1965→  const plan = PLANS[currentUser.plan];
+  1966→  const maxStorage = plan.storage; // MB
+  1967→  const [showTips, setShowTips] = useState(false);
+  1968→
+  1969→  // Fake storage calculation
+  1970→  const items = useMemo(() => {
+  1971→    const result: { card: string; type: string; size: number; icon: LucideIcon; category: 'photos' | 'gallery' | 'products' | 'other' }[] = [];
+  1972→    cards.forEach(card => {
+  1973→      if (card.profilePhoto) result.push({ card: card.cardName, type: 'Foto de perfil', size: 1.2, icon: CircleUser, category: 'photos' });
+  1974→      if (card.coverPhoto) result.push({ card: card.cardName, type: 'Foto de portada', size: 2.5, icon: ImageIcon, category: 'photos' });
+  1975→      if (card.logo) result.push({ card: card.cardName, type: 'Logo de marca', size: 0.8, icon: Sparkles, category: 'other' });
+  1976→      card.gallery.forEach(() => result.push({ card: card.cardName, type: 'Imagen de galería', size: 1.8, icon: Images, category: 'gallery' }));
+  1977→      card.services.forEach(s => s.photo && result.push({ card: card.cardName, type: `Foto servicio: ${s.name}`, size: 1.5, icon: Briefcase, category: 'other' }));
+  1978→      card.products.forEach(p => p.image && result.push({ card: card.cardName, type: `Imagen producto: ${p.name}`, size: 1.5, icon: ShoppingBag, category: 'products' }));
+  1979→    });
+  1980→    // Add demo items if empty
+  1981→    if (result.length === 0) {
+  1982→      cards.forEach(card => {
+  1983→        result.push({ card: card.cardName, type: 'Logo de marca', size: 0.8, icon: Sparkles, category: 'other' });
+  1984→      });
+  1985→    }
+  1986→    return result;
+  1987→  }, [cards]);
+  1988→
+  1989→  const usedStorage = items.reduce((sum, i) => sum + i.size, 0);
+  1990→  const usagePercent = Math.min(100, (usedStorage / maxStorage) * 100);
+  1991→  const isNearLimit = usagePercent > 80;
+  1992→
+  1993→  // Breakdown by category
+  1994→  const breakdown = useMemo(() => {
+  1995→    const groups: Record<string, number> = { photos: 0, gallery: 0, products: 0, other: 0 };
+  1996→    items.forEach(i => { groups[i.category] = (groups[i.category] || 0) + i.size; });
+  1997→    return [
+  1998→      { name: 'Fotos de perfil', value: Number(groups.photos.toFixed(1)), color: '#059669' },
+  1999→      { name: 'Galería', value: Number(groups.gallery.toFixed(1)), color: '#f59e0b' },
+  2000→      { name: 'Productos', value: Number(groups.products.toFixed(1)), color: '#10b981' },
+
+[showing lines 1-2000 of 2633; use offset=2001 with limit to continue reading]

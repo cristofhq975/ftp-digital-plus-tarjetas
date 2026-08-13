@@ -5,7 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
+import { enhancedToast as toast } from '@/components/ui/enhanced-toast';
+import { Confetti } from '@/components/confetti';
 import { useAppStore } from '@/lib/store';
 import { FTPLogo } from '@/components/ftp-logo';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -970,14 +971,17 @@ function PaymentLayout({ plan, onBack, onSuccess }: { plan: PlanType; onBack: ()
 
     setProcessing(true);
     const methodLabel = method === 'tarjeta' ? 'tarjeta' : method === 'paypal' ? 'PayPal' : 'transferencia';
-    toast.loading(`Procesando pago vía ${methodLabel}...`, { id: 'pay-toast' });
+    toast.loading(
+      `Procesando pago vía ${methodLabel}…`,
+      'Estamos confirmando tu transacción de forma segura.',
+      { id: 'pay-toast' },
+    );
 
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     toast.dismiss('pay-toast');
-    toast.success('¡Pago completado!', {
-      description: `Plan ${config.name} activado correctamente.`,
-    });
+    // Notificación especial con confeti para la activación del plan
+    toast.plan(config.name, `Plan ${config.name} activado correctamente.`);
     setProcessing(false);
     onSuccess();
   };
@@ -1245,9 +1249,10 @@ export function CheckoutPage() {
   const handlePickPlan = (plan: PlanType) => {
     setSelectedPlanForCheckout(plan);
     setPickedPlan(plan);
-    toast.success(`Plan ${PLANS[plan].name} seleccionado`, {
-      description: 'Continúa con el pago seguro.',
-    });
+    toast.success(
+      `Plan ${PLANS[plan].name} seleccionado`,
+      'Continúa con el pago seguro.',
+    );
   };
 
   const handleSuccess = () => {
@@ -1270,6 +1275,9 @@ export function CheckoutPage() {
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-slate-50 to-white">
       <CheckoutHeader onBack={handleBack} />
+
+      {/* Confeti al completar el pago */}
+      <Confetti active={success} duration={5000} count={80} />
 
       <main className="flex-1">
         <AnimatePresence mode="wait">

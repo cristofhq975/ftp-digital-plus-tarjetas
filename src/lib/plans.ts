@@ -209,6 +209,7 @@ export const EDITOR_SECTIONS = [
 // Secciones del panel principal (Manual 1)
 export const DASHBOARD_SECTIONS = [
   { id: 'tablero', name: 'Tablero', icon: 'LayoutDashboard', description: 'Vista general de tus tarjetas' },
+  { id: 'compare', name: 'Comparar', icon: 'GitCompare', description: 'Compara tus tarjetas' },
   { id: 'stats', name: 'Analítica', icon: 'Search', description: 'Estadísticas y métricas de tus tarjetas' },
   { id: 'template-gallery', name: 'Plantillas', icon: 'Layout', description: 'Galería de plantillas disponibles' },
   { id: 'messages', name: 'Consultas', icon: 'Mail', description: 'Mensajes del formulario de contacto' },

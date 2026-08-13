@@ -28,7 +28,8 @@ export type ViewType =
   | 'refunds'
   | 'profile'
   | 'blog'
-  | 'blog-post';
+  | 'blog-post'
+  | 'compare';
 
 // Ticket de soporte
 export type SupportTicketCategory = 'cuenta' | 'facturacion' | 'tecnico' | 'tarjeta' | 'otro';

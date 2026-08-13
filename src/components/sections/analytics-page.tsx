@@ -9,7 +9,7 @@ import {
 import {
   TrendingUp, TrendingDown, Eye, QrCode, Mail, Calendar, Download,
   Globe, Smartphone, Monitor, Tablet, ArrowLeft, Sparkles, Lock, Clock,
-  MousePointerClick, CalendarDays, MapPin, Activity, Award,
+  MousePointerClick, CalendarDays, MapPin, Activity, Award, GitCompare,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -455,6 +455,17 @@ export function AnalyticsPage() {
                 <Download className="h-4 w-4" />
                 <span className="hidden sm:inline">Exportar reporte</span>
                 <span className="sm:hidden">PDF</span>
+              </Button>
+              <Button
+                onClick={() => navigate('compare')}
+                variant="outline"
+                size="sm"
+                className="border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800"
+                aria-label="Comparar tarjetas"
+              >
+                <GitCompare className="h-4 w-4" />
+                <span className="hidden sm:inline">Comparar tarjetas</span>
+                <span className="sm:hidden">Comparar</span>
               </Button>
             </div>
           </div>

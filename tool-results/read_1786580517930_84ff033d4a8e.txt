@@ -1,0 +1,1099 @@
+     1→'use client';
+     2→
+     3→import { useState, useMemo } from 'react';
+     4→import { motion } from 'framer-motion';
+     5→import {
+     6→  LineChart, Line, BarChart, Bar, PieChart, Pie, AreaChart, Area,
+     7→  XAxis, YAxis, CartesianGrid, Cell, ResponsiveContainer, Tooltip, Legend,
+     8→} from 'recharts';
+     9→import {
+    10→  TrendingUp, TrendingDown, Eye, QrCode, Mail, Calendar, Download,
+    11→  Globe, Smartphone, Monitor, Tablet, ArrowLeft, Sparkles, Lock, Clock,
+    12→  MousePointerClick, CalendarDays, MapPin, Activity, Award,
+    13→} from 'lucide-react';
+    14→import { toast } from 'sonner';
+    15→
+    16→import { Button } from '@/components/ui/button';
+    17→import {
+    18→  Card, CardHeader, CardContent, CardTitle, CardDescription,
+    19→} from '@/components/ui/card';
+    20→import { Badge } from '@/components/ui/badge';
+    21→import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    22→import { Progress } from '@/components/ui/progress';
+    23→import { Separator } from '@/components/ui/separator';
+    24→import {
+    25→  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+    26→} from '@/components/ui/table';
+    27→import { FTPLogo } from '@/components/ftp-logo';
+    28→import { useAppStore, useCurrentUserCards } from '@/lib/store';
+    29→import { cn } from '@/lib/utils';
+    30→
+    31→// ============================ PALETA DE COLORES ============================
+    32→const COLORS = {
+    33→  emerald: '#059669',
+    34→  emeraldLight: '#10b981',
+    35→  gold: '#f59e0b',
+    36→  goldLight: '#fbbf24',
+    37→  cyan: '#0891b2',
+    38→  rose: '#be123c',
+    39→  purple: '#7c3aed',
+    40→};
+    41→
+    42→const PIE_COLORS = [COLORS.emerald, COLORS.gold, COLORS.cyan, COLORS.rose];
+    43→const DONUT_COLORS = [COLORS.emerald, COLORS.gold, COLORS.cyan];
+    44→
+    45→// Estilos compartidos de Tooltip
+    46→const TOOLTIP_STYLE = {
+    47→  backgroundColor: 'rgba(255,255,255,0.96)',
+    48→  border: '1px solid #e2e8f0',
+    49→  borderRadius: 10,
+    50→  fontSize: 12,
+    51→  boxShadow: '0 8px 24px rgba(15, 23, 42, 0.10)',
+    52→  padding: '8px 12px',
+    53→} as const;
+    54→
+    55→const TOOLTIP_LABEL_STYLE = { fontWeight: 600, color: '#0f172a', marginBottom: 4 } as const;
+    56→
+    57→// ============================ HELPERS ============================
+    58→/** Genera datos de series temporales (mock, deterministas por día). */
+    59→function generateTimeSeriesData(days: number): { date: string; views: number; scans: number }[] {
+    60→  const data: { date: string; views: number; scans: number }[] = [];
+    61→  const today = new Date();
+    62→  for (let i = days - 1; i >= 0; i--) {
+    63→    const d = new Date(today);
+    64→    d.setDate(today.getDate() - i);
+    65→    const seed = Math.floor(d.getTime() / 86400000);
+    66→    const wave = Math.sin(seed * 0.7);
+    67→    const wave2 = Math.cos(seed * 0.5);
+    68→    // Escala los datos según el rango para que se vean realistas
+    69→    const factor = days <= 7 ? 1 : days <= 30 ? 1.4 : 2.2;
+    70→    const baseViews = Math.max(3, Math.floor((15 + wave * 9 + (seed % 14)) * factor));
+    71→    const baseScans = Math.max(1, Math.floor((5 + wave2 * 4 + (seed % 8)) * factor));
+    72→    data.push({
+    73→      date: d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit' }),
+    74→      views: baseViews,
+    75→      scans: baseScans,
+    76→    });
+    77→  }
+    78→  return data;
+    79→}
+    80→
+    81→// Animación entrada (sin hooks)
+    82→const fadeUp = (delay = 0) => ({
+    83→  initial: { opacity: 0, y: 16 },
+    84→  animate: { opacity: 1, y: 0 },
+    85→  transition: { duration: 0.45, delay, ease: 'easeOut' as const },
+    86→});
+    87→
+    88→// ============================ SUB-COMPONENTES ============================
+    89→function Footer() {
+    90→  return (
+    91→    <footer className="mt-auto border-t bg-white/80 backdrop-blur">
+    92→      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-4 text-center sm:flex-row sm:px-8 sm:text-left">
+    93→        <div className="flex items-center gap-2">
+    94→          <FTPLogo variant="icon" className="h-6 w-6" />
+    95→          <span className="text-xs text-muted-foreground">
+    96→            © {new Date().getFullYear()} FTP Digital Plus · Tarjetas de Presentación Digitales
+    97→          </span>
+    98→        </div>
+    99→        <span className="text-xs text-muted-foreground">
+   100→          Analítica avanzada · Plan {''}
+   101→          <span className="font-medium text-emerald-700">Básico / Pro</span>
+   102→        </span>
+   103→      </div>
+   104→    </footer>
+   105→  );
+   106→}
+   107→
+   108→// Pantalla de upgrade para plan gratis
+   109→function UpgradeScreen({ onUpgrade }: { onUpgrade: () => void }) {
+   110→  const features = [
+   111→    { icon: Activity, label: 'Gráficas interactivas' },
+   112→    { icon: MapPin, label: 'Distribución geográfica' },
+   113→    { icon: Smartphone, label: 'Análisis por dispositivo' },
+   114→    { icon: TrendingUp, label: 'Tendencias de crecimiento' },
+   115→    { icon: Award, label: 'Tarjetas mejor performers' },
+   116→    { icon: Clock, label: 'Métricas de engagement' },
+   117→  ];
+   118→  return (
+   119→    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-white to-emerald-50/40">
+   120→      <main className="flex flex-1 items-center justify-center p-4">
+   121→        <motion.div {...fadeUp(0)} className="w-full max-w-lg">
+   122→          <Card className="overflow-hidden border-0 shadow-xl">
+   123→            <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 p-8 text-center text-white">
+   124→              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/20 backdrop-blur">
+   125→                <Lock className="h-8 w-8" />
+   126→              </div>
+   127→              <h1 className="text-2xl font-bold">Analítica avanzada exclusiva</h1>
+   128→              <p className="mt-2 text-sm text-emerald-50">
+   129→                Desbloquea estadísticas detalladas, gráficas interactivas y métricas de rendimiento para tus tarjetas.
+   130→              </p>
+   131→            </div>
+   132→            <CardContent className="p-6">
+   133→              <p className="text-center text-sm text-muted-foreground">
+   134→                La analítica avanzada está disponible en los planes{' '}
+   135→                <span className="font-semibold text-emerald-700">Básico</span> y{' '}
+   136→                <span className="font-semibold text-amber-600">Pro</span>.
+   137→              </p>
+   138→              <div className="mt-5 grid grid-cols-2 gap-3">
+   139→                {features.map(f => (
+   140→                  <div
+   141→                    key={f.label}
+   142→                    className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2.5"
+   143→                  >
+   144→                    <f.icon className="h-4 w-4 shrink-0 text-emerald-600" />
+   145→                    <span className="text-xs font-medium text-slate-700">{f.label}</span>
+   146→                  </div>
+   147→                ))}
+   148→              </div>
+   149→              <Button
+   150→                className="mt-6 w-full bg-emerald-600 hover:bg-emerald-700"
+   151→                size="lg"
+   152→                onClick={onUpgrade}
+   153→              >
+   154→                <Sparkles className="h-4 w-4" />
+   155→                Mejorar Plan
+   156→              </Button>
+   157→              <p className="mt-3 text-center text-xs text-muted-foreground">
+   158→                Sin costos ocultos · Cancela cuando quieras · Soporte en español
+   159→              </p>
+   160→            </CardContent>
+   161→          </Card>
+   162→        </motion.div>
+   163→      </main>
+   164→      <Footer />
+   165→    </div>
+   166→  );
+   167→}
+   168→
+   169→// Tarjeta de estadística con tendencia
+   170→interface StatCardProps {
+   171→  title: string;
+   172→  value: string | number;
+   173→  trend: number;
+   174→  icon: React.ComponentType<{ className?: string }>;
+   175→  iconBg: string;
+   176→  iconColor: string;
+   177→  delay?: number;
+   178→}
+   179→
+   180→function StatCard({ title, value, trend, icon: Icon, iconBg, iconColor, delay = 0 }: StatCardProps) {
+   181→  const isUp = trend >= 0;
+   182→  return (
+   183→    <motion.div {...fadeUp(delay)}>
+   184→      <Card className="overflow-hidden border-slate-200/70 shadow-sm hover:shadow-md transition-shadow">
+   185→        <CardContent className="p-5">
+   186→          <div className="flex items-start justify-between gap-3">
+   187→            <div className="min-w-0">
+   188→              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+   189→                {title}
+   190→              </p>
+   191→              <p className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">{value}</p>
+   192→            </div>
+   193→            <div
+   194→              className={cn(
+   195→                'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+   196→                iconBg,
+   197→              )}
+   198→            >
+   199→              <Icon className={cn('h-5 w-5', iconColor)} />
+   200→            </div>
+   201→          </div>
+   202→          <div className="mt-3 flex items-center gap-1.5">
+   203→            <span
+   204→              className={cn(
+   205→                'inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-semibold',
+   206→                isUp ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700',
+   207→              )}
+   208→            >
+   209→              {isUp ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+   210→              {isUp ? '+' : ''}{trend.toFixed(1)}%
+   211→            </span>
+   212→            <span className="text-xs text-muted-foreground">vs. periodo anterior</span>
+   213→          </div>
+   214→        </CardContent>
+   215→      </Card>
+   216→    </motion.div>
+   217→  );
+   218→}
+   219→
+   220→// Tarjeta de métrica de engagement (mock)
+   221→interface EngagementCardProps {
+   222→  title: string;
+   223→  value: string;
+   224→  hint: string;
+   225→  icon: React.ComponentType<{ className?: string }>;
+   226→  delay?: number;
+   227→}
+   228→
+   229→function EngagementCard({ title, value, hint, icon: Icon, delay = 0 }: EngagementCardProps) {
+   230→  return (
+   231→    <motion.div {...fadeUp(delay)}>
+   232→      <Card className="border-slate-200/70 shadow-sm hover:shadow-md transition-shadow">
+   233→        <CardContent className="p-5">
+   234→          <div className="flex items-center gap-3">
+   235→            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50">
+   236→              <Icon className="h-4 w-4 text-emerald-600" />
+   237→            </div>
+   238→            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+   239→              {title}
+   240→            </p>
+   241→          </div>
+   242→          <p className="mt-3 text-2xl font-bold text-slate-900">{value}</p>
+   243→          <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+   244→        </CardContent>
+   245→      </Card>
+   246→    </motion.div>
+   247→  );
+   248→}
+   249→
+   250→// ============================ COMPONENTE PRINCIPAL ============================
+   251→export function AnalyticsPage() {
+   252→  const currentUser = useAppStore(s => s.currentUser);
+   253→  const navigate = useAppStore(s => s.navigate);
+   254→  const cards = useCurrentUserCards();
+   255→  const messages = useAppStore(s => s.messages);
+   256→  const appointments = useAppStore(s => s.appointments);
+   257→
+   258→  const [range, setRange] = useState('30');
+   259→
+   260→  // Días efectivos (en demo "Todo el tiempo" usa 90 días)
+   261→  const days = range === 'all' ? 90 : parseInt(range, 10);
+   262→
+   263→  // Series temporales (mock)
+   264→  const timeSeries = useMemo(() => generateTimeSeriesData(days), [days]);
+   265→
+   266→  // Datos acumulados para área chart
+   267→  const cumulativeData = useMemo(() => {
+   268→    return timeSeries.reduce<{ date: string; total: number }[]>((acc, d) => {
+   269→      const prev = acc.length > 0 ? acc[acc.length - 1].total : 0;
+   270→      return [...acc, { date: d.date, total: prev + d.views }];
+   271→    }, []);
+   272→  }, [timeSeries]);
+   273→
+   274→  // Métricas agregadas reales desde el store
+   275→  const totalViews = useMemo(() => cards.reduce((s, c) => s + c.views, 0), [cards]);
+   276→  const totalScans = useMemo(() => cards.reduce((s, c) => s + c.qrScans, 0), [cards]);
+   277→  const totalMessages = messages.length;
+   278→  const totalAppointments = appointments.length;
+   279→
+   280→  // Tendencias (mock pero deterministas)
+   281→  const trends = useMemo(() => {
+   282→    const seed = days;
+   283→    return {
+   284→      views: 8 + ((seed * 3) % 14),
+   285→      scans: 5 + ((seed * 5) % 11),
+   286→      messages: -3 + ((seed * 2) % 12),
+   287→      appointments: 6 + ((seed * 7) % 13),
+   288→    };
+   289→  }, [days]);
+   290→
+   291→  // Datos para bar chart: visitas y escaneos por tarjeta
+   292→  const cardsBarData = useMemo(
+   293→    () =>
+   294→      cards
+   295→        .map(c => ({
+   296→          name: c.cardName.length > 18 ? c.cardName.slice(0, 16) + '…' : c.cardName,
+   297→          fullName: c.cardName,
+   298→          views: c.views,
+   299→          scans: c.qrScans,
+   300→        }))
+   301→        .sort((a, b) => b.views - a.views),
+   302→    [cards],
+   303→  );
+   304→
+   305→  // Datos para pie chart: distribución de interacciones
+   306→  const interactionData = useMemo(
+   307→    () => [
+   308→      { name: 'Visitas', value: totalViews, color: PIE_COLORS[0] },
+   309→      { name: 'Escaneos QR', value: totalScans, color: PIE_COLORS[1] },
+   310→      { name: 'Mensajes', value: totalMessages, color: PIE_COLORS[2] },
+   311→      { name: 'Citas', value: totalAppointments, color: PIE_COLORS[3] },
+   312→    ].filter(d => d.value > 0),
+   313→    [totalViews, totalScans, totalMessages, totalAppointments],
+   314→  );
+   315→
+   316→  // Tabla de top performing cards
+   317→  const topCards = useMemo(
+   318→    () =>
+   319→      cards
+   320→        .map(c => {
+   321→          const cardMessages = messages.filter(m => m.cardId === c.id).length;
+   322→          const conversion = c.views > 0 ? (cardMessages / c.views) * 100 : 0;
+   323→          return { ...c, messageCount: cardMessages, conversion };
+   324→        })
+   325→        .sort((a, b) => b.views - a.views),
+   326→    [cards, messages],
+   327→  );
+   328→
+   329→  // ----- Datos mock de engagement / geografía / dispositivos -----
+   330→  const engagement = useMemo(() => {
+   331→    const seed = days;
+   332→    const minutes = 1 + (seed % 3);
+   333→    const seconds = 30 + (seed % 30);
+   334→    return {
+   335→      avgTime: `${minutes}m ${seconds}s`,
+   336→      bounceRate: 32 + (seed % 18),
+   337→      topSection: 'Servicios',
+   338→      topSectionPct: 28 + (seed % 12),
+   339→      bestDay: 'Miércoles',
+   340→      bestDayPct: 22 + (seed % 9),
+   341→    };
+   342→  }, [days]);
+   343→
+   344→  const geoData = useMemo(
+   345→    () => [
+   346→      { city: 'Ciudad de México', country: 'México', visitors: 432, pct: 38 },
+   347→      { city: 'Guadalajara', country: 'México', visitors: 287, pct: 25 },
+   348→      { city: 'Monterrey', country: 'México', visitors: 198, pct: 17 },
+   349→      { city: 'Puebla', country: 'México', visitors: 124, pct: 11 },
+   350→      { city: 'Tijuana', country: 'México', visitors: 89, pct: 9 },
+   351→    ],
+   352→    [],
+   353→  );
+   354→
+   355→  const deviceData = useMemo(
+   356→    () => [
+   357→      { name: 'Móvil', value: 67, color: DONUT_COLORS[0] },
+   358→      { name: 'Escritorio', value: 24, color: DONUT_COLORS[1] },
+   359→      { name: 'Tablet', value: 9, color: DONUT_COLORS[2] },
+   360→    ],
+   361→    [],
+   362→  );
+   363→
+   364→  // ----- Handlers -----
+   365→  const handleExport = () => {
+   366→    toast.success('Reporte exportado', {
+   367→      description: 'Tu reporte en PDF se ha generado correctamente (demo).',
+   368→      icon: <Download className="h-4 w-4" />,
+   369→    });
+   370→  };
+   371→
+   372→  // ----- Access control (después de hooks) -----
+   373→  if (!currentUser) {
+   374→    return (
+   375→      <div className="flex min-h-screen flex-col bg-muted/30">
+   376→        <main className="flex flex-1 items-center justify-center p-4">
+   377→          <Card className="max-w-md p-6 text-center">
+   378→            <p className="text-muted-foreground">
+   379→              Debes iniciar sesión para ver tus estadísticas.
+   380→            </p>
+   381→            <Button
+   382→              className="mt-4 bg-emerald-600 hover:bg-emerald-700"
+   383→              onClick={() => navigate('login')}
+   384→            >
+   385→              Iniciar Sesión
+   386→            </Button>
+   387→          </Card>
+   388→        </main>
+   389→        <Footer />
+   390→      </div>
+   391→    );
+   392→  }
+   393→
+   394→  if (currentUser.plan === 'gratis') {
+   395→    return <UpgradeScreen onUpgrade={() => navigate('pricing')} />;
+   396→  }
+   397→
+   398→  // ----- Render principal -----
+   399→  const rangeLabel =
+   400→    range === 'all'
+   401→      ? 'Todo el tiempo'
+   402→      : range === '7'
+   403→      ? 'Últimos 7 días'
+   404→      : range === '30'
+   405→      ? 'Últimos 30 días'
+   406→      : 'Últimos 90 días';
+   407→
+   408→  return (
+   409→    <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-50 via-white to-emerald-50/30">
+   410→      {/* ============================ HEADER ============================ */}
+   411→      <header className="sticky top-0 z-30 border-b bg-white/85 backdrop-blur-md">
+   412→        <div className="mx-auto max-w-7xl px-4 py-4 md:px-8 md:py-5">
+   413→          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+   414→            <div className="flex items-start gap-3">
+   415→              <Button
+   416→                variant="ghost"
+   417→                size="icon"
+   418→                onClick={() => navigate('dashboard')}
+   419→                aria-label="Volver al panel"
+   420→                className="mt-0.5 shrink-0"
+   421→              >
+   422→                <ArrowLeft className="h-5 w-5" />
+   423→              </Button>
+   424→              <div>
+   425→                <div className="flex items-center gap-2">
+   426→                  <h1 className="text-xl font-bold text-slate-900 md:text-2xl">
+   427→                    Analítica y Estadísticas
+   428→                  </h1>
+   429→                  <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+   430→                    <Activity className="h-3 w-3" />
+   431→                    {currentUser.plan === 'pro' ? 'Pro' : 'Básico'}
+   432→                  </Badge>
+   433→                </div>
+   434→                <p className="mt-0.5 text-sm text-muted-foreground">
+   435→                  Monitorea el rendimiento de tus tarjetas digitales ·{' '}
+   436→                  <span className="font-medium text-slate-600">{rangeLabel}</span>
+   437→                </p>
+   438→              </div>
+   439→            </div>
+   440→
+   441→            <div className="flex flex-wrap items-center gap-3">
+   442→              <Tabs value={range} onValueChange={setRange}>
+   443→                <TabsList className="bg-muted/60">
+   444→                  <TabsTrigger value="7">7 días</TabsTrigger>
+   445→                  <TabsTrigger value="30">30 días</TabsTrigger>
+   446→                  <TabsTrigger value="90">90 días</TabsTrigger>
+   447→                  <TabsTrigger value="all">Todo</TabsTrigger>
+   448→                </TabsList>
+   449→              </Tabs>
+   450→              <Button
+   451→                onClick={handleExport}
+   452→                className="bg-emerald-600 hover:bg-emerald-700"
+   453→                size="sm"
+   454→              >
+   455→                <Download className="h-4 w-4" />
+   456→                <span className="hidden sm:inline">Exportar reporte</span>
+   457→                <span className="sm:hidden">PDF</span>
+   458→              </Button>
+   459→            </div>
+   460→          </div>
+   461→        </div>
+   462→      </header>
+   463→
+   464→      {/* ============================ MAIN ============================ */}
+   465→      <main className="flex-1">
+   466→        <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 md:px-8 md:py-8">
+   467→          {/* ---------- Stat cards ---------- */}
+   468→          <section
+   469→            aria-label="Resumen general"
+   470→            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+   471→          >
+   472→            <StatCard
+   473→              title="Total de visitas"
+   474→              value={totalViews.toLocaleString('es-MX')}
+   475→              trend={trends.views}
+   476→              icon={Eye}
+   477→              iconBg="bg-emerald-50"
+   478→              iconColor="text-emerald-600"
+   479→              delay={0.05}
+   480→            />
+   481→            <StatCard
+   482→              title="Escaneos QR"
+   483→              value={totalScans.toLocaleString('es-MX')}
+   484→              trend={trends.scans}
+   485→              icon={QrCode}
+   486→              iconBg="bg-amber-50"
+   487→              iconColor="text-amber-600"
+   488→              delay={0.1}
+   489→            />
+   490→            <StatCard
+   491→              title="Mensajes recibidos"
+   492→              value={totalMessages}
+   493→              trend={trends.messages}
+   494→              icon={Mail}
+   495→              iconBg="bg-cyan-50"
+   496→              iconColor="text-cyan-700"
+   497→              delay={0.15}
+   498→            />
+   499→            <StatCard
+   500→              title="Citas agendadas"
+   501→              value={totalAppointments}
+   502→              trend={trends.appointments}
+   503→              icon={Calendar}
+   504→              iconBg="bg-rose-50"
+   505→              iconColor="text-rose-600"
+   506→              delay={0.2}
+   507→            />
+   508→          </section>
+   509→
+   510→          {/* ---------- Charts: Line + Area ---------- */}
+   511→          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+   512→            {/* Line chart: Visitas y escaneos QR */}
+   513→            <motion.div {...fadeUp(0.1)}>
+   514→              <Card className="h-full border-slate-200/70 shadow-sm">
+   515→                <CardHeader>
+   516→                  <CardTitle className="flex items-center gap-2 text-base">
+   517→                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+   518→                    Visitas y escaneos QR
+   519→                  </CardTitle>
+   520→                  <CardDescription>
+   521→                    Tendencia diaria de los últimos {days} días
+   522→                  </CardDescription>
+   523→                </CardHeader>
+   524→                <CardContent>
+   525→                  <div className="h-[280px] w-full">
+   526→                    <ResponsiveContainer width="100%" height="100%">
+   527→                      <LineChart
+   528→                        data={timeSeries}
+   529→                        margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
+   530→                      >
+   531→                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+   532→                        <XAxis
+   533→                          dataKey="date"
+   534→                          tickLine={false}
+   535→                          axisLine={false}
+   536→                          fontSize={11}
+   537→                          tick={{ fill: '#64748b' }}
+   538→                          interval="preserveStartEnd"
+   539→                          minTickGap={20}
+   540→                        />
+   541→                        <YAxis
+   542→                          tickLine={false}
+   543→                          axisLine={false}
+   544→                          fontSize={11}
+   545→                          tick={{ fill: '#64748b' }}
+   546→                          width={36}
+   547→                        />
+   548→                        <Tooltip
+   549→                          contentStyle={TOOLTIP_STYLE}
+   550→                          labelStyle={TOOLTIP_LABEL_STYLE}
+   551→                        />
+   552→                        <Legend
+   553→                          iconType="circle"
+   554→                          wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+   555→                        />
+   556→                        <Line
+   557→                          type="monotone"
+   558→                          dataKey="views"
+   559→                          name="Visitas"
+   560→                          stroke={COLORS.emerald}
+   561→                          strokeWidth={2.5}
+   562→                          dot={false}
+   563→                          activeDot={{ r: 5, fill: COLORS.emerald, stroke: '#fff', strokeWidth: 2 }}
+   564→                        />
+   565→                        <Line
+   566→                          type="monotone"
+   567→                          dataKey="scans"
+   568→                          name="Escaneos QR"
+   569→                          stroke={COLORS.gold}
+   570→                          strokeWidth={2.5}
+   571→                          dot={false}
+   572→                          activeDot={{ r: 5, fill: COLORS.gold, stroke: '#fff', strokeWidth: 2 }}
+   573→                        />
+   574→                      </LineChart>
+   575→                    </ResponsiveContainer>
+   576→                  </div>
+   577→                </CardContent>
+   578→              </Card>
+   579→            </motion.div>
+   580→
+   581→            {/* Area chart: Tendencia de crecimiento */}
+   582→            <motion.div {...fadeUp(0.15)}>
+   583→              <Card className="h-full border-slate-200/70 shadow-sm">
+   584→                <CardHeader>
+   585→                  <CardTitle className="flex items-center gap-2 text-base">
+   586→                    <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+   587→                    Tendencia de crecimiento
+   588→                  </CardTitle>
+   589→                  <CardDescription>
+   590→                    Visitas acumuladas en el periodo
+   591→                  </CardDescription>
+   592→                </CardHeader>
+   593→                <CardContent>
+   594→                  <div className="h-[280px] w-full">
+   595→                    <ResponsiveContainer width="100%" height="100%">
+   596→                      <AreaChart
+   597→                        data={cumulativeData}
+   598→                        margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
+   599→                      >
+   600→                        <defs>
+   601→                          <linearGradient id="gradGrowth" x1="0" y1="0" x2="0" y2="1">
+   602→                            <stop offset="0%" stopColor={COLORS.emerald} stopOpacity={0.35} />
+   603→                            <stop offset="100%" stopColor={COLORS.emerald} stopOpacity={0.02} />
+   604→                          </linearGradient>
+   605→                        </defs>
+   606→                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+   607→                        <XAxis
+   608→                          dataKey="date"
+   609→                          tickLine={false}
+   610→                          axisLine={false}
+   611→                          fontSize={11}
+   612→                          tick={{ fill: '#64748b' }}
+   613→                          interval="preserveStartEnd"
+   614→                          minTickGap={20}
+   615→                        />
+   616→                        <YAxis
+   617→                          tickLine={false}
+   618→                          axisLine={false}
+   619→                          fontSize={11}
+   620→                          tick={{ fill: '#64748b' }}
+   621→                          width={36}
+   622→                        />
+   623→                        <Tooltip
+   624→                          contentStyle={TOOLTIP_STYLE}
+   625→                          labelStyle={TOOLTIP_LABEL_STYLE}
+   626→                        />
+   627→                        <Area
+   628→                          type="monotone"
+   629→                          dataKey="total"
+   630→                          name="Visitas acumuladas"
+   631→                          stroke={COLORS.emerald}
+   632→                          strokeWidth={2.5}
+   633→                          fill="url(#gradGrowth)"
+   634→                          dot={false}
+   635→                          activeDot={{ r: 5, fill: COLORS.emerald, stroke: '#fff', strokeWidth: 2 }}
+   636→                        />
+   637→                      </AreaChart>
+   638→                    </ResponsiveContainer>
+   639→                  </div>
+   640→                </CardContent>
+   641→              </Card>
+   642→            </motion.div>
+   643→          </section>
+   644→
+   645→          {/* ---------- Charts: Bar + Pie ---------- */}
+   646→          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+   647→            {/* Bar chart: Visitas por tarjeta */}
+   648→            <motion.div {...fadeUp(0.1)}>
+   649→              <Card className="h-full border-slate-200/70 shadow-sm">
+   650→                <CardHeader>
+   651→                  <CardTitle className="flex items-center gap-2 text-base">
+   652→                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-600" />
+   653→                    Visitas por tarjeta
+   654→                  </CardTitle>
+   655→                  <CardDescription>
+   656→                    Comparativa de rendimiento entre tus tarjetas
+   657→                  </CardDescription>
+   658→                </CardHeader>
+   659→                <CardContent>
+   660→                  {cardsBarData.length === 0 ? (
+   661→                    <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
+   662→                      No hay tarjetas para mostrar.
+   663→                    </div>
+   664→                  ) : (
+   665→                    <div className="h-[280px] w-full">
+   666→                      <ResponsiveContainer width="100%" height="100%">
+   667→                        <BarChart
+   668→                          data={cardsBarData}
+   669→                          margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
+   670→                        >
+   671→                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+   672→                          <XAxis
+   673→                            dataKey="name"
+   674→                            tickLine={false}
+   675→                            axisLine={false}
+   676→                            fontSize={11}
+   677→                            tick={{ fill: '#64748b' }}
+   678→                            interval={0}
+   679→                            angle={cardsBarData.length > 2 ? -15 : 0}
+   680→                            textAnchor={cardsBarData.length > 2 ? 'end' : 'middle'}
+   681→                            height={cardsBarData.length > 2 ? 50 : 30}
+   682→                          />
+   683→                          <YAxis
+   684→                            tickLine={false}
+   685→                            axisLine={false}
+   686→                            fontSize={11}
+   687→                            tick={{ fill: '#64748b' }}
+   688→                            width={36}
+   689→                          />
+   690→                          <Tooltip
+   691→                            contentStyle={TOOLTIP_STYLE}
+   692→                            labelStyle={TOOLTIP_LABEL_STYLE}
+   693→                            formatter={(value, _name, item) => [
+   694→                              `${value.toLocaleString('es-MX')}`,
+   695→                              'Visitas',
+   696→                            ]}
+   697→                            labelFormatter={(_label, payload) => {
+   698→                              const p = payload?.[0]?.payload as { fullName?: string } | undefined;
+   699→                              return p?.fullName || _label;
+   700→                            }}
+   701→                          />
+   702→                          <Legend
+   703→                            iconType="circle"
+   704→                            wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+   705→                          />
+   706→                          <Bar
+   707→                            dataKey="views"
+   708→                            name="Visitas"
+   709→                            fill={COLORS.emerald}
+   710→                            radius={[6, 6, 0, 0]}
+   711→                            maxBarSize={56}
+   712→                          />
+   713→                          <Bar
+   714→                            dataKey="scans"
+   715→                            name="Escaneos QR"
+   716→                            fill={COLORS.gold}
+   717→                            radius={[6, 6, 0, 0]}
+   718→                            maxBarSize={56}
+   719→                          />
+   720→                        </BarChart>
+   721→                      </ResponsiveContainer>
+   722→                    </div>
+   723→                  )}
+   724→                </CardContent>
+   725→              </Card>
+   726→            </motion.div>
+   727→
+   728→            {/* Pie chart: Distribución de interacciones */}
+   729→            <motion.div {...fadeUp(0.15)}>
+   730→              <Card className="h-full border-slate-200/70 shadow-sm">
+   731→                <CardHeader>
+   732→                  <CardTitle className="flex items-center gap-2 text-base">
+   733→                    <span className="inline-block h-2 w-2 rounded-full bg-cyan-600" />
+   734→                    Distribución de interacciones
+   735→                  </CardTitle>
+   736→                  <CardDescription>
+   737→                    Cómo se distribuyen las acciones de tus visitantes
+   738→                  </CardDescription>
+   739→                </CardHeader>
+   740→                <CardContent>
+   741→                  {interactionData.length === 0 ? (
+   742→                    <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
+   743→                      Sin datos suficientes para mostrar.
+   744→                    </div>
+   745→                  ) : (
+   746→                    <div className="h-[280px] w-full">
+   747→                      <ResponsiveContainer width="100%" height="100%">
+   748→                        <PieChart>
+   749→                          <Pie
+   750→                            data={interactionData}
+   751→                            dataKey="value"
+   752→                            nameKey="name"
+   753→                            cx="50%"
+   754→                            cy="50%"
+   755→                            innerRadius={55}
+   756→                            outerRadius={90}
+   757→                            paddingAngle={3}
+   758→                            stroke="#fff"
+   759→                            strokeWidth={2}
+   760→                          >
+   761→                            {interactionData.map((entry, idx) => (
+   762→                              <Cell key={`cell-${idx}`} fill={entry.color} />
+   763→                            ))}
+   764→                          </Pie>
+   765→                          <Tooltip
+   766→                            contentStyle={TOOLTIP_STYLE}
+   767→                            labelStyle={TOOLTIP_LABEL_STYLE}
+   768→                            formatter={(value: number, name: string) => [
+   769→                              value.toLocaleString('es-MX'),
+   770→                              name,
+   771→                            ]}
+   772→                          />
+   773→                          <Legend
+   774→                            iconType="circle"
+   775→                            wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+   776→                          />
+   777→                        </PieChart>
+   778→                      </ResponsiveContainer>
+   779→                    </div>
+   780→                  )}
+   781→                </CardContent>
+   782→              </Card>
+   783→            </motion.div>
+   784→          </section>
+   785→
+   786→          {/* ---------- Top performing cards table ---------- */}
+   787→          <motion.div {...fadeUp(0.1)}>
+   788→            <Card className="border-slate-200/70 shadow-sm">
+   789→              <CardHeader>
+   790→                <CardTitle className="flex items-center gap-2 text-base">
+   791→                  <Award className="h-4 w-4 text-amber-500" />
+   792→                  Tarjetas con mejor rendimiento
+   793→                </CardTitle>
+   794→                <CardDescription>
+   795→                  Ranking de tus tarjetas por número de visitas
+   796→                </CardDescription>
+   797→              </CardHeader>
+   798→              <CardContent>
+   799→                {topCards.length === 0 ? (
+   800→                  <div className="py-10 text-center text-sm text-muted-foreground">
+   801→                    Aún no tienes tarjetas. Crea una desde el panel para ver sus estadísticas.
+   802→                  </div>
+   803→                ) : (
+   804→                  <div className="overflow-x-auto">
+   805→                    <Table>
+   806→                      <TableHeader>
+   807→                        <TableRow className="border-slate-200">
+   808→                          <TableHead className="w-10 text-center">#</TableHead>
+   809→                          <TableHead>Tarjeta</TableHead>
+   810→                          <TableHead className="text-right">Visitas</TableHead>
+   811→                          <TableHead className="text-right">Escaneos QR</TableHead>
+   812→                          <TableHead className="text-right">Mensajes</TableHead>
+   813→                          <TableHead className="text-right">Conversión</TableHead>
+   814→                          <TableHead className="text-center">Estado</TableHead>
+   815→                        </TableRow>
+   816→                      </TableHeader>
+   817→                      <TableBody>
+   818→                        {topCards.map((c, idx) => (
+   819→                          <TableRow key={c.id} className="border-slate-100">
+   820→                            <TableCell className="text-center">
+   821→                              <span
+   822→                                className={cn(
+   823→                                  'inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold',
+   824→                                  idx === 0
+   825→                                    ? 'bg-amber-100 text-amber-700'
+   826→                                    : idx === 1
+   827→                                    ? 'bg-slate-200 text-slate-700'
+   828→                                    : idx === 2
+   829→                                    ? 'bg-orange-100 text-orange-700'
+   830→                                    : 'bg-muted text-muted-foreground',
+   831→                                )}
+   832→                              >
+   833→                                {idx + 1}
+   834→                              </span>
+   835→                            </TableCell>
+   836→                            <TableCell>
+   837→                              <div className="flex items-center gap-2">
+   838→                                <div
+   839→                                  className="h-8 w-8 shrink-0 rounded-md"
+   840→                                  style={{
+   841→                                    background: `linear-gradient(135deg, ${c.primaryColor}, ${c.secondaryColor})`,
+   842→                                  }}
+   843→                                />
+   844→                                <div className="min-w-0">
+   845→                                  <p className="truncate font-medium text-slate-900">
+   846→                                    {c.cardName}
+   847→                                  </p>
+   848→                                  <p className="truncate text-xs text-muted-foreground">
+   849→                                    /{c.linkName}
+   850→                                  </p>
+   851→                                </div>
+   852→                              </div>
+   853→                            </TableCell>
+   854→                            <TableCell className="text-right font-medium text-slate-700">
+   855→                              {c.views.toLocaleString('es-MX')}
+   856→                            </TableCell>
+   857→                            <TableCell className="text-right font-medium text-slate-700">
+   858→                              {c.qrScans.toLocaleString('es-MX')}
+   859→                            </TableCell>
+   860→                            <TableCell className="text-right font-medium text-slate-700">
+   861→                              {c.messageCount}
+   862→                            </TableCell>
+   863→                            <TableCell className="text-right">
+   864→                              <span
+   865→                                className={cn(
+   866→                                  'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold',
+   867→                                  c.conversion >= 10
+   868→                                    ? 'bg-emerald-50 text-emerald-700'
+   869→                                    : c.conversion >= 5
+   870→                                    ? 'bg-amber-50 text-amber-700'
+   871→                                    : 'bg-slate-100 text-slate-600',
+   872→                                )}
+   873→                              >
+   874→                                {c.conversion.toFixed(1)}%
+   875→                              </span>
+   876→                            </TableCell>
+   877→                            <TableCell className="text-center">
+   878→                              <Badge
+   879→                                variant={c.isActive ? 'default' : 'secondary'}
+   880→                                className={cn(
+   881→                                  c.isActive
+   882→                                    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+   883→                                    : 'bg-slate-100 text-slate-500 hover:bg-slate-100',
+   884→                                )}
+   885→                              >
+   886→                                {c.isActive ? 'Activa' : 'Inactiva'}
+   887→                              </Badge>
+   888→                            </TableCell>
+   889→                          </TableRow>
+   890→                        ))}
+   891→                      </TableBody>
+   892→                    </Table>
+   893→                  </div>
+   894→                )}
+   895→              </CardContent>
+   896→            </Card>
+   897→          </motion.div>
+   898→
+   899→          {/* ---------- Engagement metrics ---------- */}
+   900→          <section
+   901→            aria-label="Métricas de engagement"
+   902→            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+   903→          >
+   904→            <EngagementCard
+   905→              title="Tiempo promedio"
+   906→              value={engagement.avgTime}
+   907→              hint="En cada tarjeta"
+   908→              icon={Clock}
+   909→              delay={0.05}
+   910→            />
+   911→            <EngagementCard
+   912→              title="Tasa de rebote"
+   913→              value={`${engagement.bounceRate}%`}
+   914→              hint="Visitas de una sola página"
+   915→              icon={TrendingDown}
+   916→              delay={0.1}
+   917→            />
+   918→            <EngagementCard
+   919→              title="Sección más clickeada"
+   920→              value={engagement.topSection}
+   921→              hint={`${engagement.topSectionPct}% de los clics`}
+   922→              icon={MousePointerClick}
+   923→              delay={0.15}
+   924→            />
+   925→            <EngagementCard
+   926→              title="Mejor día de la semana"
+   927→              value={engagement.bestDay}
+   928→              hint={`${engagement.bestDayPct}% del tráfico semanal`}
+   929→              icon={CalendarDays}
+   930→              delay={0.2}
+   931→            />
+   932→          </section>
+   933→
+   934→          {/* ---------- Geographic + Device ---------- */}
+   935→          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+   936→            {/* Geographic distribution */}
+   937→            <motion.div {...fadeUp(0.1)}>
+   938→              <Card className="h-full border-slate-200/70 shadow-sm">
+   939→                <CardHeader>
+   940→                  <CardTitle className="flex items-center gap-2 text-base">
+   941→                    <Globe className="h-4 w-4 text-emerald-600" />
+   942→                    Distribución geográfica
+   943→                  </CardTitle>
+   944→                  <CardDescription>
+   945→                    Top 5 ciudades por número de visitantes
+   946→                  </CardDescription>
+   947→                </CardHeader>
+   948→                <CardContent className="space-y-3">
+   949→                  {geoData.map((g, idx) => (
+   950→                    <div key={g.city} className="flex items-center gap-3">
+   951→                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-xs font-bold text-emerald-700">
+   952→                        {idx + 1}
+   953→                      </div>
+   954→                      <div className="min-w-0 flex-1">
+   955→                        <div className="flex items-center justify-between gap-2">
+   956→                          <p className="truncate text-sm font-medium text-slate-800">
+   957→                            {g.city}
+   958→                          </p>
+   959→                          <p className="shrink-0 text-xs font-semibold text-slate-600">
+   960→                            {g.visitors.toLocaleString('es-MX')}
+   961→                          </p>
+   962→                        </div>
+   963→                        <div className="mt-1 flex items-center gap-2">
+   964→                          <Progress
+   965→                            value={g.pct}
+   966→                            className="h-1.5 bg-slate-100"
+   967→                          />
+   968→                          <span className="shrink-0 text-[10px] text-muted-foreground">
+   969→                            {g.pct}%
+   970→                          </span>
+   971→                        </div>
+   972→                      </div>
+   973→                    </div>
+   974→                  ))}
+   975→                </CardContent>
+   976→              </Card>
+   977→            </motion.div>
+   978→
+   979→            {/* Device breakdown donut */}
+   980→            <motion.div {...fadeUp(0.15)}>
+   981→              <Card className="h-full border-slate-200/70 shadow-sm">
+   982→                <CardHeader>
+   983→                  <CardTitle className="flex items-center gap-2 text-base">
+   984→                    <Smartphone className="h-4 w-4 text-emerald-600" />
+   985→                    Dispositivos de los visitantes
+   986→                  </CardTitle>
+   987→                  <CardDescription>
+   988→                    Desde dónde acceden a tus tarjetas
+   989→                  </CardDescription>
+   990→                </CardHeader>
+   991→                <CardContent>
+   992→                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-center">
+   993→                    <div className="h-[200px] w-full">
+   994→                      <ResponsiveContainer width="100%" height="100%">
+   995→                        <PieChart>
+   996→                          <Pie
+   997→                            data={deviceData}
+   998→                            dataKey="value"
+   999→                            nameKey="name"
+  1000→                            cx="50%"
+  1001→                            cy="50%"
+  1002→                            innerRadius={48}
+  1003→                            outerRadius={80}
+  1004→                            paddingAngle={3}
+  1005→                            stroke="#fff"
+  1006→                            strokeWidth={2}
+  1007→                          >
+  1008→                            {deviceData.map((entry, idx) => (
+  1009→                              <Cell key={`d-cell-${idx}`} fill={entry.color} />
+  1010→                            ))}
+  1011→                          </Pie>
+  1012→                          <Tooltip
+  1013→                            contentStyle={TOOLTIP_STYLE}
+  1014→                            labelStyle={TOOLTIP_LABEL_STYLE}
+  1015→                            formatter={(value: number, name: string) => [`${value}%`, name]}
+  1016→                          />
+  1017→                        </PieChart>
+  1018→                      </ResponsiveContainer>
+  1019→                    </div>
+  1020→                    <div className="space-y-2.5">
+  1021→                      {deviceData.map(d => {
+  1022→                        const Icon =
+  1023→                          d.name === 'Móvil'
+  1024→                            ? Smartphone
+  1025→                            : d.name === 'Escritorio'
+  1026→                            ? Monitor
+  1027→                            : Tablet;
+  1028→                        return (
+  1029→                          <div
+  1030→                            key={d.name}
+  1031→                            className="flex items-center justify-between rounded-lg border border-slate-100 bg-muted/30 px-3 py-2"
+  1032→                          >
+  1033→                            <div className="flex items-center gap-2">
+  1034→                              <span
+  1035→                                className="inline-block h-2.5 w-2.5 rounded-full"
+  1036→                                style={{ backgroundColor: d.color }}
+  1037→                              />
+  1038→                              <Icon className="h-4 w-4 text-slate-600" />
+  1039→                              <span className="text-sm font-medium text-slate-700">
+  1040→                                {d.name}
+  1041→                              </span>
+  1042→                            </div>
+  1043→                            <span className="text-sm font-bold text-slate-900">
+  1044→                              {d.value}%
+  1045→                            </span>
+  1046→                          </div>
+  1047→                        );
+  1048→                      })}
+  1049→                    </div>
+  1050→                  </div>
+  1051→                </CardContent>
+  1052→              </Card>
+  1053→            </motion.div>
+  1054→          </section>
+  1055→
+  1056→          {/* ---------- Resumen ejecutivo ---------- */}
+  1057→          <motion.div {...fadeUp(0.1)}>
+  1058→            <Card className="border-0 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white shadow-md">
+  1059→              <CardContent className="p-6">
+  1060→                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+  1061→                  <div className="flex items-start gap-3">
+  1062→                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20">
+  1063→                      <Sparkles className="h-5 w-5" />
+  1064→                    </div>
+  1065→                    <div>
+  1066→                      <h3 className="text-base font-bold">Resumen ejecutivo</h3>
+  1067→                      <p className="mt-0.5 text-sm text-emerald-50">
+  1068→                        Has recibido{' '}
+  1069→                        <span className="font-bold text-white">
+  1070→                          {totalViews.toLocaleString('es-MX')}
+  1071→                        </span>{' '}
+  1072→                        visitas y{' '}
+  1073→                        <span className="font-bold text-white">
+  1074→                          {totalScans.toLocaleString('es-MX')}
+  1075→                        </span>{' '}
+  1076→                        escaneos QR en total.
+  1077→                      </p>
+  1078→                    </div>
+  1079→                  </div>
+  1080→                  <Button
+  1081→                    variant="secondary"
+  1082→                    className="bg-white text-emerald-700 hover:bg-emerald-50"
+  1083→                    onClick={handleExport}
+  1084→                  >
+  1085→                    <Download className="h-4 w-4" />
+  1086→                    Descargar reporte
+  1087→                  </Button>
+  1088→                </div>
+  1089→              </CardContent>
+  1090→            </Card>
+  1091→          </motion.div>
+  1092→        </div>
+  1093→      </main>
+  1094→
+  1095→      <Footer />
+  1096→    </div>
+  1097→  );
+  1098→}
+  1099→

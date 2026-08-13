@@ -13,6 +13,7 @@ import { ScreenReaderAnnouncer } from "@/components/accessibility/screen-reader-
 import { RegisterSW } from "@/components/pwa/register-sw";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { OfflineIndicator } from "@/components/pwa/offline-indicator";
+import { FeedbackBanner } from "@/components/feedback/feedback-banner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -99,6 +100,7 @@ export default function RootLayout({
           <TourTrigger />
           <InstallPrompt />
           <RegisterSW />
+          <FeedbackBanner />
         </ThemeProvider>
       </body>
     </html>
