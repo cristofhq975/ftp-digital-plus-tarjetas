@@ -175,16 +175,161 @@ export const FONTS = [
   { id: 'raleway', name: 'Raleway', css: "'Raleway', sans-serif" },
 ];
 
-export const COLOR_PRESETS = [
-  { name: 'Esmeralda', primary: '#059669', secondary: '#10b981', background: '#ffffff', text: '#0f172a' },
-  { name: 'Oro', primary: '#d97706', secondary: '#f59e0b', background: '#fffbeb', text: '#1c1917' },
-  { name: 'Corinto', primary: '#be123c', secondary: '#f43f5e', background: '#fff1f2', text: '#1c1917' },
-  { name: 'Púrpura', primary: '#7c3aed', secondary: '#a78bfa', background: '#faf5ff', text: '#1c1917' },
-  { name: 'Cian', primary: '#0891b2', secondary: '#06b6d4', background: '#ecfeff', text: '#0f172a' },
-  { name: 'Naranja', primary: '#ea580c', secondary: '#fb923c', background: '#fff7ed', text: '#1c1917' },
-  { name: 'Esmeralda Oscuro', primary: '#064e3b', secondary: '#047857', background: '#f0fdf4', text: '#0f172a' },
-  { name: 'Grafito', primary: '#1f2937', secondary: '#4b5563', background: '#f9fafb', text: '#111827' },
+export type ColorPresetMood =
+  | 'fresh'
+  | 'warm'
+  | 'bold'
+  | 'calm'
+  | 'dark'
+  | 'bright'
+  | 'soft'
+  | 'elegant';
+
+export type ColorPresetCategory =
+  | 'profesional'
+  | 'lujo'
+  | 'creativo'
+  | 'minimalista'
+  | 'calido'
+  | 'fresco';
+
+export interface ColorPreset {
+  name: string;
+  primary: string;
+  secondary: string;
+  background: string;
+  text: string;
+  mood: ColorPresetMood;
+  category: ColorPresetCategory;
+  /** Descripción corta del degradado para tooltip/preview */
+  gradient: string;
+}
+
+/**
+ * 20 paletas curadas por mood/style.
+ * Las primeras 8 conservan los colores originales para mantener compatibilidad
+ * con cualquier código que use COLORS_PRESETS[0..7] (card-editor).
+ */
+export const COLOR_PRESETS: readonly ColorPreset[] = [
+  // ─── Originales (preservados) ───────────────────────────────────
+  {
+    name: 'Esmeralda', primary: '#059669', secondary: '#10b981',
+    background: '#ffffff', text: '#0f172a', mood: 'fresh', category: 'profesional',
+    gradient: 'Bosque fresco esmeralda',
+  },
+  {
+    name: 'Oro', primary: '#d97706', secondary: '#f59e0b',
+    background: '#fffbeb', text: '#1c1917', mood: 'warm', category: 'lujo',
+    gradient: 'Atardecer dorado',
+  },
+  {
+    name: 'Corinto', primary: '#be123c', secondary: '#f43f5e',
+    background: '#fff1f2', text: '#1c1917', mood: 'bold', category: 'creativo',
+    gradient: 'Vino intenso',
+  },
+  {
+    name: 'Cian', primary: '#0891b2', secondary: '#06b6d4',
+    background: '#ecfeff', text: '#0f172a', mood: 'calm', category: 'fresco',
+    gradient: 'Océano tropical',
+  },
+  {
+    name: 'Naranja', primary: '#ea580c', secondary: '#fb923c',
+    background: '#fff7ed', text: '#1c1917', mood: 'warm', category: 'calido',
+    gradient: 'Crepúsculo naranja',
+  },
+  {
+    name: 'Esmeralda Oscuro', primary: '#064e3b', secondary: '#047857',
+    background: '#f0fdf4', text: '#0f172a', mood: 'elegant', category: 'lujo',
+    gradient: 'Abismo esmeralda',
+  },
+  {
+    name: 'Grafito', primary: '#1f2937', secondary: '#4b5563',
+    background: '#f9fafb', text: '#111827', mood: 'dark', category: 'minimalista',
+    gradient: 'Acero urbano',
+  },
+  {
+    name: 'Púrpura', primary: '#7c3aed', secondary: '#a78bfa',
+    background: '#faf5ff', text: '#1c1917', mood: 'bold', category: 'creativo',
+    gradient: 'Noche púrpura',
+  },
+  // ─── Nuevas paletas (8 → 20) ────────────────────────────────────
+  {
+    name: 'Jade Real', primary: '#047857', secondary: '#34d399',
+    background: '#ecfdf5', text: '#022c22', mood: 'elegant', category: 'lujo',
+    gradient: 'Seda jade pulida',
+  },
+  {
+    name: 'Bronce', primary: '#92400e', secondary: '#b45309',
+    background: '#fffbeb', text: '#1c1917', mood: 'warm', category: 'lujo',
+    gradient: 'Metal antiguo bruñido',
+  },
+  {
+    name: 'Marfil', primary: '#a16207', secondary: '#ca8a04',
+    background: '#fffdf7', text: '#1c1917', mood: 'soft', category: 'minimalista',
+    gradient: 'Lino marfil',
+  },
+  {
+    name: 'Menta', primary: '#10b981', secondary: '#6ee7b7',
+    background: '#f0fdf4', text: '#064e3b', mood: 'fresh', category: 'fresco',
+    gradient: 'Hierba matinal',
+  },
+  {
+    name: 'Terracota', primary: '#c2410c', secondary: '#f97316',
+    background: '#fdf4f0', text: '#431407', mood: 'warm', category: 'calido',
+    gradient: 'Barro cocido',
+  },
+  {
+    name: 'Mora', primary: '#6d28d9', secondary: '#8b5cf6',
+    background: '#faf5ff', text: '#2e1065', mood: 'bold', category: 'creativo',
+    gradient: 'Sombras de mora',
+  },
+  {
+    name: 'Carbón', primary: '#0f172a', secondary: '#334155',
+    background: '#f8fafc', text: '#0f172a', mood: 'dark', category: 'minimalista',
+    gradient: 'Antracita sobria',
+  },
+  {
+    name: 'Lima Pro', primary: '#65a30d', secondary: '#a3e635',
+    background: '#f7fee7', text: '#1a2e05', mood: 'bright', category: 'fresco',
+    gradient: 'Cítrico vivaz',
+  },
+  {
+    name: 'Aqua', primary: '#0d9488', secondary: '#2dd4bf',
+    background: '#f0fdfa', text: '#042f2e', mood: 'calm', category: 'fresco',
+    gradient: 'Laguna serena',
+  },
+  {
+    name: 'Rubí', primary: '#9f1239', secondary: '#fb7185',
+    background: '#fff1f2', text: '#4c0519', mood: 'bold', category: 'lujo',
+    gradient: 'Gema rubí',
+  },
+  {
+    name: 'Esmeralda + Oro', primary: '#059669', secondary: '#f59e0b',
+    background: '#ffffff', text: '#0f172a', mood: 'elegant', category: 'profesional',
+    gradient: 'Identidad FTP Digital Plus',
+  },
+  {
+    name: 'Miel', primary: '#b45309', secondary: '#fbbf24',
+    background: '#fffbeb', text: '#451a03', mood: 'warm', category: 'calido',
+    gradient: 'Miel dorada',
+  },
+  {
+    name: 'Nieve', primary: '#475569', secondary: '#94a3b8',
+    background: '#ffffff', text: '#0f172a', mood: 'soft', category: 'minimalista',
+    gradient: 'Polar minimalista',
+  },
 ];
+
+export const THEME_CATEGORIES = [
+  { id: 'profesional', name: 'Profesional', description: 'Colores serios y confiables' },
+  { id: 'lujo',        name: 'Lujo',         description: 'Elegancia y sofisticación' },
+  { id: 'creativo',    name: 'Creativo',     description: 'Vibrante y audaz' },
+  { id: 'minimalista', name: 'Minimalista',  description: 'Limpio y simple' },
+  { id: 'calido',      name: 'Cálido',       description: 'Acogedor y amigable' },
+  { id: 'fresco',      name: 'Fresco',       description: 'Moderno y limpio' },
+] as const;
+
+export type ThemeCategory = (typeof THEME_CATEGORIES)[number]['id'];
 
 // Las 24 secciones del manual de edición
 export const EDITOR_SECTIONS = [
@@ -221,6 +366,7 @@ export const DASHBOARD_SECTIONS = [
   { id: 'compare', name: 'Comparar', icon: 'GitCompare', description: 'Compara tus tarjetas' },
   { id: 'stats', name: 'Analítica', icon: 'Search', description: 'Estadísticas y métricas de tus tarjetas' },
   { id: 'template-gallery', name: 'Plantillas', icon: 'Layout', description: 'Galería de plantillas disponibles' },
+  { id: 'themes', name: 'Temas', icon: 'Palette', description: 'Personaliza colores y paletas' },
   { id: 'messages', name: 'Consultas', icon: 'Mail', description: 'Mensajes del formulario de contacto' },
   { id: 'appointments', name: 'Equipo / Citas', icon: 'Calendar', description: 'Citas agendadas' },
   { id: 'orders', name: 'Pedidos', icon: 'Package', description: 'Solicitudes de productos' },

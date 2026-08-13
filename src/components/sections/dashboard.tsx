@@ -12,7 +12,7 @@ import {
   AlertCircle, CircleUser, Mailbox, LucideIcon, Briefcase, ShoppingBag,
   HelpCircle, Image as ImageIcon, Images, Activity,
   Camera, Smartphone, Upload, LifeBuoy, Search, RefreshCw,
-  Compass,
+  Compass, FileDown, Import as ImportIcon, MonitorPlay, Palette,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Area, AreaChart, ResponsiveContainer, PieChart, Pie, Cell, Tooltip as RTooltip } from 'recharts';
@@ -50,6 +50,10 @@ import { GlassCard } from '@/components/visual/glass-card';
 import { AuroraBackground } from '@/components/visual/improved-backgrounds';
 import { EmptyState as SharedEmptyState } from '@/components/empty-state';
 import { LoadingList, LoadingCard } from '@/components/loading-states';
+// Task 12-b: Exportación (PDF, CSV, vCard, JSON, PNG) + Onboarding checklist + Importación
+import { ExportMenu } from '@/components/export-menu';
+import { OnboardingChecklist } from '@/components/onboarding-checklist';
+import { ImportModal } from '@/components/import-modal';
 import { useAppStore, useCurrentUserCards } from '@/lib/store';
 import { PLANS, DASHBOARD_SECTIONS } from '@/lib/plans';
 import { BusinessCard, PlanType, ContactMessage, Appointment } from '@/lib/types';
@@ -75,10 +79,13 @@ export function Dashboard() {
   const cards = useCurrentUserCards();
   const messages = useAppStore(s => s.messages);
   const appointments = useAppStore(s => s.appointments);
+  const selectedCardId = useAppStore(s => s.selectedCardId);
+  const selectCard = useAppStore(s => s.selectCard);
 
   const [activeSection, setActiveSection] = useState<SectionId>('tablero');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [shareCard, setShareCard] = useState<BusinessCard | null>(null);
 
   const openShare = (card: BusinessCard | null) => {
@@ -106,7 +113,7 @@ export function Dashboard() {
   const unreadCount = messages.filter(m => !m.read).length;
 
   const handleNavigate = (id: SectionId) => {
-    // 'stats', 'notifications', 'template-gallery', 'compare' and 'help' are full-page navigations
+    // 'stats', 'notifications', 'template-gallery', 'compare', 'themes' and 'help' are full-page navigations
     if (id === 'stats' as any) {
       navigate('stats');
       setMobileOpen(false);
@@ -128,12 +135,30 @@ export function Dashboard() {
       setMobileOpen(false);
       return;
     }
+    if (id === 'themes' as any) {
+      navigate('themes');
+      setMobileOpen(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     if (id === 'help' as any) {
       navigate('help');
       setMobileOpen(false);
       return;
     }
     setActiveSection(id);
+    setMobileOpen(false);
+  };
+
+  const handleKiosk = () => {
+    if (cards.length === 0) {
+      toast.info('Crea una tarjeta antes de entrar al modo kiosko');
+      return;
+    }
+    if (!selectedCardId && cards[0]) {
+      selectCard(cards[0].id);
+    }
+    navigate('kiosk');
     setMobileOpen(false);
   };
 
@@ -227,6 +252,8 @@ export function Dashboard() {
                   <TableroSection
                     onCreateOpen={() => setCreateOpen(true)}
                     onShareCard={openShare}
+                    onKiosk={handleKiosk}
+                    onImportOpen={() => setImportOpen(true)}
                   />
                 )}
                 {activeSection === 'messages' && <MessagesSection />}
@@ -254,6 +281,28 @@ export function Dashboard() {
 
       {/* Create Card Dialog */}
       <CreateCardDialog open={createOpen} onOpenChange={setCreateOpen} />
+
+      {/* Import Card Modal — Task 12-b */}
+      <ImportModal
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImport={(card) => {
+          const importCard = useAppStore.getState().importCard;
+          const newId = importCard(card);
+          if (!newId) {
+            toast.error('No se pudo importar la tarjeta', {
+              description: 'Has alcanzado el límite de tu plan. Mejora para importar más.',
+            });
+            return;
+          }
+          toast.success('¡Tarjeta importada!', {
+            description: `${card.cardName} · /${card.linkName}`,
+          });
+          // Navegar al editor para que el usuario revise la tarjeta importada
+          selectCard(newId);
+          navigate('editor');
+        }}
+      />
 
       {/* Share Modal */}
       <ShareModal
@@ -665,10 +714,12 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 }
 
 function TableroSection({
-  onCreateOpen, onShareCard,
+  onCreateOpen, onShareCard, onKiosk, onImportOpen,
 }: {
   onCreateOpen: () => void;
   onShareCard: (card: BusinessCard | null) => void;
+  onKiosk: () => void;
+  onImportOpen: () => void;
 }) {
   const currentUser = useAppStore(s => s.currentUser)!;
   const cards = useCurrentUserCards();
@@ -694,6 +745,13 @@ function TableroSection({
     }, 12000);
     return () => clearInterval(interval);
   }, []);
+
+  // Escuchar evento del OnboardingChecklist para abrir el dialog de crear tarjeta
+  useEffect(() => {
+    const handler = () => onCreateOpen();
+    window.addEventListener('ftp:open-create-card', handler);
+    return () => window.removeEventListener('ftp:open-create-card', handler);
+  }, [onCreateOpen]);
 
   const handleEdit = (card: BusinessCard) => {
     selectCard(card.id);
@@ -822,6 +880,31 @@ function TableroSection({
                 <span className="hidden sm:inline">Ver Tour</span>
                 <span className="sm:hidden">Tour</span>
               </button>
+              <button
+                type="button"
+                onClick={onKiosk}
+                disabled={cards.length === 0}
+                className="flex items-center gap-1.5 rounded-full bg-emerald-500/90 px-3 py-1.5 text-xs font-semibold text-white shadow-sm backdrop-blur transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Activar modo kiosko a pantalla completa"
+                title="Mostrar tus tarjetas en pantalla completa con auto-rotación"
+              >
+                <MonitorPlay className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Modo Kiosko</span>
+                <span className="sm:hidden">Kiosko</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  navigate('themes');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-medium text-emerald-50 backdrop-blur transition hover:bg-white/25"
+                aria-label="Explorar temas y paletas de colores"
+              >
+                <Palette className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Temas y Paletas</span>
+                <span className="sm:hidden">Temas</span>
+              </button>
               <div className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-sm font-semibold backdrop-blur">
                 {currentUser.plan === 'pro' && <Crown className="h-4 w-4 text-amber-300" />}
                 {currentUser.plan === 'basico' && <Zap className="h-4 w-4 text-amber-300" />}
@@ -905,6 +988,10 @@ function TableroSection({
         ))}
       </div>
 
+      {/* Onboarding Checklist — Task 12-b */}
+      {/* Se oculta automáticamente cuando el progreso es 100% o el usuario la saltó */}
+      <OnboardingChecklist />
+
       {/* Favorites Widget + Live Activity Widget (2-column on xl) — Task 10-a */}
       <div className="grid gap-6 xl:grid-cols-2">
         <FavoritesWidget onViewAll={() => onCreateOpen()} />
@@ -926,20 +1013,32 @@ function TableroSection({
                 : 'Aún no tienes tarjetas, crea tu primera'}
             </CardDescription>
           </div>
-          <Button
-            onClick={onCreateOpen}
-            disabled={!canCreateMore}
-            className={cn(
-              'button-press shrink-0',
-              canCreateMore
-                ? 'bg-emerald-600 hover:bg-emerald-700'
-                : 'bg-slate-300 text-slate-500'
-            )}
-          >
-            {canCreateMore ? <Plus className="h-4 w-4" /> : <Crown className="h-4 w-4" />}
-            <span className="hidden sm:inline">Crear Nueva Tarjeta</span>
-            <span className="sm:hidden">Crear</span>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={onImportOpen}
+              variant="outline"
+              className="button-press shrink-0 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+              aria-label="Importar tarjeta desde archivo JSON"
+            >
+              <ImportIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">Importar Tarjeta</span>
+              <span className="sm:hidden">Importar</span>
+            </Button>
+            <Button
+              onClick={onCreateOpen}
+              disabled={!canCreateMore}
+              className={cn(
+                'button-press shrink-0',
+                canCreateMore
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : 'bg-slate-300 text-slate-500'
+              )}
+            >
+              {canCreateMore ? <Plus className="h-4 w-4" /> : <Crown className="h-4 w-4" />}
+              <span className="hidden sm:inline">Crear Nueva Tarjeta</span>
+              <span className="sm:hidden">Crear</span>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {cards.length === 0 ? (
@@ -1136,6 +1235,22 @@ function CardItem({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Copiar enlace</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            {/* Export menu — Task 12-b */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <ExportMenu
+                      card={card}
+                      size="icon"
+                      label="Exportar tarjeta"
+                      className="button-press h-9 w-9 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>Exportar / Descargar</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>

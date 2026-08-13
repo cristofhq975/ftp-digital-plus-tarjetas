@@ -9,7 +9,7 @@ import {
   ExternalLink, Image as ImageIcon, Crown, Menu, Video,
   Phone, MessageCircle, Send, BadgeCheck, Info, FileText,
   Search, ChevronDown, ChevronRight, Clock, Maximize2, Minimize2, Grip,
-  Link2, AlertCircle,
+  Link2, AlertCircle, Palette, MonitorPlay, Import as ImportIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -26,6 +26,9 @@ import {
 } from '@/lib/card-utils';
 import { DynamicIcon } from '@/components/dynamic-icon';
 import { CardPreview } from '@/components/card-preview';
+// Task 12-b: Exportación e importación en el editor
+import { ExportMenu } from '@/components/export-menu';
+import { ImportModal } from '@/components/import-modal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -1817,6 +1820,7 @@ function BanderaSection({ card, updateCard }: SectionProps) {
 // ---------------------------------------------------------------------------
 
 function FuentesSection({ card, updateCard }: SectionProps) {
+  const navigate = useAppStore(s => s.navigate);
   return (
     <div className="space-y-6">
       <SectionHeader icon="Type" title="Fuentes" description="Personaliza tipografía y colores" />
@@ -1868,7 +1872,22 @@ function FuentesSection({ card, updateCard }: SectionProps) {
           <Separator />
 
           <div>
-            <Label className="text-sm font-semibold">Presets de color</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-sm font-semibold">Presets de color</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  navigate('themes');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="h-7 gap-1 border-emerald-200 px-2 text-[11px] text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+              >
+                <Palette className="h-3.5 w-3.5" />
+                Ver más temas
+              </Button>
+            </div>
             <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
               {COLOR_PRESETS.map(p => {
                 const isSelected = card.primaryColor === p.primary && card.secondaryColor === p.secondary;
@@ -2819,11 +2838,14 @@ export function CardEditor() {
   const setEditorSection = useAppStore(s => s.setEditorSection);
   const navigate = useAppStore(s => s.navigate);
   const updateCard = useAppStore(s => s.updateCard);
+  const selectCard = useAppStore(s => s.selectCard);
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [collapsedCats, setCollapsedCats] = useState<Record<string, boolean>>({});
+  // Task 12-b: estado del modal de importación
+  const [importOpen, setImportOpen] = useState(false);
 
   const plan = user?.plan || 'gratis';
   const completitud = useCardCompletitud(card);
@@ -2913,6 +2935,33 @@ export function CardEditor() {
         >
           <ArrowLeft className="h-4 w-4" /> Volver al Panel
         </Button>
+      </div>
+
+      {/* Quick actions: Temas + Kiosko */}
+      <div className="px-3 pb-2">
+        <div className="grid grid-cols-2 gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              navigate('themes');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="h-9 gap-1 border-emerald-200 text-[11px] text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+          >
+            <Palette className="h-3.5 w-3.5" />
+            Temas
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('kiosk')}
+            className="h-9 gap-1 border-amber-200 text-[11px] text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+          >
+            <MonitorPlay className="h-3.5 w-3.5" />
+            Kiosko
+          </Button>
+        </div>
       </div>
 
       {/* Completion % indicator */}
@@ -3062,14 +3111,73 @@ export function CardEditor() {
 
       {/* Centro: formulario */}
       <main className="flex-1 overflow-y-auto">
-        {/* Topbar móvil */}
+        {/* Editor header — Task 12-b: Exportar + Importar + info de la tarjeta */}
+        <div className="sticky top-0 z-[5] hidden border-b bg-background/95 backdrop-blur lg:block">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+            <div className="flex min-w-0 items-center gap-3">
+              <div
+                className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg text-xs font-bold text-white shadow-sm"
+                style={{ background: `linear-gradient(135deg, ${card.primaryColor}, ${card.secondaryColor})` }}
+                aria-hidden
+              >
+                {card.profilePhoto
+                  ? <img src={card.profilePhoto} alt="" className="h-full w-full object-cover" />
+                  : (card.cardName.charAt(0).toUpperCase() || '?')}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-foreground">{card.cardName}</p>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  ftpdigitalplus.com/t/{card.linkName}
+                </p>
+              </div>
+              <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                {currentSection.name}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setImportOpen(true)}
+                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+              >
+                <ImportIcon className="h-4 w-4" />
+                <span className="hidden xl:inline">Importar</span>
+              </Button>
+              <ExportMenu card={card} size="sm" />
+            </div>
+          </div>
+        </div>
+
+        {/* Topbar móvil (con acciones de exportar/importar) — Task 12-b */}
         <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
           <Button variant="outline" size="sm" onClick={() => setSidebarOpen(true)} className="min-h-[40px]">
             <Menu className="h-4 w-4" /> Secciones
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)} className="min-h-[40px]">
-            <Eye className="h-4 w-4" /> Preview
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setImportOpen(true)}
+              className="min-h-[40px] border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+              aria-label="Importar tarjeta"
+            >
+              <ImportIcon className="h-4 w-4" />
+            </Button>
+            <ExportMenu card={card} size="sm" />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('kiosk')}
+              className="min-h-[40px] border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+              aria-label="Modo Kiosko"
+            >
+              <MonitorPlay className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setPreviewOpen(true)} className="min-h-[40px]">
+              <Eye className="h-4 w-4" /> Preview
+            </Button>
+          </div>
         </div>
 
         <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
@@ -3121,6 +3229,27 @@ export function CardEditor() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Import Modal — Task 12-b */}
+      <ImportModal
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImport={(importedCard) => {
+          const importCard = useAppStore.getState().importCard;
+          const newId = importCard(importedCard);
+          if (!newId) {
+            toast.error('No se pudo importar la tarjeta', {
+              description: 'Has alcanzado el límite de tu plan. Mejora para importar más.',
+            });
+            return;
+          }
+          toast.success('¡Tarjeta importada desde el editor!', {
+            description: importedCard.cardName,
+          });
+          selectCard(newId);
+          setImportOpen(false);
+        }}
+      />
     </div>
   );
 }

@@ -31,7 +31,9 @@ export type ViewType =
   | 'blog-post'
   | 'compare'
   | 'notifications'
-  | 'cases';
+  | 'cases'
+  | 'themes'
+  | 'kiosk';
 
 // Ticket de soporte
 export type SupportTicketCategory = 'cuenta' | 'facturacion' | 'tecnico' | 'tarjeta' | 'otro';

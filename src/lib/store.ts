@@ -543,6 +543,8 @@ interface AppState {
   markAllNotificationsRead: () => void;
   deleteNotification: (id: string) => void;
   addNotification: (notification: Omit<AppNotification, 'id'>) => void;
+  // Importación de tarjetas (Task 12-b)
+  importCard: (card: BusinessCard) => string | null;
 }
 
 export const useAppStore = create<AppState>()(
@@ -759,6 +761,49 @@ export const useAppStore = create<AppState>()(
           id: generateId(),
         };
         set(state => ({ notifications: [newNotification, ...state.notifications] }));
+      },
+
+      // Importa una tarjeta desde un archivo JSON externo. Genera un nuevo ID,
+      // la asocia al usuario actual, y verifica que el plan permita más tarjetas.
+      // Devuelve el nuevo ID o `null` si el límite fue alcanzado.
+      importCard: (card) => {
+        const user = get().currentUser;
+        if (!user) return null;
+        const userCards = get().cards.filter(c => c.userId === user.id);
+        if (userCards.length >= PLANS[user.plan].maxCards) {
+          return null;
+        }
+        // Generar un nuevo ID único y sanitizar el linkName para evitar duplicados.
+        const newId = generateId();
+        let newLinkName = (card.linkName || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        if (newLinkName.length < 3) newLinkName = `import-${newId.substring(0, 6)}`;
+        // Evitar colisión de linkName con tarjetas existentes
+        const existingLinkNames = new Set(get().cards.map(c => c.linkName));
+        let attempt = 0;
+        let finalLinkName = newLinkName;
+        while (existingLinkNames.has(finalLinkName) && attempt < 50) {
+          attempt++;
+          finalLinkName = `${newLinkName}-${attempt}`;
+        }
+        const importedCard: BusinessCard = {
+          ...card,
+          id: newId,
+          userId: user.id,
+          linkName: finalLinkName,
+          // Resetear stats al importar (la tarjeta "nace" en la cuenta actual)
+          views: 0,
+          qrScans: 0,
+          affiliateClicks: 0,
+          createdAt: new Date().toISOString(),
+          // Regenerar QR si el plan lo permite (no copiar QR de otra cuenta)
+          qrGeneratedAt: null,
+          qrExpiresAt: null,
+        };
+        set(state => ({
+          cards: [...state.cards, importedCard],
+          selectedCardId: importedCard.id,
+        }));
+        return importedCard.id;
       },
     }),
     {

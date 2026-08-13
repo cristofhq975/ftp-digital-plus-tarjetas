@@ -21,6 +21,8 @@ import { BlogPostPage } from '@/components/sections/blog-post-page';
 import { ComparePage } from '@/components/sections/compare-page';
 import { NotificationsPage } from '@/components/sections/notifications-page';
 import { CasesPage } from '@/components/sections/cases-page';
+import { ThemesPage } from '@/components/sections/themes-page';
+import { KioskMode } from '@/components/sections/kiosk-mode';
 
 function CurrentView() {
   const currentView = useAppStore(s => s.currentView);
@@ -52,6 +54,10 @@ function CurrentView() {
       return <NotificationsPage />;
     case 'cases':
       return <CasesPage />;
+    case 'themes':
+      return <ThemesPage />;
+    case 'kiosk':
+      return <KioskMode />;
     case 'template-gallery':
       return <TemplateGallery />;
     case 'help':

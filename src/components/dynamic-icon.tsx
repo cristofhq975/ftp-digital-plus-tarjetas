@@ -3,7 +3,7 @@ import {
   Instagram, Images, FileText, Quote, Frame, Users, Share2, Flag,
   Type, Code, Search, Shield, ScrollText, Settings, MessageCircle,
   CreditCard, LayoutDashboard, Mail, Calendar, Package, Database,
-  GitCompare, LifeBuoy, Bell, type LucideProps,
+  GitCompare, LifeBuoy, Bell, Palette, type LucideProps,
 } from 'lucide-react';
 
 const ICONS: Record<string, React.ComponentType<LucideProps>> = {
@@ -11,7 +11,7 @@ const ICONS: Record<string, React.ComponentType<LucideProps>> = {
   Instagram, Images, FileText, Quote, Frame, Users, Share2, Flag,
   Type, Code, Search, Shield, ScrollText, Settings, MessageCircle,
   CreditCard, LayoutDashboard, Mail, Calendar, Package, Database,
-  GitCompare, LifeBuoy, Bell,
+  GitCompare, LifeBuoy, Bell, Palette,
 };
 
 export function DynamicIcon({ name, ...props }: { name: string } & LucideProps) {

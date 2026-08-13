@@ -1,0 +1,805 @@
+     1→import { create } from 'zustand';
+     2→import { persist, createJSONStorage } from 'zustand/middleware';
+     3→import { useShallow } from 'zustand/react/shallow';
+     4→import { User, BusinessCard, ViewType, ContactMessage, Appointment, PlanType, Schedule, SocialLinks, SupportTicket, SupportTicketResponse } from './types';
+     5→import { PLANS } from './plans';
+     6→import { generateId, generateQrExpiration } from './card-utils';
+     7→
+     8→// Tipos de notificación del Centro de Notificaciones (Task 11-a)
+     9→export type NotificationType =
+    10→  | 'message'
+    11→  | 'appointment'
+    12→  | 'qr_scan'
+    13→  | 'view_milestone'
+    14→  | 'plan'
+    15→  | 'system'
+    16→  | 'card_created'
+    17→  | 'card_updated'
+    18→  | 'limit_warning'
+    19→  | 'payment';
+    20→
+    21→export type NotificationPriority = 'low' | 'medium' | 'high';
+    22→
+    23→export interface AppNotification {
+    24→  id: string;
+    25→  type: NotificationType;
+    26→  title: string;
+    27→  description: string;
+    28→  timestamp: string;
+    29→  read: boolean;
+    30→  actionLabel?: string;
+    31→  actionView?: ViewType;
+    32→  cardId?: string;
+    33→  priority: NotificationPriority;
+    34→}
+    35→
+    36→// Datos demo iniciales
+    37→const DEFAULT_SCHEDULE: Schedule = {
+    38→  monday: { open: true, start: '09:00', end: '18:00' },
+    39→  tuesday: { open: true, start: '09:00', end: '18:00' },
+    40→  wednesday: { open: true, start: '09:00', end: '18:00' },
+    41→  thursday: { open: true, start: '09:00', end: '18:00' },
+    42→  friday: { open: true, start: '09:00', end: '18:00' },
+    43→  saturday: { open: true, start: '10:00', end: '14:00' },
+    44→  sunday: { open: false, start: '00:00', end: '00:00' },
+    45→};
+    46→
+    47→const DEFAULT_SOCIAL: SocialLinks = {
+    48→  facebook: '',
+    49→  instagram: '',
+    50→  twitter: '',
+    51→  linkedin: '',
+    52→  youtube: '',
+    53→  tiktok: '',
+    54→  whatsapp: '',
+    55→  telegram: '',
+    56→};
+    57→
+    58→function createDefaultCard(userId: string, plan: PlanType, linkName: string, cardName: string): BusinessCard {
+    59→  return {
+    60→    id: generateId(),
+    61→    userId,
+    62→    linkName,
+    63→    cardName,
+    64→    description: '',
+    65→    logo: '',
+    66→    coverPhoto: '',
+    67→    profilePhoto: '',
+    68→    template: 'moderno',
+    69→    primaryColor: '#059669',
+    70→    secondaryColor: '#10b981',
+    71→    backgroundColor: '#ffffff',
+    72→    textColor: '#0f172a',
+    73→    fontFamily: 'poppins',
+    74→    fontSize: 16,
+    75→    customCSS: '',
+    76→    customJS: '',
+    77→    qrStyle: 'cuadrado',
+    78→    qrColor: '#059669',
+    79→    qrBgColor: '#ffffff',
+    80→    qrLogo: '',
+    81→    qrGeneratedAt: null,
+    82→    qrExpiresAt: null,
+    83→    whatsappNumber: '',
+    84→    whatsappVerified: false,
+    85→    whatsappMessage: 'Hola, te comparto mi tarjeta de presentación digital.',
+    86→    schedule: { ...DEFAULT_SCHEDULE },
+    87→    services: [],
+    88→    products: [],
+    89→    gallery: [],
+    90→    blog: [],
+    91→    testimonials: [],
+    92→    team: [],
+    93→    socialLinks: { ...DEFAULT_SOCIAL },
+    94→    instagramEmbed: '',
+    95→    floatingFrames: [],
+    96→    banner: { enabled: false, title: '', text: '', imageUrl: '', linkUrl: '' },
+    97→    seoTitle: '',
+    98→    seoDescription: '',
+    99→    seoKeywords: '',
+   100→    privacyPolicy: '',
+   101→    terms: '',
+   102→    activeSections: [
+   103→      'detalles', 'servicios', 'productos', 'galeria', 'blog',
+   104→      'testimonios', 'equipo', 'sociales', 'qr', 'horario'
+   105→    ],
+   106→    hideBrand: false,
+   107→    passwordProtected: false,
+   108→    cardPassword: '',
+   109→    views: 0,
+   110→    qrScans: 0,
+   111→    isActive: true,
+   112→    createdAt: new Date().toISOString(),
+   113→    affiliateCode: '',
+   114→    affiliateClicks: 0,
+   115→  };
+   116→}
+   117→
+   118→// Usuarios demo
+   119→const DEMO_USERS: User[] = [
+   120→  {
+   121→    id: 'user-gratis',
+   122→    email: 'demo@gratis.com',
+   123→    password: 'demo123',
+   124→    name: 'Usuario Demo Gratis',
+   125→    plan: 'gratis',
+   126→    createdAt: new Date().toISOString(),
+   127→  },
+   128→  {
+   129→    id: 'user-basico',
+   130→    email: 'demo@basico.com',
+   131→    password: 'demo123',
+   132→    name: 'Usuario Demo Básico',
+   133→    plan: 'basico',
+   134→    createdAt: new Date().toISOString(),
+   135→  },
+   136→  {
+   137→    id: 'user-pro',
+   138→    email: 'demo@pro.com',
+   139→    password: 'demo123',
+   140→    name: 'Usuario Demo Pro',
+   141→    plan: 'pro',
+   142→    createdAt: new Date().toISOString(),
+   143→  },
+   144→];
+   145→
+   146→// Tarjetas demo iniciales
+   147→function createDemoCards(): BusinessCard[] {
+   148→  const cards: BusinessCard[] = [];
+   149→
+   150→  // Tarjeta del usuario gratis
+   151→  const freeCard = createDefaultCard('user-gratis', 'gratis', 'juan-perez', 'Juan Pérez');
+   152→  freeCard.description = 'Diseñador gráfico independiente. Especialista en branding e identidad visual para pequeñas empresas.';
+   153→  freeCard.profilePhoto = '';
+   154→  freeCard.whatsappNumber = '525512345678';
+   155→  freeCard.whatsappVerified = true;
+   156→  freeCard.whatsappMessage = '¡Hola! Me contacto desde tu tarjeta digital. Me gustaría más información.';
+   157→  const freeQr = generateQrExpiration();
+   158→  freeCard.qrGeneratedAt = freeQr.generatedAt;
+   159→  freeCard.qrExpiresAt = freeQr.expiresAt;
+   160→  freeCard.views = 142;
+   161→  freeCard.qrScans = 38;
+   162→  cards.push(freeCard);
+   163→
+   164→  // Tarjetas del usuario básico
+   165→  const basicCard1 = createDefaultCard('user-basico', 'basico', 'consultorio-medico', 'Dra. María González');
+   166→  basicCard1.description = 'Médico cirujano especialista en medicina interna. Cédula profesional 1234567. Atención con cita previa.';
+   167→  basicCard1.whatsappNumber = '525587654321';
+   168→  basicCard1.whatsappVerified = true;
+   169→  basicCard1.primaryColor = '#0891b2';
+   170→  basicCard1.secondaryColor = '#06b6d4';
+   171→  basicCard1.template = 'elegante';
+   172→  basicCard1.fontFamily = 'lora';
+   173→  basicCard1.services = [
+   174→    { id: generateId(), name: 'Consulta General', url: '', description: 'Consulta de medicina interna general. Duración 45 min.', photo: '' },
+   175→    { id: generateId(), name: 'Consulta de Seguimiento', url: '', description: 'Revisión de tratamiento y evolución. Duración 30 min.', photo: '' },
+   176→  ];
+   177→  basicCard1.testimonials = [
+   178→    { id: generateId(), name: 'Carlos Ramírez', text: 'Excelente atención, muy profesional y empática. Recomendada al 100%.', photo: '', rating: 5 },
+   179→    { id: generateId(), name: 'Ana Torres', text: 'La Dra. González explica todo con claridad. Me sentí muy bien atendida.', photo: '', rating: 5 },
+   180→  ];
+   181→  basicCard1.team = [
+   182→    { id: generateId(), name: 'Dra. María González', role: 'Médico Internista', photo: '', bio: '10 años de experiencia', appointmentDuration: 45, appointmentPrice: 800, isPaid: true },
+   183→  ];
+   184→  basicCard1.socialLinks = {
+   185→    ...DEFAULT_SOCIAL,
+   186→    facebook: 'https://facebook.com/dra-gonzalez',
+   187→    instagram: 'https://instagram.com/dra-gonzalez',
+   188→    linkedin: 'https://linkedin.com/in/dra-gonzalez',
+   189→  };
+   190→  basicCard1.schedule = {
+   191→    monday: { open: true, start: '09:00', end: '15:00' },
+   192→    tuesday: { open: true, start: '09:00', end: '15:00' },
+   193→    wednesday: { open: true, start: '09:00', end: '15:00' },
+   194→    thursday: { open: true, start: '09:00', end: '15:00' },
+   195→    friday: { open: true, start: '09:00', end: '14:00' },
+   196→    saturday: { open: false, start: '00:00', end: '00:00' },
+   197→    sunday: { open: false, start: '00:00', end: '00:00' },
+   198→  };
+   199→  basicCard1.qrGeneratedAt = new Date().toISOString();
+   200→  basicCard1.qrExpiresAt = null; // No expira en plan basico
+   201→  basicCard1.views = 342;
+   202→  basicCard1.qrScans = 156;
+   203→  cards.push(basicCard1);
+   204→
+   205→  const basicCard2 = createDefaultCard('user-basico', 'basico', 'boutique-rosa', 'Boutique Rosa');
+   206→  basicCard2.description = 'Boutique de moda femenina. Las últimas tendencias en ropa, accesorios y calzado.';
+   207→  basicCard2.whatsappNumber = '525511223344';
+   208→  basicCard2.whatsappVerified = true;
+   209→  basicCard2.primaryColor = '#be123c';
+   210→  basicCard2.secondaryColor = '#f43f5e';
+   211→  basicCard2.template = 'moderno';
+   212→  basicCard2.products = [
+   213→    { id: generateId(), name: 'Vestido Floral Verano', price: 599, currency: 'MXN', description: 'Vestido floral de manga corta, 100% algodón', image: '', url: '' },
+   214→    { id: generateId(), name: 'Bolso de Cuero Artesanal', price: 1299, currency: 'MXN', description: 'Bolso hecho a mano en piel genuina', image: '', url: '' },
+   215→  ];
+   216→  basicCard2.gallery = [];
+   217→  basicCard2.socialLinks = {
+   218→    ...DEFAULT_SOCIAL,
+   219→    instagram: 'https://instagram.com/boutique-rosa',
+   220→    facebook: 'https://facebook.com/boutique-rosa',
+   221→  };
+   222→  basicCard2.qrGeneratedAt = new Date().toISOString();
+   223→  basicCard2.views = 528;
+   224→  basicCard2.qrScans = 234;
+   225→  cards.push(basicCard2);
+   226→
+   227→  // Tarjetas del usuario pro
+   228→  const proCard1 = createDefaultCard('user-pro', 'pro', 'restaurante-sabor', 'Restaurante El Sabor');
+   229→  proCard1.description = 'El auténtico sabor de la cocina mexicana. Tradición, sabor y calidad en cada platillo.';
+   230→  proCard1.whatsappNumber = '525599887766';
+   231→  proCard1.whatsappVerified = true;
+   232→  proCard1.primaryColor = '#ea580c';
+   233→  proCard1.secondaryColor = '#fb923c';
+   234→  proCard1.template = 'dinamica';
+   235→  proCard1.services = [
+   236→    { id: generateId(), name: 'Reservación de Mesa', url: '', description: 'Reserva tu mesa para una experiencia única', photo: '' },
+   237→    { id: generateId(), name: 'Evento Privado', url: '', description: 'Organizamos tu evento especial', photo: '' },
+   238→    { id: generateId(), name: 'Servicio a Domicilio', url: 'https://ubereats.com', description: 'Pide tus favoritos a domicilio', photo: '' },
+   239→  ];
+   240→  proCard1.products = [
+   241→    { id: generateId(), name: 'Tacos al Pastor (orden)', price: 120, currency: 'MXN', description: '5 tacos de pastor con piña, cilantro y cebolla', image: '', url: '' },
+   242→    { id: generateId(), name: 'Mole Poblano', price: 185, currency: 'MXN', description: 'Tradicional mole poblano con pollo y arroz', image: '', url: '' },
+   243→    { id: generateId(), name: 'Guacamole con Totopos', price: 95, currency: 'MXN', description: 'Guacamole fresco preparado al momento', image: '', url: '' },
+   244→  ];
+   245→  proCard1.testimonials = [
+   246→    { id: generateId(), name: 'Pedro Martínez', text: 'El mejor restaurante de comida mexicana de la zona. Los tacos son increíbles.', photo: '', rating: 5 },
+   247→    { id: generateId(), name: 'Laura Sánchez', text: 'Ambiente familiar y delicioso. Volveré sin duda.', photo: '', rating: 5 },
+   248→    { id: generateId(), name: 'Miguel Ángel', text: 'El mole es espectacular, como el de mi abuela.', photo: '', rating: 5 },
+   249→  ];
+   250→  proCard1.team = [
+   251→    { id: generateId(), name: 'Chef Roberto', role: 'Chef Ejecutivo', photo: '', bio: '20 años de experiencia en cocina mexicana', appointmentDuration: 60, appointmentPrice: 0, isPaid: false },
+   252→    { id: generateId(), name: 'Carmen Díaz', role: 'Gerente', photo: '', bio: 'Atención al cliente de excelencia', appointmentDuration: 30, appointmentPrice: 0, isPaid: false },
+   253→  ];
+   254→  proCard1.socialLinks = {
+   255→    facebook: 'https://facebook.com/restaurante-sabor',
+   256→    instagram: 'https://instagram.com/restaurante-sabor',
+   257→    tiktok: 'https://tiktok.com/@restaurante-sabor',
+   258→    youtube: '',
+   259→    twitter: '',
+   260→    linkedin: '',
+   261→    whatsapp: '525599887766',
+   262→    telegram: '',
+   263→  };
+   264→  proCard1.banner = {
+   265→    enabled: true,
+   266→    title: '¡Promoción Especial!',
+   267→    text: '2x1 en tacos al pastor todos los martes. ¡No te lo pierdas!',
+   268→    imageUrl: '',
+   269→    linkUrl: '',
+   270→  };
+   271→  proCard1.hideBrand = true;
+   272→  proCard1.seoTitle = 'Restaurante El Sabor - Auténtica Comida Mexicana';
+   273→  proCard1.seoDescription = 'El mejor restaurante de comida mexicana. Tacos, mole, guacamole y más. Reserva tu mesa.';
+   274→  proCard1.seoKeywords = 'restaurante mexicano, comida mexicana, tacos, mole, reservación';
+   275→  proCard1.qrGeneratedAt = new Date().toISOString();
+   276→  proCard1.views = 1247;
+   277→  proCard1.qrScans = 489;
+   278→  proCard1.affiliateCode = 'SABOR2024';
+   279→  proCard1.affiliateClicks = 34;
+   280→  cards.push(proCard1);
+   281→
+   282→  const proCard2 = createDefaultCard('user-pro', 'pro', 'tech-solutions', 'Tech Solutions MX');
+   283→  proCard2.description = 'Agencia de desarrollo de software y marketing digital. Soluciones tecnológicas a tu medida.';
+   284→  proCard2.whatsappNumber = '525544332211';
+   285→  proCard2.whatsappVerified = true;
+   286→  proCard2.primaryColor = '#7c3aed';
+   287→  proCard2.secondaryColor = '#a78bfa';
+   288→  proCard2.template = 'moderno';
+   289→  proCard2.services = [
+   290→    { id: generateId(), name: 'Desarrollo Web', url: '', description: 'Sitios web modernos con Next.js y React', photo: '' },
+   291→    { id: generateId(), name: 'Apps Móviles', url: '', description: 'Aplicaciones iOS y Android nativas', photo: '' },
+   292→    { id: generateId(), name: 'Marketing Digital', url: '', description: 'SEO, SEM y redes sociales', photo: '' },
+   293→    { id: generateId(), name: 'Consultoría TI', url: '', description: 'Asesoría tecnológica para empresas', photo: '' },
+   294→  ];
+   295→  proCard2.blog = [
+   296→    { id: generateId(), title: '5 tendencias de desarrollo web en 2024', description: 'Descubre las tecnologías que dominarán este año.', image: '', date: new Date().toISOString() },
+   297→    { id: generateId(), title: 'Cómo optimizar tu SEO local', description: 'Guía completa para aparecer en Google Maps.', image: '', date: new Date().toISOString() },
+   298→  ];
+   299→  proCard2.testimonials = [
+   300→    { id: generateId(), name: 'Empresa ABC', text: 'Tech Solutions transformó nuestra presencia digital. Resultados excepcionales.', photo: '', rating: 5 },
+   301→    { id: generateId(), name: 'Startup XYZ', text: 'Profesionales, rápidos y creativos. Los recomendamos totalmente.', photo: '', rating: 5 },
+   302→  ];
+   303→  proCard2.socialLinks = {
+   304→    ...DEFAULT_SOCIAL,
+   305→    linkedin: 'https://linkedin.com/company/tech-solutions-mx',
+   306→    facebook: 'https://facebook.com/techsolutionsmx',
+   307→    instagram: 'https://instagram.com/techsolutionsmx',
+   308→    twitter: 'https://twitter.com/techsolutionsmx',
+   309→  };
+   310→  proCard2.qrGeneratedAt = new Date().toISOString();
+   311→  proCard2.views = 892;
+   312→  proCard2.qrScans = 312;
+   313→  cards.push(proCard2);
+   314→
+   315→  return cards;
+   316→}
+   317→
+   318→// Mensajes demo
+   319→const DEMO_MESSAGES: ContactMessage[] = [
+   320→  {
+   321→    id: generateId(), cardId: '', name: 'Patricia López', email: 'patricia@email.com',
+   322→    phone: '5512345678', message: 'Hola, me interesa agendar una cita. ¿Tienen disponibilidad esta semana?',
+   323→    date: new Date(Date.now() - 86400000).toISOString(), read: false,
+   324→  },
+   325→  {
+   326→    id: generateId(), cardId: '', name: 'Roberto Cruz', email: 'roberto@email.com',
+   327→    phone: '5587654321', message: 'Excelente servicio, me gustaría más información sobre sus paquetes.',
+   328→    date: new Date(Date.now() - 172800000).toISOString(), read: true,
+   329→  },
+   330→  {
+   331→    id: generateId(), cardId: '', name: 'Sofía Medina', email: 'sofia@email.com',
+   332→    phone: '5511223344', message: '¿Tienen promociones para nuevos clientes?',
+   333→    date: new Date(Date.now() - 259200000).toISOString(), read: false,
+   334→  },
+   335→];
+   336→
+   337→const DEMO_APPOINTMENTS: Appointment[] = [
+   338→  {
+   339→    id: generateId(), teamMemberId: '', clientName: 'Jorge Ruiz', clientEmail: 'jorge@email.com',
+   340→    date: new Date(Date.now() + 86400000).toISOString(), time: '10:00', status: 'confirmed',
+   341→  },
+   342→  {
+   343→    id: generateId(), teamMemberId: '', clientName: 'Diana Flores', clientEmail: 'diana@email.com',
+   344→    date: new Date(Date.now() + 172800000).toISOString(), time: '15:30', status: 'pending',
+   345→  },
+   346→];
+   347→
+   348→// Notificaciones demo del Centro de Notificaciones (Task 11-a)
+   349→function isoMinutesAgo(min: number) {
+   350→  return new Date(Date.now() - min * 60 * 1000).toISOString();
+   351→}
+   352→
+   353→const DEMO_NOTIFICATIONS: AppNotification[] = [
+   354→  {
+   355→    id: 'notif-1',
+   356→    type: 'message',
+   357→    title: 'Nuevo mensaje de Patricia López',
+   358→    description: 'Hola, me interesa agendar una cita. ¿Tienen disponibilidad esta semana?',
+   359→    timestamp: isoMinutesAgo(8),
+   360→    read: false,
+   361→    actionLabel: 'Ver mensaje',
+   362→    actionView: 'dashboard',
+   363→    priority: 'high',
+   364→  },
+   365→  {
+   366→    id: 'notif-2',
+   367→    type: 'qr_scan',
+   368→    title: 'Tu QR fue escaneado',
+   369→    description: 'Tu código QR fue escaneado hace unos minutos desde un dispositivo móvil en CDMX.',
+   370→    timestamp: isoMinutesAgo(45),
+   371→    read: false,
+   372→    actionLabel: 'Ver estadísticas',
+   373→    actionView: 'stats',
+   374→    priority: 'medium',
+   375→  },
+   376→  {
+   377→    id: 'notif-3',
+   378→    type: 'view_milestone',
+   379→    title: '¡Felicidades! Superaste las 1000 vistas',
+   380→    description: 'Tu tarjeta "Restaurante El Sabor" alcanzó 1247 visitas totales. ¡Sigue compartiendo!',
+   381→    timestamp: isoMinutesAgo(180),
+   382→    read: false,
+   383→    actionLabel: 'Ver analítica',
+   384→    actionView: 'stats',
+   385→    priority: 'medium',
+   386→  },
+   387→  {
+   388→    id: 'notif-4',
+   389→    type: 'appointment',
+   390→    title: 'Nueva cita agendada',
+   391→    description: 'Jorge Ruiz agendó una cita para mañana a las 10:00 AM con la Dra. María González.',
+   392→    timestamp: isoMinutesAgo(320),
+   393→    read: true,
+   394→    actionLabel: 'Ver citas',
+   395→    actionView: 'dashboard',
+   396→    priority: 'high',
+   397→  },
+   398→  {
+   399→    id: 'notif-5',
+   400→    type: 'limit_warning',
+   401→    title: 'Has alcanzado el límite de tu plan',
+   402→    description: 'Tu plan Básico permite 2 tarjetas. Mejora a Pro para crear hasta 5 tarjetas y desbloquear más funciones.',
+   403→    timestamp: isoMinutesAgo(720),
+   404→    read: false,
+   405→    actionLabel: 'Mejorar plan',
+   406→    actionView: 'pricing',
+   407→    priority: 'high',
+   408→  },
+   409→  {
+   410→    id: 'notif-6',
+   411→    type: 'payment',
+   412→    title: 'Pago procesado correctamente',
+   413→    description: 'Tu pago de $199 MXN por el plan Básico fue procesado con éxito. ¡Gracias por tu confianza!',
+   414→    timestamp: isoMinutesAgo(1440),
+   415→    read: true,
+   416→    actionLabel: 'Ver facturación',
+   417→    actionView: 'settings',
+   418→    priority: 'low',
+   419→  },
+   420→  {
+   421→    id: 'notif-7',
+   422→    type: 'card_updated',
+   423→    title: 'Tarjeta actualizada',
+   424→    description: 'Actualizaste los servicios y productos de tu tarjeta "Boutique Rosa". Los cambios ya están visibles.',
+   425→    timestamp: isoMinutesAgo(2880),
+   426→    read: true,
+   427→    actionLabel: 'Editar tarjeta',
+   428→    actionView: 'dashboard',
+   429→    priority: 'low',
+   430→  },
+   431→  {
+   432→    id: 'notif-8',
+   433→    type: 'system',
+   434→    title: 'Nueva función disponible',
+   435→    description: 'Ahora puedes comparar el rendimiento de tus tarjetas lado a lado. Descubre qué tarjeta funciona mejor.',
+   436→    timestamp: isoMinutesAgo(4320),
+   437→    read: false,
+   438→    actionLabel: 'Probar comparador',
+   439→    actionView: 'compare',
+   440→    priority: 'medium',
+   441→  },
+   442→];
+   443→
+   444→// Tickets de soporte demo
+   445→const DEMO_SUPPORT_TICKETS: SupportTicket[] = [
+   446→  {
+   447→    id: 'ticket-demo-1',
+   448→    userId: 'user-pro',
+   449→    subject: 'No puedo personalizar el código QR',
+   450→    category: 'tecnico',
+   451→    priority: 'media',
+   452→    message: 'Hola, intento cambiar el color del código QR en mi tarjeta pero al guardar los cambios no se aplican. Ya intenté refrescar la página.',
+   453→    status: 'resuelto',
+   454→    createdAt: new Date(Date.now() - 172800000).toISOString(),
+   455→    responses: [
+   456→      {
+   457→        author: 'Soporte FTP Digital Plus',
+   458→        message: 'Hola, gracias por contactarnos. Hemos revisado tu cuenta y detectamos un problema de caché. Por favor, intenta limpiar la caché de tu navegador y vuelve a guardar los cambios. Si el problema persiste, avísanos.',
+   459→        date: new Date(Date.now() - 170000000).toISOString(),
+   460→      },
+   461→      {
+   462→        author: 'Usuario',
+   463→        message: '¡Muchas gracias! Limpié la caché y ya funciona perfectamente. Pueden cerrar el ticket.',
+   464→        date: new Date(Date.now() - 168000000).toISOString(),
+   465→      },
+   466→      {
+   467→        author: 'Soporte FTP Digital Plus',
+   468→        message: 'Perfecto, marcamos tu ticket como resuelto. Quedamos atentos por si necesitas algo más. ¡Que tengas un excelente día!',
+   469→        date: new Date(Date.now() - 167000000).toISOString(),
+   470→      },
+   471→    ],
+   472→  },
+   473→  {
+   474→    id: 'ticket-demo-2',
+   475→    userId: 'user-basico',
+   476→    subject: 'Consulta sobre upgrade a plan Pro',
+   477→    category: 'facturacion',
+   478→    priority: 'baja',
+   479→    message: 'Buenos días, estoy considerando cambiar al plan Pro. ¿Pueden informarme si el pago es anual únicamente o si tienen opción de pago mensual?',
+   480→    status: 'en_progreso',
+   481→    createdAt: new Date(Date.now() - 86400000).toISOString(),
+   482→    responses: [
+   483→      {
+   484→        author: 'Soporte FTP Digital Plus',
+   485→        message: 'Hola, gracias por tu interés en el plan Pro. Actualmente el plan Pro tiene un costo anual de $500 MXN, lo que equivale a aproximadamente $41.66 MXN al mes. No contamos con opción de pago mensual por separado, pero el pago anual te representa un ahorro considerable. ¿Te gustaría que procedamos con la actualización?',
+   486→        date: new Date(Date.now() - 82000000).toISOString(),
+   487→      },
+   488→    ],
+   489→  },
+   490→];
+   491→
+   492→interface AppState {
+   493→  // Auth
+   494→  currentUser: User | null;
+   495→  users: User[];
+   496→  // Navigation
+   497→  currentView: ViewType;
+   498→  selectedCardId: string | null;
+   499→  selectedEditorSection: string;
+   500→  selectedPlanForCheckout: PlanType | null;
+   501→  // Data
+   502→  cards: BusinessCard[];
+   503→  messages: ContactMessage[];
+   504→  appointments: Appointment[];
+   505→  // Favorites (Task 6-c)
+   506→  favoriteCardIds: string[];
+   507→  // Support tickets (Task 6-a)
+   508→  supportTickets: SupportTicket[];
+   509→  // Tour (Task 8-b) — session-only, not persisted
+   510→  tourActive: boolean;
+   511→  // Blog (Task 9-a) — session-only, not persisted
+   512→  selectedBlogPost: string | null;
+   513→  // Compare cards (Task 10-a) — session-only, not persisted
+   514→  compareCardIds: string[];
+   515→  // Notifications (Task 11-a) — persisted
+   516→  notifications: AppNotification[];
+   517→  // Actions
+   518→  login: (email: string, password: string) => boolean;
+   519→  logout: () => void;
+   520→  navigate: (view: ViewType) => void;
+   521→  selectCard: (cardId: string | null) => void;
+   522→  setEditorSection: (section: string) => void;
+   523→  setSelectedPlanForCheckout: (plan: PlanType | null) => void;
+   524→  createCard: (linkName: string, cardName: string) => string | null;
+   525→  updateCard: (cardId: string, updates: Partial<BusinessCard>) => void;
+   526→  deleteCard: (cardId: string) => void;
+   527→  toggleCardActive: (cardId: string) => void;
+   528→  generateQr: (cardId: string) => void;
+   529→  recordCardView: (cardId: string) => void;
+   530→  recordQrScan: (cardId: string) => void;
+   531→  addMessage: (cardId: string, message: Omit<ContactMessage, 'id' | 'cardId' | 'date' | 'read'>) => void;
+   532→  markMessageRead: (messageId: string) => void;
+   533→  addAppointment: (appt: Omit<Appointment, 'id'>) => void;
+   534→  upgradePlan: (plan: PlanType) => void;
+   535→  updateUser: (updates: Partial<User>) => void;
+   536→  toggleFavorite: (cardId: string) => void;
+   537→  addTicket: (ticket: Omit<SupportTicket, 'id' | 'status' | 'createdAt' | 'responses'>) => string;
+   538→  addTicketResponse: (ticketId: string, response: SupportTicketResponse, status?: SupportTicket['status']) => void;
+   539→  setTourActive: (active: boolean) => void;
+   540→  setSelectedBlogPost: (postId: string | null) => void;
+   541→  setCompareCards: (cardIds: string[]) => void;
+   542→  markNotificationRead: (id: string) => void;
+   543→  markAllNotificationsRead: () => void;
+   544→  deleteNotification: (id: string) => void;
+   545→  addNotification: (notification: Omit<AppNotification, 'id'>) => void;
+   546→}
+   547→
+   548→export const useAppStore = create<AppState>()(
+   549→  persist(
+   550→    (set, get) => ({
+   551→      currentUser: null,
+   552→      users: DEMO_USERS,
+   553→      currentView: 'landing',
+   554→      selectedCardId: null,
+   555→      selectedEditorSection: 'detalles',
+   556→      selectedPlanForCheckout: null,
+   557→      cards: createDemoCards(),
+   558→      messages: DEMO_MESSAGES,
+   559→      appointments: DEMO_APPOINTMENTS,
+   560→      favoriteCardIds: [],
+   561→      supportTickets: DEMO_SUPPORT_TICKETS,
+   562→      tourActive: false,
+   563→      selectedBlogPost: null,
+   564→      compareCardIds: [],
+   565→      notifications: DEMO_NOTIFICATIONS,
+   566→
+   567→      login: (email, password) => {
+   568→        const user = get().users.find(
+   569→          u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+   570→        );
+   571→        if (user) {
+   572→          const { password: _, ...userWithoutPassword } = user;
+   573→          set({ currentUser: user, currentView: 'dashboard' });
+   574→          return true;
+   575→        }
+   576→        return false;
+   577→      },
+   578→
+   579→      logout: () => {
+   580→        set({ currentUser: null, currentView: 'landing', selectedCardId: null });
+   581→      },
+   582→
+   583→      navigate: (view) => set({ currentView: view }),
+   584→
+   585→      selectCard: (cardId) => set({ selectedCardId: cardId }),
+   586→
+   587→      setEditorSection: (section) => set({ selectedEditorSection: section }),
+   588→
+   589→      setSelectedPlanForCheckout: (plan) => set({ selectedPlanForCheckout: plan }),
+   590→
+   591→      createCard: (linkName, cardName) => {
+   592→        const user = get().currentUser;
+   593→        if (!user) return null;
+   594→        const userCards = get().cards.filter(c => c.userId === user.id);
+   595→        if (userCards.length >= PLANS[user.plan].maxCards) return null;
+   596→        const newCard = createDefaultCard(user.id, user.plan, linkName, cardName);
+   597→        set(state => ({ cards: [...state.cards, newCard], selectedCardId: newCard.id }));
+   598→        return newCard.id;
+   599→      },
+   600→
+   601→      updateCard: (cardId, updates) => {
+   602→        set(state => ({
+   603→          cards: state.cards.map(c => c.id === cardId ? { ...c, ...updates } : c),
+   604→        }));
+   605→      },
+   606→
+   607→      deleteCard: (cardId) => {
+   608→        set(state => ({ cards: state.cards.filter(c => c.id !== cardId) }));
+   609→      },
+   610→
+   611→      toggleCardActive: (cardId) => {
+   612→        set(state => ({
+   613→          cards: state.cards.map(c =>
+   614→            c.id === cardId ? { ...c, isActive: !c.isActive } : c
+   615→          ),
+   616→        }));
+   617→      },
+   618→
+   619→      generateQr: (cardId) => {
+   620→        const card = get().cards.find(c => c.id === cardId);
+   621→        if (!card) return;
+   622→        const user = get().users.find(u => u.id === card.userId);
+   623→        const plan = user?.plan || 'gratis';
+   624→        if (PLANS[plan].qrExpires) {
+   625→          const { generatedAt, expiresAt } = generateQrExpiration();
+   626→          get().updateCard(cardId, { qrGeneratedAt: generatedAt, qrExpiresAt: expiresAt });
+   627→        } else {
+   628→          get().updateCard(cardId, { qrGeneratedAt: new Date().toISOString(), qrExpiresAt: null });
+   629→        }
+   630→      },
+   631→
+   632→      recordCardView: (cardId) => {
+   633→        set(state => ({
+   634→          cards: state.cards.map(c =>
+   635→            c.id === cardId ? { ...c, views: c.views + 1 } : c
+   636→          ),
+   637→        }));
+   638→      },
+   639→
+   640→      recordQrScan: (cardId) => {
+   641→        set(state => ({
+   642→          cards: state.cards.map(c =>
+   643→            c.id === cardId ? { ...c, qrScans: c.qrScans + 1 } : c
+   644→          ),
+   645→        }));
+   646→      },
+   647→
+   648→      addMessage: (cardId, message) => {
+   649→        const newMessage: ContactMessage = {
+   650→          ...message,
+   651→          id: generateId(),
+   652→          cardId,
+   653→          date: new Date().toISOString(),
+   654→          read: false,
+   655→        };
+   656→        set(state => ({ messages: [newMessage, ...state.messages] }));
+   657→      },
+   658→
+   659→      markMessageRead: (messageId) => {
+   660→        set(state => ({
+   661→          messages: state.messages.map(m =>
+   662→            m.id === messageId ? { ...m, read: true } : m
+   663→          ),
+   664→        }));
+   665→      },
+   666→
+   667→      addAppointment: (appt) => {
+   668→        set(state => ({
+   669→          appointments: [...state.appointments, { ...appt, id: generateId() }],
+   670→        }));
+   671→      },
+   672→
+   673→      upgradePlan: (plan) => {
+   674→        const user = get().currentUser;
+   675→        if (!user) return;
+   676→        set(state => ({
+   677→          users: state.users.map(u =>
+   678→            u.id === user.id ? { ...u, plan } : u
+   679→          ),
+   680→          currentUser: { ...user, plan },
+   681→        }));
+   682→      },
+   683→
+   684→      updateUser: (updates) => {
+   685→        const user = get().currentUser;
+   686→        if (!user) return;
+   687→        const updatedUser = { ...user, ...updates };
+   688→        set(state => ({
+   689→          users: state.users.map(u =>
+   690→            u.id === user.id ? { ...u, ...updates } : u
+   691→          ),
+   692→          currentUser: updatedUser,
+   693→        }));
+   694→      },
+   695→
+   696→      toggleFavorite: (cardId) => {
+   697→        set(state => ({
+   698→          favoriteCardIds: state.favoriteCardIds.includes(cardId)
+   699→            ? state.favoriteCardIds.filter(id => id !== cardId)
+   700→            : [...state.favoriteCardIds, cardId],
+   701→        }));
+   702→      },
+   703→
+   704→      addTicket: (ticket) => {
+   705→        const newTicket: SupportTicket = {
+   706→          ...ticket,
+   707→          id: generateId(),
+   708→          status: 'abierto',
+   709→          createdAt: new Date().toISOString(),
+   710→          responses: [],
+   711→        };
+   712→        set(state => ({ supportTickets: [newTicket, ...state.supportTickets] }));
+   713→        return newTicket.id;
+   714→      },
+   715→
+   716→      addTicketResponse: (ticketId, response, status) => {
+   717→        set(state => ({
+   718→          supportTickets: state.supportTickets.map(t =>
+   719→            t.id === ticketId
+   720→              ? {
+   721→                  ...t,
+   722→                  status: status ?? t.status,
+   723→                  responses: [...t.responses, response],
+   724→                }
+   725→              : t
+   726→          ),
+   727→        }));
+   728→      },
+   729→
+   730→      setTourActive: (active) => set({ tourActive: active }),
+   731→
+   732→      setSelectedBlogPost: (postId) => set({ selectedBlogPost: postId }),
+   733→
+   734→      setCompareCards: (cardIds) => set({ compareCardIds: cardIds }),
+   735→
+   736→      markNotificationRead: (id) => {
+   737→        set(state => ({
+   738→          notifications: state.notifications.map(n =>
+   739→            n.id === id ? { ...n, read: true } : n
+   740→          ),
+   741→        }));
+   742→      },
+   743→
+   744→      markAllNotificationsRead: () => {
+   745→        set(state => ({
+   746→          notifications: state.notifications.map(n => ({ ...n, read: true })),
+   747→        }));
+   748→      },
+   749→
+   750→      deleteNotification: (id) => {
+   751→        set(state => ({
+   752→          notifications: state.notifications.filter(n => n.id !== id),
+   753→        }));
+   754→      },
+   755→
+   756→      addNotification: (notification) => {
+   757→        const newNotification: AppNotification = {
+   758→          ...notification,
+   759→          id: generateId(),
+   760→        };
+   761→        set(state => ({ notifications: [newNotification, ...state.notifications] }));
+   762→      },
+   763→    }),
+   764→    {
+   765→      name: 'ftp-digital-plus-store',
+   766→      storage: createJSONStorage(() => {
+   767→        if (typeof window !== 'undefined') {
+   768→          return window.localStorage;
+   769→        }
+   770→        return {
+   771→          getItem: () => null,
+   772→          setItem: () => {},
+   773→          removeItem: () => {},
+   774→        };
+   775→      }),
+   776→      partialize: (state) => ({
+   777→        currentUser: state.currentUser,
+   778→        users: state.users,
+   779→        cards: state.cards,
+   780→        messages: state.messages,
+   781→        appointments: state.appointments,
+   782→        favoriteCardIds: state.favoriteCardIds,
+   783→        supportTickets: state.supportTickets,
+   784→        selectedPlanForCheckout: state.selectedPlanForCheckout,
+   785→        notifications: state.notifications,
+   786→      }),
+   787→    }
+   788→  )
+   789→);
+   790→
+   791→// Selectores helper
+   792→export function useCurrentUserCards() {
+   793→  return useAppStore(useShallow(state => {
+   794→    if (!state.currentUser) return [] as BusinessCard[];
+   795→    return state.cards.filter(c => c.userId === state.currentUser!.id);
+   796→  }));
+   797→}
+   798→
+   799→export function useSelectedCard() {
+   800→  return useAppStore(state => {
+   801→    if (!state.selectedCardId) return null;
+   802→    return state.cards.find(c => c.id === state.selectedCardId) || null;
+   803→  });
+   804→}
+   805→
