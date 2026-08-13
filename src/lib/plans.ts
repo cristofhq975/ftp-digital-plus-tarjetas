@@ -149,12 +149,20 @@ export const PLANS: Record<PlanType, PlanConfig> = {
 export const PLAN_ORDER: PlanType[] = ['gratis', 'basico', 'pro'];
 
 export const TEMPLATES = [
-  { id: 'moderno', name: 'Moderno', description: 'Diseño limpio con gradientes' },
-  { id: 'clasico', name: 'Clásico', description: 'Elegante atemporal' },
-  { id: 'minimalista', name: 'Minimalista', description: 'Solo lo esencial' },
-  { id: 'elegante', name: 'Elegante', description: 'Tipografía serif sofisticada' },
-  { id: 'dinamica', name: 'Dinámica', description: 'Animaciones y efectos visuales' },
+  { id: 'moderno', name: 'Moderno', description: 'Diseño limpio con gradientes', category: 'profesional', premium: false },
+  { id: 'clasico', name: 'Clásico', description: 'Elegante atemporal', category: 'profesional', premium: false },
+  { id: 'minimalista', name: 'Minimalista', description: 'Solo lo esencial', category: 'minimalista', premium: false },
+  { id: 'elegante', name: 'Elegante', description: 'Tipografía serif sofisticada', category: 'creativo', premium: true },
+  { id: 'dinamica', name: 'Dinámica', description: 'Animaciones y efectos visuales', category: 'creativo', premium: true },
+  { id: 'corporativo', name: 'Corporativo', description: 'Profesional y formal para empresas', category: 'profesional', premium: true },
+  { id: 'creativo', name: 'Creativo', description: 'Colores vibrantes y formas únicas', category: 'creativo', premium: true },
+  { id: 'oscuro', name: 'Modo Oscuro', description: 'Tema oscuro elegante y moderno', category: 'minimalista', premium: true },
+  { id: 'vintage', name: 'Vintage', description: 'Estilo retro con texturas clásicas', category: 'creativo', premium: true },
+  { id: 'tech', name: 'Tech', description: 'Futurista con efectos neón', category: 'minimalista', premium: true },
 ] as const;
+
+export type TemplateId = (typeof TEMPLATES)[number]['id'];
+export type TemplateCategory = (typeof TEMPLATES)[number]['category'];
 
 export const FONTS = [
   { id: 'poppins', name: 'Poppins', css: "'Poppins', sans-serif" },
@@ -209,6 +217,7 @@ export const EDITOR_SECTIONS = [
 // Secciones del panel principal (Manual 1)
 export const DASHBOARD_SECTIONS = [
   { id: 'tablero', name: 'Tablero', icon: 'LayoutDashboard', description: 'Vista general de tus tarjetas' },
+  { id: 'notifications', name: 'Notificaciones', icon: 'Bell', description: 'Centro de notificaciones' },
   { id: 'compare', name: 'Comparar', icon: 'GitCompare', description: 'Compara tus tarjetas' },
   { id: 'stats', name: 'Analítica', icon: 'Search', description: 'Estadísticas y métricas de tus tarjetas' },
   { id: 'template-gallery', name: 'Plantillas', icon: 'Layout', description: 'Galería de plantillas disponibles' },

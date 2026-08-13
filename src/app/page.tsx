@@ -19,6 +19,8 @@ import { ProfilePage } from '@/components/sections/profile-page';
 import { BlogPage } from '@/components/sections/blog-page';
 import { BlogPostPage } from '@/components/sections/blog-post-page';
 import { ComparePage } from '@/components/sections/compare-page';
+import { NotificationsPage } from '@/components/sections/notifications-page';
+import { CasesPage } from '@/components/sections/cases-page';
 
 function CurrentView() {
   const currentView = useAppStore(s => s.currentView);
@@ -46,6 +48,10 @@ function CurrentView() {
       return <AnalyticsPage />;
     case 'compare':
       return <ComparePage />;
+    case 'notifications':
+      return <NotificationsPage />;
+    case 'cases':
+      return <CasesPage />;
     case 'template-gallery':
       return <TemplateGallery />;
     case 'help':

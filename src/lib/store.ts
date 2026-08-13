@@ -5,6 +5,34 @@ import { User, BusinessCard, ViewType, ContactMessage, Appointment, PlanType, Sc
 import { PLANS } from './plans';
 import { generateId, generateQrExpiration } from './card-utils';
 
+// Tipos de notificación del Centro de Notificaciones (Task 11-a)
+export type NotificationType =
+  | 'message'
+  | 'appointment'
+  | 'qr_scan'
+  | 'view_milestone'
+  | 'plan'
+  | 'system'
+  | 'card_created'
+  | 'card_updated'
+  | 'limit_warning'
+  | 'payment';
+
+export type NotificationPriority = 'low' | 'medium' | 'high';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  description: string;
+  timestamp: string;
+  read: boolean;
+  actionLabel?: string;
+  actionView?: ViewType;
+  cardId?: string;
+  priority: NotificationPriority;
+}
+
 // Datos demo iniciales
 const DEFAULT_SCHEDULE: Schedule = {
   monday: { open: true, start: '09:00', end: '18:00' },
@@ -317,6 +345,102 @@ const DEMO_APPOINTMENTS: Appointment[] = [
   },
 ];
 
+// Notificaciones demo del Centro de Notificaciones (Task 11-a)
+function isoMinutesAgo(min: number) {
+  return new Date(Date.now() - min * 60 * 1000).toISOString();
+}
+
+const DEMO_NOTIFICATIONS: AppNotification[] = [
+  {
+    id: 'notif-1',
+    type: 'message',
+    title: 'Nuevo mensaje de Patricia López',
+    description: 'Hola, me interesa agendar una cita. ¿Tienen disponibilidad esta semana?',
+    timestamp: isoMinutesAgo(8),
+    read: false,
+    actionLabel: 'Ver mensaje',
+    actionView: 'dashboard',
+    priority: 'high',
+  },
+  {
+    id: 'notif-2',
+    type: 'qr_scan',
+    title: 'Tu QR fue escaneado',
+    description: 'Tu código QR fue escaneado hace unos minutos desde un dispositivo móvil en CDMX.',
+    timestamp: isoMinutesAgo(45),
+    read: false,
+    actionLabel: 'Ver estadísticas',
+    actionView: 'stats',
+    priority: 'medium',
+  },
+  {
+    id: 'notif-3',
+    type: 'view_milestone',
+    title: '¡Felicidades! Superaste las 1000 vistas',
+    description: 'Tu tarjeta "Restaurante El Sabor" alcanzó 1247 visitas totales. ¡Sigue compartiendo!',
+    timestamp: isoMinutesAgo(180),
+    read: false,
+    actionLabel: 'Ver analítica',
+    actionView: 'stats',
+    priority: 'medium',
+  },
+  {
+    id: 'notif-4',
+    type: 'appointment',
+    title: 'Nueva cita agendada',
+    description: 'Jorge Ruiz agendó una cita para mañana a las 10:00 AM con la Dra. María González.',
+    timestamp: isoMinutesAgo(320),
+    read: true,
+    actionLabel: 'Ver citas',
+    actionView: 'dashboard',
+    priority: 'high',
+  },
+  {
+    id: 'notif-5',
+    type: 'limit_warning',
+    title: 'Has alcanzado el límite de tu plan',
+    description: 'Tu plan Básico permite 2 tarjetas. Mejora a Pro para crear hasta 5 tarjetas y desbloquear más funciones.',
+    timestamp: isoMinutesAgo(720),
+    read: false,
+    actionLabel: 'Mejorar plan',
+    actionView: 'pricing',
+    priority: 'high',
+  },
+  {
+    id: 'notif-6',
+    type: 'payment',
+    title: 'Pago procesado correctamente',
+    description: 'Tu pago de $199 MXN por el plan Básico fue procesado con éxito. ¡Gracias por tu confianza!',
+    timestamp: isoMinutesAgo(1440),
+    read: true,
+    actionLabel: 'Ver facturación',
+    actionView: 'settings',
+    priority: 'low',
+  },
+  {
+    id: 'notif-7',
+    type: 'card_updated',
+    title: 'Tarjeta actualizada',
+    description: 'Actualizaste los servicios y productos de tu tarjeta "Boutique Rosa". Los cambios ya están visibles.',
+    timestamp: isoMinutesAgo(2880),
+    read: true,
+    actionLabel: 'Editar tarjeta',
+    actionView: 'dashboard',
+    priority: 'low',
+  },
+  {
+    id: 'notif-8',
+    type: 'system',
+    title: 'Nueva función disponible',
+    description: 'Ahora puedes comparar el rendimiento de tus tarjetas lado a lado. Descubre qué tarjeta funciona mejor.',
+    timestamp: isoMinutesAgo(4320),
+    read: false,
+    actionLabel: 'Probar comparador',
+    actionView: 'compare',
+    priority: 'medium',
+  },
+];
+
 // Tickets de soporte demo
 const DEMO_SUPPORT_TICKETS: SupportTicket[] = [
   {
@@ -388,6 +512,8 @@ interface AppState {
   selectedBlogPost: string | null;
   // Compare cards (Task 10-a) — session-only, not persisted
   compareCardIds: string[];
+  // Notifications (Task 11-a) — persisted
+  notifications: AppNotification[];
   // Actions
   login: (email: string, password: string) => boolean;
   logout: () => void;
@@ -413,6 +539,10 @@ interface AppState {
   setTourActive: (active: boolean) => void;
   setSelectedBlogPost: (postId: string | null) => void;
   setCompareCards: (cardIds: string[]) => void;
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
+  deleteNotification: (id: string) => void;
+  addNotification: (notification: Omit<AppNotification, 'id'>) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -432,6 +562,7 @@ export const useAppStore = create<AppState>()(
       tourActive: false,
       selectedBlogPost: null,
       compareCardIds: [],
+      notifications: DEMO_NOTIFICATIONS,
 
       login: (email, password) => {
         const user = get().users.find(
@@ -601,6 +732,34 @@ export const useAppStore = create<AppState>()(
       setSelectedBlogPost: (postId) => set({ selectedBlogPost: postId }),
 
       setCompareCards: (cardIds) => set({ compareCardIds: cardIds }),
+
+      markNotificationRead: (id) => {
+        set(state => ({
+          notifications: state.notifications.map(n =>
+            n.id === id ? { ...n, read: true } : n
+          ),
+        }));
+      },
+
+      markAllNotificationsRead: () => {
+        set(state => ({
+          notifications: state.notifications.map(n => ({ ...n, read: true })),
+        }));
+      },
+
+      deleteNotification: (id) => {
+        set(state => ({
+          notifications: state.notifications.filter(n => n.id !== id),
+        }));
+      },
+
+      addNotification: (notification) => {
+        const newNotification: AppNotification = {
+          ...notification,
+          id: generateId(),
+        };
+        set(state => ({ notifications: [newNotification, ...state.notifications] }));
+      },
     }),
     {
       name: 'ftp-digital-plus-store',
@@ -623,6 +782,7 @@ export const useAppStore = create<AppState>()(
         favoriteCardIds: state.favoriteCardIds,
         supportTickets: state.supportTickets,
         selectedPlanForCheckout: state.selectedPlanForCheckout,
+        notifications: state.notifications,
       }),
     }
   )

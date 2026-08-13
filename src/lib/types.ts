@@ -29,7 +29,9 @@ export type ViewType =
   | 'profile'
   | 'blog'
   | 'blog-post'
-  | 'compare';
+  | 'compare'
+  | 'notifications'
+  | 'cases';
 
 // Ticket de soporte
 export type SupportTicketCategory = 'cuenta' | 'facturacion' | 'tecnico' | 'tarjeta' | 'otro';
@@ -183,7 +185,7 @@ export interface BusinessCard {
   coverPhoto: string;
   profilePhoto: string;
   // Plantilla
-  template: 'moderno' | 'clasico' | 'minimalista' | 'elegante' | 'dinamica';
+  template: 'moderno' | 'clasico' | 'minimalista' | 'elegante' | 'dinamica' | 'corporativo' | 'creativo' | 'oscuro' | 'vintage' | 'tech';
   // Personalización
   primaryColor: string;
   secondaryColor: string;

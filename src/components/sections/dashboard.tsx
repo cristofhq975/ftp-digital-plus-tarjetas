@@ -44,7 +44,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationsPanel } from '@/components/notifications-panel';
 import { OnboardingWizard } from '@/components/onboarding-wizard';
 import { ShareModal } from '@/components/share-modal';
-import { CountUp } from '@/components/animations/count-up';
+import { AnimatedCounter } from '@/components/visual/animated-counter';
 import { FavoritesWidget } from '@/components/sections/favorites';
 import { GlassCard } from '@/components/visual/glass-card';
 import { AuroraBackground } from '@/components/visual/improved-backgrounds';
@@ -106,10 +106,16 @@ export function Dashboard() {
   const unreadCount = messages.filter(m => !m.read).length;
 
   const handleNavigate = (id: SectionId) => {
-    // 'stats', 'template-gallery', 'compare' and 'help' are full-page navigations
+    // 'stats', 'notifications', 'template-gallery', 'compare' and 'help' are full-page navigations
     if (id === 'stats' as any) {
       navigate('stats');
       setMobileOpen(false);
+      return;
+    }
+    if (id === 'notifications' as any) {
+      navigate('notifications');
+      setMobileOpen(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     if (id === 'compare' as any) {
@@ -287,6 +293,9 @@ function SidebarContent({
     return all.find(c => c.userId === user.id) || null;
   });
   const favoriteIds = useAppStore(s => s.favoriteCardIds);
+  const unreadNotifications = useAppStore(s =>
+    s.notifications.filter(n => !n.read).length
+  );
 
   // SVG circular progress ring geometry
   const ringSize = 64;
@@ -408,6 +417,7 @@ function SidebarContent({
           {DASHBOARD_SECTIONS.map((section) => {
             const isActive = activeSection === section.id;
             const isMessages = section.id === 'messages';
+            const isNotifications = section.id === 'notifications';
             return (
               <li key={section.id}>
                 <button
@@ -427,6 +437,14 @@ function SidebarContent({
                       isActive ? 'bg-white text-emerald-700' : 'bg-amber-500 text-white'
                     )}>
                       {unreadCount}
+                    </span>
+                  )}
+                  {isNotifications && unreadNotifications > 0 && (
+                    <span className={cn(
+                      'rounded-full px-1.5 py-0.5 text-[10px] font-bold',
+                      isActive ? 'bg-white text-emerald-700' : 'bg-rose-500 text-white'
+                    )}>
+                      {unreadNotifications > 9 ? '9+' : unreadNotifications}
                     </span>
                   )}
                   {section.id === 'tablero' && favoriteIds.length > 0 && !isActive && (
@@ -874,7 +892,7 @@ function TableroSection({
                 )}
               </div>
               <p className="mt-4 text-3xl font-bold text-slate-800">
-                <CountUp value={stat.value} duration={1200} />
+                <AnimatedCounter value={stat.value} duration={1200} />
               </p>
               <p className="text-sm font-medium text-slate-600">{stat.label}</p>
               <p className="mt-1 text-xs text-muted-foreground">{stat.sub}</p>

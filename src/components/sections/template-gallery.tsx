@@ -39,6 +39,7 @@ import {
   Layers,
   ArrowRight,
   LayoutDashboard,
+  FileText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -52,7 +53,7 @@ type PlanRequirement = 'all' | 'basico' | 'pro';
 
 interface TemplateMeta {
   id: TemplateId;
-  category: 'profesionales' | 'creativas' | 'minimalistas' | 'elegantes';
+  category: 'profesional' | 'creativo' | 'minimalista';
   plan: PlanRequirement;
   rating: number;
   reviews: number;
@@ -65,7 +66,7 @@ interface TemplateMeta {
 const TEMPLATE_META: Record<TemplateId, TemplateMeta> = {
   moderno: {
     id: 'moderno',
-    category: 'profesionales',
+    category: 'profesional',
     plan: 'all',
     rating: 4.8,
     reviews: 1247,
@@ -76,7 +77,7 @@ const TEMPLATE_META: Record<TemplateId, TemplateMeta> = {
   },
   clasico: {
     id: 'clasico',
-    category: 'profesionales',
+    category: 'profesional',
     plan: 'basico',
     rating: 4.6,
     reviews: 892,
@@ -86,17 +87,17 @@ const TEMPLATE_META: Record<TemplateId, TemplateMeta> = {
   },
   minimalista: {
     id: 'minimalista',
-    category: 'minimalistas',
+    category: 'minimalista',
     plan: 'all',
     rating: 4.9,
     reviews: 1583,
-    isNew: true,
+    isNew: false,
     popularity: 95,
     highlights: ['Solo lo esencial', 'Enfoque en contenido', 'Carga ultrarrápida'],
   },
   elegante: {
     id: 'elegante',
-    category: 'elegantes',
+    category: 'creativo',
     plan: 'pro',
     rating: 4.7,
     reviews: 743,
@@ -106,7 +107,7 @@ const TEMPLATE_META: Record<TemplateId, TemplateMeta> = {
   },
   dinamica: {
     id: 'dinamica',
-    category: 'creativas',
+    category: 'creativo',
     plan: 'pro',
     rating: 4.5,
     reviews: 651,
@@ -114,14 +115,65 @@ const TEMPLATE_META: Record<TemplateId, TemplateMeta> = {
     popularity: 72,
     highlights: ['Animaciones suaves', 'Efectos visuales', 'Experiencia inmersiva'],
   },
+  corporativo: {
+    id: 'corporativo',
+    category: 'profesional',
+    plan: 'pro',
+    rating: 4.7,
+    reviews: 412,
+    isNew: true,
+    popularity: 80,
+    highlights: ['Layout formal con sidebar', 'Acentos esmeralda y serif', 'Para empresas y consultoras'],
+  },
+  creativo: {
+    id: 'creativo',
+    category: 'creativo',
+    plan: 'pro',
+    rating: 4.6,
+    reviews: 287,
+    isNew: true,
+    popularity: 78,
+    highlights: ['Colores vibrantes', 'Layout asimétrico y blobs', 'Para marcas creativas'],
+  },
+  oscuro: {
+    id: 'oscuro',
+    category: 'minimalista',
+    plan: 'pro',
+    rating: 4.8,
+    reviews: 538,
+    isNew: true,
+    isFeatured: false,
+    popularity: 88,
+    highlights: ['Modo oscuro elegante', 'Glassmorphism', 'Acentos esmeralda'],
+  },
+  vintage: {
+    id: 'vintage',
+    category: 'creativo',
+    plan: 'pro',
+    rating: 4.4,
+    reviews: 196,
+    isNew: true,
+    popularity: 64,
+    highlights: ['Textura de papel sepia', 'Bordes ornamentales', 'Tipografía Playfair'],
+  },
+  tech: {
+    id: 'tech',
+    category: 'minimalista',
+    plan: 'pro',
+    rating: 4.7,
+    reviews: 321,
+    isNew: true,
+    isFeatured: false,
+    popularity: 82,
+    highlights: ['Estética futurista', 'Efectos neón y grid', 'Tipografía monoespaciada'],
+  },
 };
 
 const CATEGORIES = [
-  { id: 'todas', label: 'Todas' },
-  { id: 'profesionales', label: 'Profesionales' },
-  { id: 'creativas', label: 'Creativas' },
-  { id: 'minimalistas', label: 'Minimalistas' },
-  { id: 'elegantes', label: 'Elegantes' },
+  { id: 'todas', label: 'Todos' },
+  { id: 'profesional', label: 'Profesional' },
+  { id: 'creativo', label: 'Creativo' },
+  { id: 'minimalista', label: 'Minimalista' },
 ] as const;
 
 type CategoryId = (typeof CATEGORIES)[number]['id'];
@@ -171,6 +223,11 @@ const FONT_BY_TEMPLATE: Record<TemplateId, string> = {
   minimalista: 'raleway',
   elegante: 'playfair',
   dinamica: 'montserrat',
+  corporativo: 'playfair',
+  creativo: 'poppins',
+  oscuro: 'inter',
+  vintage: 'playfair',
+  tech: 'inter',
 };
 
 const PRESET_BY_TEMPLATE: Record<TemplateId, (typeof COLOR_PRESETS)[number]> = {
@@ -179,6 +236,11 @@ const PRESET_BY_TEMPLATE: Record<TemplateId, (typeof COLOR_PRESETS)[number]> = {
   minimalista: COLOR_PRESETS[7], // Grafito
   elegante: COLOR_PRESETS[2], // Corinto
   dinamica: COLOR_PRESETS[5], // Naranja
+  corporativo: COLOR_PRESETS[6], // Esmeralda Oscuro
+  creativo: COLOR_PRESETS[5], // Naranja
+  oscuro: COLOR_PRESETS[0], // Esmeralda
+  vintage: COLOR_PRESETS[1], // Oro
+  tech: COLOR_PRESETS[4], // Cian
 };
 
 function makeMockCard(template: TemplateId): BusinessCard {
@@ -378,8 +440,13 @@ function TemplateCard({
   return (
     <motion.div variants={gridItem} className="h-full">
       <Card className="card-hover relative flex h-full flex-col gap-4 overflow-hidden py-0">
-        {/* Top corner: plan + new badges */}
+        {/* Top corner: premium + plan + new badges */}
         <div className="absolute right-3 top-3 z-10 flex flex-col items-end gap-1.5">
+          {template.premium && (
+            <Badge className="border-0 premium-badge shadow-sm">
+              <Crown className="h-3 w-3" /> Premium
+            </Badge>
+          )}
           <PlanBadge plan={meta.plan} />
           {meta.isNew && (
             <Badge className="border-0 bg-emerald-600 text-white shadow-sm">
@@ -565,9 +632,9 @@ function ComparisonSection({
   const comparisonFeatures = [
     { label: 'Velocidad de carga', values: ['Rápida', 'Muy rápida', 'Estándar'] },
     { label: 'Personalización', values: ['Alta', 'Media', 'Muy alta'] },
-    { label: 'Animaciones', values: ['Suaves', 'Mínimas', 'Llamativas'] },
-    { label: 'Tipografía', values: ['Sans-serif', 'Sans-serif', 'Display'] },
-    { label: 'Ideal para', values: ['Marcas modernas', 'Perfiles sobrios', 'Negocios creativos'] },
+    { label: 'Animaciones', values: ['Suaves', 'Glassmorphism', 'Neón + grid'] },
+    { label: 'Tipografía', values: ['Sans-serif', 'Inter', 'Monoespaciada'] },
+    { label: 'Ideal para', values: ['Marcas modernas', 'Perfiles sobrios', 'Proyectos tech'] },
   ];
 
   return (
@@ -613,7 +680,14 @@ function ComparisonSection({
               <CardContent className="flex flex-1 flex-col gap-3 px-5 pb-5">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold">{tpl.name}</h3>
-                  <PlanBadge plan={meta.plan} />
+                  <div className="flex items-center gap-1.5">
+                    {tpl.premium && (
+                      <Badge className="border-0 premium-badge">
+                        <Crown className="h-3 w-3" /> Premium
+                      </Badge>
+                    )}
+                    <PlanBadge plan={meta.plan} />
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground">{tpl.description}</p>
 
@@ -639,6 +713,119 @@ function ComparisonSection({
             </Card>
           );
         })}
+      </div>
+    </section>
+  );
+}
+
+function BeforeAfterComparison({ onUse }: { onUse: () => void }) {
+  const rows = [
+    { label: 'Actualización de datos', paper: 'Imprimir de nuevo', digital: 'Al instante' },
+    { label: 'Código QR', paper: 'No incluye', digital: 'Permanente' },
+    { label: 'Galería / Servicios', paper: 'Imposible', digital: 'Ilimitados' },
+    { label: 'Estadísticas', paper: 'No medible', digital: 'Tiempo real' },
+    { label: 'Costo por unidad', paper: '$50 - $200', digital: 'Desde $0' },
+    { label: 'Tiempo de entrega', paper: '3 - 7 días', digital: 'Inmediato' },
+    { label: 'Sostenibilidad', paper: 'Papel desechable', digital: '100% digital' },
+  ];
+
+  return (
+    <section className="space-y-6">
+      <div className="flex flex-col gap-2 text-center sm:text-left">
+        <div className="inline-flex items-center gap-2 self-center rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 sm:self-start">
+          <Layers className="h-3.5 w-3.5" />
+          Antes y Después
+        </div>
+        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          Tarjeta de papel vs. <span className="gradient-text">tarjeta digital</span>
+        </h2>
+        <p className="text-muted-foreground">
+          Moderniza tu presencia: olvídate de reimprimir y empieza a impresionar.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Traditional paper card */}
+        <Card className="relative overflow-hidden border-dashed border-slate-300 bg-slate-50 py-0 dark:border-slate-700 dark:bg-slate-900/40">
+          <div className="absolute left-3 top-3">
+            <Badge variant="outline" className="border-slate-300 bg-white text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              <FileText className="mr-1 h-3 w-3" /> Tarjeta de papel
+            </Badge>
+          </div>
+          <div className="p-5 pt-12">
+            {/* Mock paper card */}
+            <div className="mx-auto mb-5 aspect-[1.75/1] w-full max-w-[320px] rotate-[-2deg] rounded-sm bg-white p-4 shadow-md">
+              <p className="text-[10px] uppercase tracking-widest text-slate-400">profesional</p>
+              <p className="mt-1 text-base font-bold text-slate-900">Ana Martín</p>
+              <p className="text-[10px] text-slate-500">Gerente comercial</p>
+              <div className="mt-2 h-px w-full bg-slate-200" />
+              <p className="mt-1 text-[9px] text-slate-500">+52 55 1234 5678</p>
+              <p className="text-[9px] text-slate-500">ana@empresa.com</p>
+              <div className="mt-2 flex justify-end">
+                <div className="h-6 w-6 rounded-sm border border-slate-200 bg-slate-100" />
+              </div>
+            </div>
+
+            <ul className="space-y-2 text-sm">
+              {rows.map((r) => (
+                <li key={r.label} className="flex items-center justify-between gap-2 border-b border-dashed border-slate-200 pb-1.5 dark:border-slate-700">
+                  <span className="text-muted-foreground">{r.label}</span>
+                  <span className="font-medium text-slate-600 dark:text-slate-300">{r.paper}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Card>
+
+        {/* Digital card */}
+        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-emerald-600 to-emerald-800 py-0 text-white">
+          <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-amber-400/20 blur-3xl" />
+          <div className="absolute left-3 top-3">
+            <Badge className="border-0 bg-amber-400 text-amber-950">
+              <Sparkles className="mr-1 h-3 w-3" /> Tarjeta digital
+            </Badge>
+          </div>
+          <div className="relative p-5 pt-12">
+            {/* Mock digital card */}
+            <div className="mx-auto mb-5 aspect-[1.75/1] w-full max-w-[320px] rotate-[2deg] overflow-hidden rounded-lg bg-white p-0 shadow-xl">
+              <div className="flex h-full">
+                <div className="flex w-1/3 items-center justify-center bg-gradient-to-br from-emerald-500 to-emerald-700 text-2xl font-bold text-white">
+                  AM
+                </div>
+                <div className="flex w-2/3 flex-col justify-center p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Online</p>
+                  <p className="text-sm font-bold text-slate-900">Ana Martín</p>
+                  <p className="text-[9px] text-slate-500">Gerente comercial</p>
+                  <div className="mt-1 flex items-center gap-1">
+                    <div className="h-5 w-5 rounded-full bg-emerald-100" />
+                    <div className="h-5 w-5 rounded-full bg-amber-100" />
+                    <div className="h-5 w-5 rounded-full bg-rose-100" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <ul className="space-y-2 text-sm">
+              {rows.map((r) => (
+                <li key={r.label} className="flex items-center justify-between gap-2 border-b border-white/15 pb-1.5">
+                  <span className="text-emerald-50/90">{r.label}</span>
+                  <span className="flex items-center gap-1 font-semibold text-white">
+                    <Check className="h-3 w-3 text-amber-300" />
+                    {r.digital}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <Button
+              className="mt-4 w-full gap-2 bg-amber-400 text-amber-950 hover:bg-amber-300"
+              onClick={onUse}
+            >
+              <Sparkles className="h-4 w-4" />
+              Cambiar a digital
+            </Button>
+          </div>
+        </Card>
       </div>
     </section>
   );
@@ -722,8 +909,8 @@ export function TemplateGallery() {
   }, [category, sort, query]);
 
   const comparisonTemplates = useMemo(() => {
-    // Pick 3 distinct templates across different categories
-    const ids: TemplateId[] = ['moderno', 'minimalista', 'dinamica'];
+    // Pick 3 distinct templates across different styles (one classic, two new).
+    const ids: TemplateId[] = ['moderno', 'oscuro', 'tech'];
     return ids.map((id) => TEMPLATES.find((t) => t.id === id)!).filter(Boolean);
   }, []);
 
@@ -885,6 +1072,9 @@ export function TemplateGallery() {
 
         {/* Comparison */}
         <ComparisonSection templates={comparisonTemplates} onPreview={handlePreview} />
+
+        {/* Before / After — papel vs digital */}
+        <BeforeAfterComparison onUse={() => handleUse('moderno')} />
 
         {/* CTA */}
         <section className="relative overflow-hidden rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-600 to-emerald-800 px-6 py-10 text-center shadow-xl sm:px-10 lg:py-14">

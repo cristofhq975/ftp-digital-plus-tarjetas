@@ -6,7 +6,9 @@ import { useAppStore } from '@/lib/store';
 import { FTPLogo } from '@/components/ftp-logo';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationsPanel } from '@/components/notifications-panel';
-import { CountUp } from '@/components/animations/count-up';
+import { AnimatedCounter } from '@/components/visual/animated-counter';
+import { GradientText } from '@/components/visual/gradient-text';
+import { Marquee } from '@/components/visual/marquee';
 import { Typewriter } from '@/components/animations/typewriter';
 import { PLANS, PLAN_ORDER } from '@/lib/plans';
 import type { PlanType } from '@/lib/types';
@@ -57,7 +59,11 @@ import {
   Send,
   Quote,
   Building2,
+  Target,
+  Lightbulb,
+  Clock,
 } from 'lucide-react';
+import { getFeaturedCases, INDUSTRY_LABELS } from '@/lib/cases-data';
 
 /* ------------------------------------------------------------------ */
 /*  Shared data                                                        */
@@ -343,6 +349,16 @@ function SiteHeader() {
             <FileText className="size-4 text-amber-500" />
             Blog
           </button>
+          <button
+            onClick={() => {
+              navigate('cases');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-50 hover:text-amber-800"
+          >
+            <Award className="size-4 text-amber-500" />
+            Casos de Éxito
+          </button>
         </nav>
 
         <div className="hidden items-center gap-1.5 md:flex">
@@ -406,6 +422,17 @@ function SiteHeader() {
             >
               <FileText className="size-4 text-amber-500" />
               Blog y Recursos
+            </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                navigate('cases');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="flex min-h-[48px] items-center gap-2 rounded-md px-3 py-3 text-left text-sm font-medium text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+            >
+              <Award className="size-4 text-amber-500" />
+              Casos de Éxito
             </button>
             <div className="mt-2 flex flex-col gap-2">
               <Button
@@ -755,7 +782,7 @@ function Features() {
           </Badge>
           <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
             Todo lo que necesitas para{' '}
-            <span className="text-gradient-animated">destacar</span>
+            <GradientText variant="emerald-gold" animated>destacar</GradientText>
           </h2>
           <p className="mt-4 text-lg text-slate-600">
             Una plataforma completa para profesionales, negocios y emprendedores
@@ -978,7 +1005,7 @@ function Stats() {
               className="text-center"
             >
               <p className="bg-gradient-to-r from-amber-300 to-amber-200 bg-clip-text text-4xl font-extrabold text-transparent sm:text-5xl">
-                <CountUp value={stat.value} suffix={stat.suffix} duration={1800} />
+                <AnimatedCounter value={stat.value} suffix={stat.suffix} duration={1800} />
               </p>
               <p className="mt-2 text-sm font-medium text-emerald-50/90">
                 {stat.label}
@@ -1114,6 +1141,146 @@ function Comparison() {
             FTP Digital Plus ofrece la mejor relación precio-funcionalidades del
             mercado mexicano.
           </p>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Cases preview                                                      */
+/* ------------------------------------------------------------------ */
+
+function CasesPreview() {
+  const navigate = useAppStore(s => s.navigate);
+  const featuredCases = getFeaturedCases(3);
+
+  return (
+    <section id="casos" className="bg-gradient-to-b from-white to-emerald-50/40 py-20 sm:py-28">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <motion.div {...fadeUpProps()} className="mx-auto max-w-2xl text-center">
+          <Badge className="border-amber-200 bg-amber-50 text-amber-700">
+            <Award className="mr-1 size-3.5" />
+            Casos de Éxito
+          </Badge>
+          <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+            Resultados que hablan por sí solos
+          </h2>
+          <p className="mt-4 text-lg text-slate-600">
+            Más de 500 empresas ya transformaron su presencia digital. Conoce sus historias.
+          </p>
+        </motion.div>
+
+        <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {featuredCases.map((c, idx) => (
+            <motion.div key={c.id} {...fadeUpProps(idx * 0.1)}>
+              <Card className="group flex h-full flex-col overflow-hidden border-slate-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-100">
+                {/* Header con gradiente */}
+                <div className={cn('relative h-28 bg-gradient-to-br', c.image)}>
+                  <div className="absolute inset-0 bg-black/5" />
+                  <div className="absolute left-4 top-4">
+                    <Badge className="border-0 bg-white/25 text-white backdrop-blur">
+                      {INDUSTRY_LABELS[c.industry]}
+                    </Badge>
+                  </div>
+                  <div className="absolute -bottom-6 left-4 flex size-14 items-center justify-center rounded-xl bg-white shadow-md ring-2 ring-white">
+                    <div className="flex size-full items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 text-lg font-bold text-white">
+                      {c.testimonial.avatar}
+                    </div>
+                  </div>
+                  <div className="absolute right-3 top-3">
+                    <Badge
+                      className={cn(
+                        'border-0',
+                        c.plan === 'pro'
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-emerald-100 text-emerald-700',
+                      )}
+                    >
+                      {c.plan === 'pro' ? 'Plan Pro' : 'Plan Básico'}
+                    </Badge>
+                  </div>
+                </div>
+
+                <CardContent className="flex flex-1 flex-col gap-3 p-5 pt-8">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">{c.clientName}</h3>
+                    <p className="text-xs text-slate-500">
+                      {c.clientType} · {c.duration}
+                    </p>
+                  </div>
+
+                  <p className="line-clamp-2 text-sm text-slate-600">
+                    <span className="font-medium text-slate-700">Reto:</span>{' '}
+                    {c.challenge.split('.')[0]}.
+                  </p>
+
+                  {/* Key results (3) */}
+                  <div className="flex flex-col gap-2">
+                    {c.results.slice(0, 3).map(r => (
+                      <div
+                        key={r.metric}
+                        className="flex items-center justify-between gap-2 text-sm"
+                      >
+                        <span className="text-slate-600">{r.metric}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="font-semibold tabular-nums text-slate-900">
+                            {r.value}
+                          </span>
+                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                            <TrendingUp className="size-3" />
+                            {r.improvement}
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Testimonial snippet */}
+                  <div className="mt-1 rounded-lg bg-slate-50 p-3">
+                    <div className="mb-1 flex gap-0.5">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star key={i} className="size-3 fill-amber-400 text-amber-400" />
+                      ))}
+                    </div>
+                    <p className="line-clamp-2 text-xs italic text-slate-600">
+                      “{c.testimonial.quote}”
+                    </p>
+                    <p className="mt-1 text-[10px] font-medium text-slate-500">
+                      — {c.testimonial.author}, {c.testimonial.role}
+                    </p>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      navigate('cases');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="mt-2 w-full gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                  >
+                    Ver caso completo
+                    <ArrowRight className="size-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        <motion.div {...fadeUpProps(0.2)} className="mt-12 text-center">
+          <Button
+            size="lg"
+            onClick={() => {
+              navigate('cases');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-md hover:from-amber-600 hover:to-amber-700"
+          >
+            <Award className="size-4" />
+            Ver todos los casos de éxito
+            <ArrowRight className="size-4" />
+          </Button>
         </motion.div>
       </div>
     </section>
@@ -1403,6 +1570,29 @@ function Testimonials() {
             </button>
           ))}
         </motion.div>
+
+        {/* Marquee de empresas que confían en FTP Digital Plus */}
+        <motion.div
+          {...fadeUpProps(0.25)}
+          className="mt-12"
+        >
+          <p className="mb-4 text-center text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
+            Confían en nosotros
+          </p>
+          <Marquee speed={28} pauseOnHover>
+            {TESTIMONIALS.concat(TESTIMONIALS).map((t, i) => (
+              <div
+                key={`${t.name}-${i}`}
+                className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 shadow-sm"
+              >
+                <span className="flex size-6 items-center justify-center rounded-md bg-gradient-to-br from-emerald-400 to-emerald-600 text-[10px] font-bold text-white">
+                  {t.initials}
+                </span>
+                <span className="text-xs font-semibold text-slate-700">{t.company}</span>
+              </div>
+            ))}
+          </Marquee>
+        </motion.div>
       </div>
     </section>
   );
@@ -1531,6 +1721,7 @@ function SiteFooter() {
               {[
                 { label: 'Características', action: () => document.getElementById('caracteristicas')?.scrollIntoView({ behavior: 'smooth' }) },
                 { label: 'Planes', action: () => navigate('pricing') },
+                { label: 'Casos de Éxito', action: () => { navigate('cases'); window.scrollTo({ top: 0, behavior: 'smooth' }); } },
                 { label: 'Plantillas', action: () => navigate('template-gallery') },
                 { label: 'Blog y Recursos', action: () => { navigate('blog'); window.scrollTo({ top: 0, behavior: 'smooth' }); } },
                 { label: 'Iniciar Sesión', action: () => navigate('login') },
@@ -1705,6 +1896,7 @@ export function LandingPage() {
         <HowItWorks />
         <Stats />
         <Comparison />
+        <CasesPreview />
         <PricingPreview />
         <Testimonials />
         <FinalCTA />

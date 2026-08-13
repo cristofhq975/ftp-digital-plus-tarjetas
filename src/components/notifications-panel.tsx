@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Sparkles,
   Check,
+  ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -368,10 +369,12 @@ export function NotificationsPanel({ className }: { className?: string }) {
               className="w-full gap-1 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
               onClick={() => {
                 setOpen(false);
-                navigate('dashboard');
+                navigate('notifications');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             >
               Ver todas
+              <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           </div>
         </motion.div>
