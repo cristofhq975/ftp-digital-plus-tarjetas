@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { CommandPalette } from "@/components/command-palette";
 import { GlobalSearch } from "@/components/global-search";
 import { PlatformTour } from "@/components/platform-tour";
@@ -87,26 +88,28 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <SkipLink />
-          <ScreenReaderAnnouncer />
-          <OfflineIndicator />
-          {/* Contenido principal — enfocable vía SkipLink (tabIndex={-1}) */}
-          <div id="main-content" tabIndex={-1} className="outline-none">
-            {children}
-          </div>
-          <Toaster />
-          <SonnerToaster position="top-right" richColors />
-          <CommandPalette />
-          <GlobalSearch />
-          <PlatformTour />
-          <TourTrigger />
-          <InstallPrompt />
-          <RegisterSW />
-          <FeedbackBanner />
-          {/* FAB global — solo se muestra cuando hay sesión activa (Task 13-a) */}
-          <FabMenu />
-          {/* Overlay de atajos de teclado — disponible en toda la app (Task 14-a) */}
-          <KeyboardShortcutsOverlay />
+          <ErrorBoundary>
+            <SkipLink />
+            <ScreenReaderAnnouncer />
+            <OfflineIndicator />
+            {/* Contenido principal — enfocable vía SkipLink (tabIndex={-1}) */}
+            <div id="main-content" tabIndex={-1} className="outline-none">
+              {children}
+            </div>
+            <Toaster />
+            <SonnerToaster position="top-right" richColors />
+            <CommandPalette />
+            <GlobalSearch />
+            <PlatformTour />
+            <TourTrigger />
+            <InstallPrompt />
+            <RegisterSW />
+            <FeedbackBanner />
+            {/* FAB global — solo se muestra cuando hay sesión activa (Task 13-a) */}
+            <FabMenu />
+            {/* Overlay de atajos de teclado — disponible en toda la app (Task 14-a) */}
+            <KeyboardShortcutsOverlay />
+          </ErrorBoundary>
         </ThemeProvider>
       </body>
     </html>

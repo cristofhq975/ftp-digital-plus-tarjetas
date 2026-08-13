@@ -33,6 +33,7 @@ import {
   Twitter,
   Globe,
   Phone,
+  RefreshCw,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
@@ -397,6 +398,20 @@ function LoginForm() {
 /* ------------------------------------------------------------------ */
 
 function DemoAccounts() {
+  const handleClearData = () => {
+    try {
+      localStorage.removeItem('ftp-digital-plus-store');
+      localStorage.removeItem('ftp-digital-plus-store-v2');
+      localStorage.removeItem('ftp-onboarding-completed');
+      localStorage.removeItem('ftp-tour-completed');
+      localStorage.removeItem('ftp-card-shared');
+      localStorage.removeItem('ftp-feedback-dismissed');
+      window.location.reload();
+    } catch (e) {
+      console.error('Error limpiando datos:', e);
+    }
+  };
+
   return (
     <Card className="border-dashed border-emerald-300 bg-emerald-50/40">
       <CardContent className="flex flex-col gap-4">
@@ -418,6 +433,17 @@ function DemoAccounts() {
           {DEMO_ACCOUNTS.map(account => (
             <DemoAccountRow key={account.email} account={account} />
           ))}
+        </div>
+
+        <div className="border-t border-emerald-200 pt-3">
+          <button
+            onClick={handleClearData}
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            title="Limpiar datos locales y recargar"
+          >
+            <RefreshCw className="size-3.5" />
+            ¿Problemas para entrar? Limpiar datos y reiniciar
+          </button>
         </div>
       </CardContent>
     </Card>
